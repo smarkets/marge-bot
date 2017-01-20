@@ -36,14 +36,17 @@ class Api(object):
           500: InternalServerError,
         }
 
-        error = errors.get(r.status_code)
-        assert error, r.status_code
+        def other_error(code, msg):
+            exception = InternalServerError if 500 < code  < 600 else UnknownError
+            return exception(code, msg)
+
+        error = errors.get(r.status_code, other_error)
         try:
             err_message =  r.json()
         except json.JSONDecodeError:
             err_message = r.reason
 
-        raise error(err_message)
+        raise error(r.status_code, err_message)
 
     def collect_all_pages(self, get_command):
         result = []
@@ -108,10 +111,10 @@ class ApiError(Exception):
     @property
     def error_message(self):
         args = self.args
-        if len(args) == 0:
+        if len(args) != 2:
             return None
 
-        arg = args[0]
+        arg = args[1]
         if isinstance(arg, dict):
             return arg.get('message')
         else:
@@ -151,4 +154,7 @@ class Unprocessable(ApiError):
 
 
 class InternalServerError(ApiError):
+    pass
+
+class UnexpectedError(ApiError):
     pass
