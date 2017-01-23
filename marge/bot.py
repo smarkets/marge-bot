@@ -52,6 +52,8 @@ class Bot(object):
         self._ssh_key_file = ssh_key_file
         self.max_ci_waiting_time = timedelta(minutes=10)
 
+        self.embargo_intervals = []
+
         self._api = None
         self._user_id = None
         self._project_id = None
@@ -138,8 +140,8 @@ class Bot(object):
         return [mr for mr in merge_requests if is_merge_request_assigned_to_user(mr)]
 
     def during_merge_embargo(self, target_branch):
-        return False  # XXXXX fix
-
+        now = datetime.utcnow()
+        return any(interval.covers(now) for interval in self.embargo_intervals)
 
     def process_merge_request(self, merge_request_id, repo):
         log.info('Processing !%s', merge_request_id)

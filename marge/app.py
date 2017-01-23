@@ -7,6 +7,7 @@ import sys
 
 
 from . import bot
+from . import interval
 
 
 def _parse_args(args):
@@ -17,6 +18,7 @@ def _parse_args(args):
     arg('--gitlab-url', type=str, required=True, metavar='URL'),
     arg('--project', type=str, required=True, metavar='GROUP/PROJECT'),
     arg('--ssh-key-file', type=str, required=False, metavar='FILE'),
+    arg('--embargo', type=str, action='append', metavar='INTERVAL')
 
     return parser.parse_args(args)
 
@@ -30,4 +32,8 @@ def main(args=sys.argv[1:]):
         project_path=options.project,
         ssh_key_file=options.ssh_key_file,
     )
+
+    for embargo in options.embargo:
+        marge_bot.embargo_intervals.append(interval.WeeklyInterval.from_human(embargo))
+
     marge_bot.start()
