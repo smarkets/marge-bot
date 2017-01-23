@@ -44,7 +44,7 @@ def _get_id(json):
 
 class Bot(object):
 
-    def __init__(self, user_name, auth_token, gitlab_url, project_path, ssh_key_file=None):
+    def __init__(self, *, user_name, auth_token, gitlab_url, project_path, ssh_key_file=None):
         self._user_name = user_name
         self._auth_token = auth_token
         self._gitlab_url = gitlab_url
