@@ -144,9 +144,10 @@ class Bot(object):
         return any(interval.covers(now) for interval in self.embargo_intervals)
 
     def process_merge_request(self, merge_request_id, repo):
-        log.info('Processing !%s', merge_request_id)
+        log.info('Processing merge request %s', merge_request_id)
 
         merge_request = self.fetch_merge_request_info(merge_request_id)
+        log.info('!%s - %r', merge_request['iid'], merge_request['title'])
 
         if self._user_id != get_assignee_id(merge_request):
             log.info('It is not assigned to us anymore! -- SKIPPING')
@@ -182,7 +183,7 @@ class Bot(object):
                 self.accept_merge_request(merge_request['id'], repo, sha=actual_sha)
                 self.wait_for_branch_to_be_merged(merge_request_id)
 
-                log.info('Successfully merged !%s.', merge_request_id)
+                log.info('Successfully merged !%s.', merge_request['iid'])
             except git.GitError as e:
                 raise CannotMerge('got conflicts when rebasing or something like that')
         except CannotMerge as e:
@@ -277,7 +278,7 @@ class Bot(object):
                 raise CannotMerge('someone closed the merge request while merging!')
             assert state == 'opened', state
 
-            log.info('Giving %s more secs to the CI of !%s...', waiting_time_in_secs, merge_request_id)
+            log.info('Giving %s more secs to the CI of %s...', waiting_time_in_secs, merge_request_id)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long!')
