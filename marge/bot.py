@@ -283,10 +283,10 @@ class Bot(object):
                 raise CannotMerge('someone closed the merge request while merging!')
             assert state in ('opened', 'reopened'), state
 
-            log.info('Giving %s more secs to the CI of %s...', waiting_time_in_secs, merge_request_id)
+            log.info('Giving %s more secs for %s to be merged...', waiting_time_in_secs, merge_request_id)
             time.sleep(waiting_time_in_secs)
 
-        raise CannotMerge('CI is taking too long!')
+        raise CannotMerge('It is taking too long to see the request marked as merged!')
 
     @connect_if_needed
     def wait_for_ci_to_pass(self, commit_sha):
