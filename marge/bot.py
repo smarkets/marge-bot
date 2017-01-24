@@ -281,7 +281,7 @@ class Bot(object):
                 return  # success!
             if state == 'closed':
                 raise CannotMerge('someone closed the merge request while merging!')
-            assert state == 'opened', state
+            assert state in ('opened', 'reopened'), state
 
             log.info('Giving %s more secs to the CI of %s...', waiting_time_in_secs, merge_request_id)
             time.sleep(waiting_time_in_secs)
