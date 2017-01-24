@@ -11,6 +11,10 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
     def clone(self):
         self.git('clone', '--origin=origin', self.remote_url, self.local_path, from_repo=False)
 
+    def config_user_info(self, user_name, user_email):
+        self.git('config', 'user.email', user_email)
+        self.git('config', 'user.name', user_name)
+
     def rebase(self, branch, new_base):
         assert branch != new_base, branch
 
