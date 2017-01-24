@@ -62,6 +62,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
             return _run(*command, env=env, check=True, timeout=TIMEOUT_IN_SECS)
         except subprocess.CalledProcessError as e:
             log.warning('git returned %s', e.returncode)
+            log.warning('stdout: %r', e.stdout)
+            log.warning('stderr: %r', e.stderr)
             raise GitError(e)
 
 
