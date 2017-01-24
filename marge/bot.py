@@ -153,8 +153,13 @@ class Bot(object):
             log.info('It is not assigned to us anymore! -- SKIPPING')
             return
 
-        if merge_request['state'] != 'opened':
-            log.info('The merge request is already %s!', merge_request['state'])
+        state = merge_request['state']
+        if state not in ('opened', 'reopened'):
+            if state in ('merged', 'closed'):
+                log.info('The merge request is already %s!', state)
+            else:
+                log.info('The merge request is an unknown state: %r', state)
+                self.comment_on_merge_request('The merge request seems to be in a weird state: %r!', state)
             self.mark_merge_request_as_unassigned(merge_request_id)
             return
 
