@@ -100,7 +100,7 @@ class Bot(object):
                 with TemporaryDirectory() as local_repo_dir:
                     repo = git.Repo(repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
                     repo.clone()
-                    repo.config_user_info(user_email='%s@is.a.bot' % self.user_name, user_name=self.user_name)
+                    repo.config_user_info(user_email='%s@is.a.bot' % self._user_name, user_name=self._user_name)
 
                     self._run(repo)
             except git.GitError:
