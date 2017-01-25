@@ -176,22 +176,8 @@ class Bot(object):
                 log.info('Merge embargo! -- SKIPPING')
                 return
 
-            try:
-                # NB. this will be a no-op if there is nothing to rebase
-                actual_sha = self.push_rebased_version(merge_request, repo)
-                log.info('Commit id to merge %r', actual_sha)
-                time.sleep(5)
-
-                self.wait_for_ci_to_pass(actual_sha)
-                log.info('CI passed!')
-                time.sleep(2)
-
-                self.accept_merge_request(merge_request['id'], repo, sha=actual_sha)
-                self.wait_for_branch_to_be_merged(merge_request_id)
-
-                log.info('Successfully merged !%s.', merge_request['iid'])
-            except git.GitError as e:
-                raise CannotMerge('got conflicts when rebasing or something like that')
+            self.rebase_and_accept_merge_request(merge_request, repo)
+            log.info('Successfully merged !%s.', merge_request['iid'])
         except CannotMerge as e:
             message = "I couldn't merge this branch: %s" % e.reason
             log.warning(message)
@@ -210,6 +196,45 @@ class Bot(object):
                 "I'm broken on the inside, please somebody fix me... :cry:"
             )
             raise
+
+    def rebase_and_accept_merge_request(self, merge_request, repo):
+        if isinstance(merge_request, int):
+            merge_request = self.fetch_merge_request_info(merge_request_id=merge_request)
+        merge_request_id = merge_request['id']
+
+        previous_sha = merge_request['sha']
+        no_failure = object()
+        last_failure = no_failure
+        merged = False
+
+        while not merged:
+            # NB. this will be a no-op if there is nothing to rebase
+            actual_sha = self.push_rebased_version(merge_request, repo)
+            if last_failure != no_failure:
+                if actual_sha == previous_sha:
+                    raise CannotMerge('merge request was rejected by GitLab: %r', last_failure)
+
+            log.info('Commit id to merge %r', actual_sha)
+            time.sleep(5)
+
+            self.wait_for_ci_to_pass(actual_sha)
+            log.info('CI passed!')
+            time.sleep(2)
+
+            try:
+                self.accept_merge_request(merge_request_id, repo, sha=actual_sha)
+            except gitlab.NotAcceptable as e:
+                last_failure = e.error_message
+                previous_sha = actual_sha
+            else:
+                self.wait_for_branch_to_be_merged(merge_request_id)
+                merged = True
+
+        if last_failure != no_failure:
+            self.comment_on_merge_request(merge_request_id,
+                "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
+            )
+
 
     def push_rebased_version(self, merge_request, repo):
         source_branch = merge_request['source_branch']
@@ -264,7 +289,7 @@ class Bot(object):
             raise CannotMerge('My user cannot accept merge requests!')
         except gitlab.NotAcceptable as e:
             log.info('Not acceptable! -- %s', e.error_message)
-            raise CannotMerge('gitlab rejected the merge with %r', e.error_message)
+            raise
         except gitlab.ApiError as e:
             log.exception(e)
             raise CannotMerge('had some issue with gitlab, check my logs...')
