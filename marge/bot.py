@@ -9,7 +9,7 @@ from . import git
 from . import gitlab
 from . import merge_request
 
-
+MergeRequest = merge_request.MergeRequest
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
@@ -115,7 +115,7 @@ class Bot(object):
 
             log.info('Got %s requests to merge' % len(merge_requests))
             for merge_request in merge_requests:
-                merge_request = merge_request.MergeRequest(self._project_id, merge_request_id['id'], api)
+                merge_request = MergeRequest(self._project_id, merge_request_id['id'], api)
                 self.process_merge_request(merge_request, repo)
 
             time_to_sleep_in_secs = 60
