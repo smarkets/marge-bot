@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from . import git
 from . import gitlab
+from . import merge_request
 
 
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
@@ -22,9 +23,6 @@ def connect_if_needed(method):
 
     return wrapper
 
-
-def _gitlab_response_json(json):
-    return json
 
 
 def _from_singleton_list(f):
@@ -117,7 +115,8 @@ class Bot(object):
 
             log.info('Got %s requests to merge' % len(merge_requests))
             for merge_request in merge_requests:
-                self.process_merge_request(merge_request['id'], repo)
+                merge_request = merge_request.MergeRequest(self._project_id, merge_request_id['id'], api)
+                self.process_merge_request(merge_request, repo)
 
             time_to_sleep_in_secs = 60
             log.info('Sleeping for %s seconds...' % time_to_sleep_in_secs)
@@ -136,7 +135,6 @@ class Bot(object):
         merge_requests = api.collect_all_pages(GET(
             '/projects/%s/merge_requests' % project_id,
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
-            _gitlab_response_json,
         ))
         return [mr for mr in merge_requests if is_merge_request_assigned_to_user(mr)]
 
@@ -144,72 +142,61 @@ class Bot(object):
         now = datetime.utcnow()
         return any(interval.covers(now) for interval in self.embargo_intervals)
 
-    def process_merge_request(self, merge_request_id, repo):
-        log.info('Processing merge request %s', merge_request_id)
+    def process_merge_request(self, merge_request, repo):
+        log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
-        merge_request = self.fetch_merge_request_info(merge_request_id)
-        log.info('!%s - %r', merge_request['iid'], merge_request['title'])
-
-        if self._user_id != get_assignee_id(merge_request):
+        if self._user_id != merge_request.assignee_id:
             log.info('It is not assigned to us anymore! -- SKIPPING')
             return
 
-        state = merge_request['state']
+        state = merge_request.state
         if state not in ('opened', 'reopened'):
             if state in ('merged', 'closed'):
                 log.info('The merge request is already %s!', state)
             else:
                 log.info('The merge request is an unknown state: %r', state)
-                self.comment_on_merge_request('The merge request seems to be in a weird state: %r!', state)
-            self.mark_merge_request_as_unassigned(merge_request_id)
+                merge_request.comment('The merge request seems to be in a weird state: %r!', state)
+            merge_request.unassign()
             return
 
         try:
-            project_id = merge_request['project_id']
-            source_project_id = merge_request['source_project_id']
-            target_project_id = merge_request['target_project_id']
+            project_id = merge_request.project_id
+            source_project_id = merge_request.source_project_id
+            target_project_id = merge_request.target_project_id
 
             if not (project_id == source_project_id == target_project_id):
                 raise CannotMerge("I don't yet know how to handle merge requests from different projects")
 
-            if self.during_merge_embargo(merge_request['target_branch']):
+            if self.during_merge_embargo(merge_request.target_branch):
                 log.info('Merge embargo! -- SKIPPING')
                 return
 
             self.rebase_and_accept_merge_request(merge_request, repo)
-            log.info('Successfully merged !%s.', merge_request['iid'])
+            log.info('Successfully merged !%s.', merge_request.info['iid'])
         except CannotMerge as e:
             message = "I couldn't merge this branch: %s" % e.reason
             log.warning(message)
-            self.mark_merge_request_as_unassigned(merge_request_id)
-            self.comment_on_merge_request(merge_request_id, message)
-            self.log_merge_request_status(merge_request_id, 'Merge request info after failing:')
+            merge_request.unassign()
+            merge_request.comment(message)
         except git.GitError as e:
             log.exception(e)
-            self.comment_on_merge_request(merge_request_id,
-                'Something seems broken on my local git repo; check my logs!'
-            )
+            merge_request.comment('Something seems broken on my local git repo; check my logs!')
             raise
         except Exception as e:
             log.exception(e)
-            self.comment_on_merge_request(merge_request_id,
-                "I'm broken on the inside, please somebody fix me... :cry:"
-            )
+            merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
             raise
 
     def rebase_and_accept_merge_request(self, merge_request, repo):
-        if isinstance(merge_request, int):
-            merge_request = self.fetch_merge_request_info(merge_request_id=merge_request)
-        merge_request_id = merge_request['id']
-
-        previous_sha = merge_request['sha']
+        mr = merge_request
+        previous_sha = mr.sha
         no_failure = object()
         last_failure = no_failure
         merged = False
 
         while not merged:
             # NB. this will be a no-op if there is nothing to rebase
-            actual_sha = self.push_rebased_version(merge_request, repo)
+            actual_sha = self.push_rebased_version(repo, mr.source_branch, mr.target_branch)
             if last_failure != no_failure:
                 if actual_sha == previous_sha:
                     raise CannotMerge('merge request was rejected by GitLab: %r', last_failure)
@@ -222,24 +209,26 @@ class Bot(object):
             time.sleep(2)
 
             try:
-                self.accept_merge_request(merge_request_id, repo, sha=actual_sha)
+                mr.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as e:
+                log.info('Not acceptable! -- %s', e.error_message)
                 last_failure = e.error_message
                 previous_sha = actual_sha
+            except gitlab.Unauthorized:
+                log.warning('Unauthorized!')
+                raise CannotMerge('My user cannot accept merge requests!')
+            except gitlab.ApiError as e:
+                log.exception(e)
+                raise CannotMerge('had some issue with gitlab, check my logs...')
             else:
-                self.wait_for_branch_to_be_merged(merge_request_id)
+                self.wait_for_branch_to_be_merged(mr)
                 merged = True
 
         if last_failure != no_failure:
-            self.comment_on_merge_request(merge_request_id,
-                "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
-            )
+            mr.comment("My job would be easier if people didn't jump the queue and pushed directly... *sigh*")
 
 
-    def push_rebased_version(self, merge_request, repo):
-        source_branch = merge_request['source_branch']
-        target_branch = merge_request['target_branch']
-
+    def push_rebased_version(self, repo, source_branch, target_branch):
         if source_branch == target_branch:
             raise CannotMerge('source and target branch seem to coincide!')
 
@@ -270,46 +259,20 @@ class Bot(object):
             repo.remove_branch(source_branch)
 
     @connect_if_needed
-    def accept_merge_request(self, merge_request_id, repo, sha=None):
-        api = self._api
-        project_id = self._project_id
-
-        try:
-            result = api.call(PUT(
-                '/projects/%s/merge_requests/%s/merge' % (project_id, merge_request_id),
-                 dict(
-                    should_remove_source_branch=True,
-                    merge_when_build_succeeds=True,
-                    sha=sha,  # if provided, ensures what is merged is what we want (or fails)
-                ),
-                 _gitlab_response_json,
-            ))
-        except gitlab.Unauthorized:
-            log.warning('Unauthorized!')
-            raise CannotMerge('My user cannot accept merge requests!')
-        except gitlab.NotAcceptable as e:
-            log.info('Not acceptable! -- %s', e.error_message)
-            raise
-        except gitlab.ApiError as e:
-            log.exception(e)
-            raise CannotMerge('had some issue with gitlab, check my logs...')
-
-    @connect_if_needed
-    def wait_for_branch_to_be_merged(self, merge_request_id):
+    def wait_for_branch_to_be_merged(self, merge_request):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
         while datetime.utcnow() - time_0 < self.max_ci_waiting_time:
-            merge_request = self.fetch_merge_request_info(merge_request_id)
+            merge_request.refetch_info()
 
-            state = merge_request['state']
-            if state == 'merged':
+            if merge_request.state == 'merged':
                 return  # success!
-            if state == 'closed':
+            if merge_request.state == 'closed':
                 raise CannotMerge('someone closed the merge request while merging!')
-            assert state in ('opened', 'reopened'), state
+            assert merge_request.state in ('opened', 'reopened'), merge_request.state
 
-            log.info('Giving %s more secs for %s to be merged...', waiting_time_in_secs, merge_request_id)
+            log.info('Giving %s more secs for !%s to be merged...', waiting_time_in_secs, merge_request.iid)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('It is taking too long to see the request marked as merged!')
@@ -331,33 +294,12 @@ class Bot(object):
                 raise CannotMerge('Someone canceled the CI')
 
             if ci_status not in ('pending', 'running'):
-                log.warning('Susicious build status: %r', ci_status)
+                log.warning('Suspicious build status: %r', ci_status)
 
             log.info('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long')
-
-
-    @connect_if_needed
-    def mark_merge_request_as_unassigned(self, merge_request_id):
-        api = self._api
-        project_id = self._project_id
-        return api.call(PUT(
-            '/projects/%s/merge_requests/%s' % (project_id, merge_request_id),
-            {'assignee_id': None},
-            _gitlab_response_json,
-        ))
-
-    @connect_if_needed
-    def comment_on_merge_request(self, merge_request_id, message):
-        api = self._api
-        project_id = self._project_id
-        return api.call(POST(
-            '/projects/%s/merge_requests/%s/notes' % (project_id, merge_request_id),
-            {'body': message},
-            _gitlab_response_json,
-        ))
 
     @connect_if_needed
     def get_my_user_id(self):
@@ -378,30 +320,15 @@ class Bot(object):
             return [p for p in projects if p['path_with_namespace'] == project_path]
 
         return api.call(GET(
-            '/projects', {},
-            lambda projects: _from_singleton_list(_get_id)(filter_by_path_with_namespace(projects))
+            '/projects',
+            extract=lambda projects: _from_singleton_list(_get_id)(filter_by_path_with_namespace(projects))
         ))
 
     @connect_if_needed
     def fetch_project_info(self):
         api = self._api
         project_id = self._project_id
-
-        return api.call(GET(
-            '/projects/%s' % project_id, {},
-            _gitlab_response_json,
-        ))
-
-    @connect_if_needed
-    def fetch_merge_request_info(self, merge_request_id, extract=_gitlab_response_json):
-        api = self._api
-        project_id = self._project_id
-
-        return api.call(GET(
-            '/projects/%s/merge_requests/%s' % (project_id, merge_request_id),
-            {},
-            extract,
-        ))
+        return api.call(GET('/projects/%s' % project_id))
 
     @connect_if_needed
     def fetch_commit_build_status(self, commit_sha):
@@ -410,17 +337,8 @@ class Bot(object):
 
         return api.call(GET(
             '/projects/%s/repository/commits/%s' % (project_id, commit_sha),
-            {},
-            lambda commit: commit['status'],
+            extract=lambda commit: commit['status'],
         ))
-
-    @connect_if_needed
-    def log_merge_request_status(self, merge_request_id, header=None):
-        if header:
-            log.info(header)
-
-        current_status = self.fetch_merge_request_info(merge_request_id)
-        log.info(pprint(current_status))
 
 
 class CannotMerge(Exception):
@@ -431,8 +349,3 @@ class CannotMerge(Exception):
             return 'Unknown reason!'
 
         return args[0]
-
-
-def get_assignee_id(merge_request):
-    assignee = merge_request['assignee'] or {}
-    return assignee.get('id')

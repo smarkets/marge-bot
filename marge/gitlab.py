@@ -16,7 +16,7 @@ class Api(object):
         r = method(url, headers=headers, **command.call_args)
 
         if r.status_code == 200:
-            return command.extract(r.json())
+            return command.extract(r.json()) if command.extract else r.json()
 
         if r.status_code == 201:
             return True  # Created
@@ -62,38 +62,38 @@ class Api(object):
         return result
 
 
-class GET(namedtuple('GET', 'endpoint params extract')):
+class Command(namedtuple('Command', 'endpoint args extract')):
+    def __new__(cls, endpoint, args=None, extract=None):
+        return super(Command, cls).__new__(cls, endpoint, args or {}, extract)
+
+    @property
+    def call_args(self):
+        return {'json': self.args}
+
+
+class GET(Command):
     @property
     def method(self):
         return requests.get
 
     @property
     def call_args(self):
-        return {'params': _prepare_params(self.params)}
+        return {'params': _prepare_params(self.args)}
 
     def for_page(self, page_no):
-        params = self.params or {}
-        return self._replace(params=dict(params, page=page_no, per_page=100))
+        args = self.args
+        return self._replace(args=dict(args, page=page_no, per_page=100))
 
 
-class PUT(namedtuple('PUT', 'endpoint body extract')):
+class PUT(Command):
     @property
     def method(self):
         return requests.put
 
-    @property
-    def call_args(self):
-        return {'json': self.body}
-
-
-class POST(namedtuple('POST', 'endpoint body extract')):
+class POST(Command):
     @property
     def method(self):
         return requests.post
-
-    @property
-    def call_args(self):
-        return {'json': self.body}
 
 
 def _prepare_params(params):
