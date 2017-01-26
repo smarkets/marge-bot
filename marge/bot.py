@@ -111,11 +111,11 @@ class Bot(object):
     def _run(self, repo):
         while True:
             log.info('Fetching merge requests assigned to me...')
-            merge_requests = self.fetch_assigned_merge_requests()
+            merge_request_ids = self.fetch_assigned_merge_requests()
 
-            log.info('Got %s requests to merge' % len(merge_requests))
-            for merge_request in merge_requests:
-                merge_request = MergeRequest(self._project_id, merge_request_id['id'], api)
+            log.info('Got %s requests to merge' % len(merge_request_ids))
+            for merge_request_id in merge_request_ids:
+                merge_request = MergeRequest(self._project_id, merge_request_id, self._api)
                 self.process_merge_request(merge_request, repo)
 
             time_to_sleep_in_secs = 60
@@ -136,7 +136,7 @@ class Bot(object):
             '/projects/%s/merge_requests' % project_id,
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
         ))
-        return [mr for mr in merge_requests if is_merge_request_assigned_to_user(mr)]
+        return [mr['id'] for mr in merge_requests if is_merge_request_assigned_to_user(mr)]
 
     def during_merge_embargo(self, target_branch):
         now = datetime.utcnow()
