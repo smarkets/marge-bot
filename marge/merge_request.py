@@ -5,12 +5,28 @@ GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
 class MergeRequest(object):
-    def __init__(self, project_id, merge_request_id, api):
+    def __init__(self, project_id, merge_request_id, api, info=None):
         self._project_id = project_id
         self._id = merge_request_id
         self._api = api
-        self._info = None
-        self.refetch_info()
+        self._info = info
+        if not self._info:
+            self.refetch_info()
+
+        assert project_id == self.info['project_id']
+        assert merge_request_id == self.info['id']
+
+    @classmethod
+    def fetch_all_opened(cls, project_id, api):
+        merge_requests = api.collect_all_pages(GET(
+            '/projects/%s/merge_requests' % project_id,
+            {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
+        ))
+
+        def from_info(info):
+            return cls(project_id, info['id'], api, info)
+
+        return [from_info(merge_request) for merge_request in merge_requests]
 
     @property
     def id(self):

@@ -108,35 +108,21 @@ class Bot(object):
                 log.warning('Sleeping for %s seconds before restarting', sleep_time_in_secs)
                 time.sleep(sleep_time_in_secs)
 
+    @connect_if_needed
     def _run(self, repo):
         while True:
             log.info('Fetching merge requests assigned to me...')
-            merge_request_ids = self.fetch_assigned_merge_requests()
+            all_merge_requests = MergeRequest.fetch_all_opened(self._project_id, self._api)
+            my_merge_requests = [mr for mr in all_merge_requests if mr.assignee == self._user_id]
 
-            log.info('Got %s requests to merge' % len(merge_request_ids))
-            for merge_request_id in merge_request_ids:
-                merge_request = MergeRequest(self._project_id, merge_request_id, self._api)
+            log.info('Got %s requests to merge', len(my_merge_requests))
+            for merge_request in my_merge_requests:
+                merge_request.refetch_info()
                 self.process_merge_request(merge_request, repo)
 
             time_to_sleep_in_secs = 60
             log.info('Sleeping for %s seconds...' % time_to_sleep_in_secs)
             time.sleep(time_to_sleep_in_secs)
-
-    @connect_if_needed
-    def fetch_assigned_merge_requests(self):
-        api = self._api
-        project_id = self._project_id
-        user_id = self._user_id
-
-        def is_merge_request_assigned_to_user(merge_request):
-            assignee = merge_request.get('assignee') or {}  # NB. it can be None, so .get('assignee', {}) won't work
-            return assignee.get('id') == user_id
-
-        merge_requests = api.collect_all_pages(GET(
-            '/projects/%s/merge_requests' % project_id,
-            {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
-        ))
-        return [mr['id'] for mr in merge_requests if is_merge_request_assigned_to_user(mr)]
 
     def during_merge_embargo(self, target_branch):
         now = datetime.utcnow()

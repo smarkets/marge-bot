@@ -8,8 +8,10 @@ from marge.merge_request import MergeRequest
 
 def _merge_request_info(**override_fields):
     base_merge_request = {
+        'id':  53,
         'iid': 54,
         'title': 'a title',
+        'project_id': 1234,
         'assignee': {'id': 77},
         'state': 'opened',
         'sha': 'dead4g00d',
@@ -36,12 +38,8 @@ class TestRebaseAndAcceptMergeRequest(object):
 
     def _merge_request(self):
         api = self.api
-        old_call = api.call
         info = _merge_request_info()
-        api.call = Mock(return_value = info)
-        merge_request = MergeRequest(project_id=info['target_project_id'], merge_request_id=53, api=api)
-        api.call = old_call
-        return merge_request
+        return MergeRequest(project_id=info['project_id'], merge_request_id=info['id'], api=api, info=info)
 
     @patch('time.sleep')
     def test_succeeds_first_time(self, time_sleep):

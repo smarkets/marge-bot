@@ -3,42 +3,43 @@ from unittest.mock import Mock
 from marge.gitlab import Api, GET, POST, PUT
 from marge.merge_request import MergeRequest
 
+_INFO = {
+    'id': 42,
+    'iid': 54,
+    'title': 'a title',
+    'project_id': 1234,
+    'assignee': {'id': 77},
+    'state': 'opened',
+    'sha': 'dead4g00d',
+    'source_project_id': 5678,
+    'target_project_id': 1234,
+    'source_branch': 'useless_new_feature',
+    'target_branch': 'master',
+}
+
 
 class TestMergeRequest(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
-        self.mr = MergeRequest(project_id=1234, merge_request_id=42, api=self.api)
-        self.api.call.reset_mock()
+        self.mr = MergeRequest(project_id=1234, merge_request_id=42, api=self.api, info=_INFO)
 
     def test_init_fetches_info(self):
-        fresh = object()
-        self.api.call = Mock(return_value=fresh)
+        self.api.call = Mock(return_value=_INFO)
 
         merge_request = MergeRequest(project_id=1234, merge_request_id=42, api=self.api)
         self.api.call.assert_called_once_with(GET('/projects/1234/merge_requests/42'))
-        assert merge_request.info == fresh
+        assert merge_request.info == _INFO
 
     def test_refetch_info(self):
-        fresh = object()
-        self.api.call = Mock(return_value=fresh)
+        new_info = dict(_INFO, state='closed')
+        self.api.call = Mock(return_value=new_info)
 
         self.mr.refetch_info()
         self.api.call.assert_called_once_with(GET('/projects/1234/merge_requests/42'))
-        assert self.mr.info == fresh
+        assert self.mr.info == new_info
 
     def test_properties(self):
         mr = self.mr
-        self._load({
-          'iid': 54,
-          'title': 'a title',
-          'assignee': {'id': 77},
-          'state': 'opened',
-          'sha': 'dead4g00d',
-          'source_project_id': 5678,
-          'target_project_id': 1234,
-          'source_branch': 'useless_new_feature',
-          'target_branch': 'master',
-        })
 
         assert mr.id == 42
         assert mr.project_id == 1234
@@ -91,6 +92,19 @@ class TestMergeRequest(object):
                 sha='g00dc0de',
             )
         ))
+
+    def test_fetch_all_opened(self):
+        mr1, mr2 = _INFO, dict(_INFO, id=678)
+
+        api = self.api
+        api.collect_all_pages = Mock(return_value = [mr1, mr2])
+
+        result = MergeRequest.fetch_all_opened(1234, api)
+        api.collect_all_pages.assert_called_once_with(GET(
+            '/projects/1234/merge_requests',
+            {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
+        ))
+        assert [mr.info for mr in result] == [mr1, mr2]
 
     def _load(self, json):
         old_mock = self.api.call
