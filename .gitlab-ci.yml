@@ -1,0 +1,9 @@
+before_script:
+  - printf "FROM python:3.5-onbuild\nRUN pip install -e .\n" > Dockerfile
+  - docker build -t marge-test-runner .
+  - echo 'docker run --rm marge-test-runner "$@"' > docker_run
+  - chmod +x docker_run
+
+UnitTests:
+  script:
+    - ./docker_run pytest --cov=marge
