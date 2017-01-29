@@ -1,3 +1,6 @@
+[![build status](http://git.hanson.smarkets.com/hanson/marge/badges/master/build.svg)](http://git.hanson.smarkets.com/hanson/marge/commits/master)
+[![coverage report](http://git.hanson.smarkets.com/hanson/marge/badges/master/coverage.svg)](http://git.hanson.smarkets.com/hanson/marge/commits/master)
+
 # Marge
 
 Marge is a simple auto-merging robot for GitLab: it will regularly poll its
