@@ -1,4 +1,3 @@
-import datetime
 import operator
 from enum import Enum, unique
 
@@ -16,9 +15,9 @@ class WeekDay(Enum):
     Sunday = 6
 
 
-_day_names = { day.name.lower(): day for day in WeekDay }
-_day_names.update((day.name.lower()[:3], day) for day in WeekDay)
-_day_names.update((day, day) for day in WeekDay)
+_DAY_NAMES = {day.name.lower(): day for day in WeekDay}
+_DAY_NAMES.update((day.name.lower()[:3], day) for day in WeekDay)
+_DAY_NAMES.update((day, day) for day in WeekDay)
 
 
 def find_weekday(string_or_day):
@@ -26,12 +25,10 @@ def find_weekday(string_or_day):
         return string_or_day
 
     if isinstance(string_or_day, str):
-        return _day_names[string_or_day.lower()]
+        return _DAY_NAMES[string_or_day.lower()]
 
     raise ValueError('Not a week day: %r' % string_or_day)
 
-
-time = datetime.time
 
 class WeeklyInterval(object):
     def __init__(self, from_weekday, from_time, to_weekday, to_time):
@@ -64,7 +61,7 @@ class WeeklyInterval(object):
 
     @classmethod
     def from_human(cls, string):
-        from_,to_ = string.split('-')
+        from_, to_ = string.split('-')
 
         def parse_part(part):
             part = part.replace('@', ' ')
@@ -89,7 +86,7 @@ class WeeklyInterval(object):
         time = date.time()
         before = operator.le if self._is_complement_interval else operator.lt
 
-        if not (self._from_weekday.value <= weekday <= self._to_weekday.value):
+        if not self._from_weekday.value <= weekday <= self._to_weekday.value:
             return False
 
         if self._from_weekday.value == weekday and before(time, self._from_time):
@@ -99,4 +96,3 @@ class WeeklyInterval(object):
             return False
 
         return True
-

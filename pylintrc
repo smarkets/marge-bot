@@ -1,0 +1,11 @@
+[MESSAGE CONTROL]
+disable=missing-docstring
+
+[BASIC]
+good-names=i,j,k,_,id
+
+[FORMAT]
+max-line-length=110
+
+[DESIGN]
+max-attributes=15

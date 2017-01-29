@@ -90,7 +90,7 @@ class MergeRequest(object):
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
             '/projects/%s/merge_requests/%s/merge' % (self.project_id, self.id),
-             dict(
+            dict(
                 should_remove_source_branch=remove_branch,
                 merge_when_build_succeeds=True,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)

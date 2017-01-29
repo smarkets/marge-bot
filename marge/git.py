@@ -2,8 +2,9 @@ import logging as log
 import shlex
 import os
 import subprocess
+from subprocess import PIPE, TimeoutExpired
+
 from collections import namedtuple
-from subprocess import PIPE
 
 TIMEOUT_IN_SECS = 60
 
@@ -26,7 +27,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         try:
             self.git('rebase', 'origin/%s' % new_base)
             success = True
-        except GitError as e:
+        except GitError:
             self.git('rebase', '--abort')
 
         return success
@@ -64,11 +65,11 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         log.info('Running %s', ' '.join(shlex.quote(w) for w in command))
         try:
             return _run(*command, env=env, check=True, timeout=TIMEOUT_IN_SECS)
-        except subprocess.CalledProcessError as e:
-            log.warning('git returned %s', e.returncode)
-            log.warning('stdout: %r', e.stdout)
-            log.warning('stderr: %r', e.stderr)
-            raise GitError(e)
+        except subprocess.CalledProcessError as err:
+            log.warning('git returned %s', err.returncode)
+            log.warning('stdout: %r', err.stdout)
+            log.warning('stderr: %r', err.stderr)
+            raise GitError(err)
 
 
 def _run(*args, env=None, check=False, timeout=None):

@@ -2,14 +2,13 @@ import logging as log
 import time
 from datetime import datetime, timedelta
 from functools import wraps
-from pprint import pprint
 from tempfile import TemporaryDirectory
 
 from . import git
 from . import gitlab
-from . import merge_request
+from . import merge_request as merge_request_module
 
-MergeRequest = merge_request.MergeRequest
+MergeRequest = merge_request_module.MergeRequest
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
@@ -25,13 +24,13 @@ def connect_if_needed(method):
 
 
 
-def _from_singleton_list(f):
+def _from_singleton_list(fun):
     def extractor(response_list):
         assert isinstance(response_list, list), type(response_list)
         assert len(response_list) <= 1, len(response_list)
         if len(response_list) == 0:
             return None
-        return f(response_list[0])
+        return fun(response_list[0])
 
     return extractor
 
@@ -41,7 +40,6 @@ def _get_id(json):
 
 
 class Bot(object):
-
     def __init__(self, *, user_name, auth_token, gitlab_url, project_path, ssh_key_file=None):
         self._user_name = user_name
         self._auth_token = auth_token
@@ -77,7 +75,7 @@ class Bot(object):
         self._repo_url = project['ssh_url_to_repo']
 
         log.info('Validating project config...')
-        assert self._repo_url, self.repo_url
+        assert self._repo_url, self._repo_url
         if not (project['merge_requests_enabled'] and project['only_allow_merge_if_build_succeeds']):
             self._api = None
             assert False, "Project is not configured correctly: %s " % {
@@ -88,17 +86,15 @@ class Bot(object):
 
     @connect_if_needed
     def start(self):
-        api = self._api
-        user_id = self._user_id
-        project_id = self._project_id
-        repo_url = self._repo_url
-
         while True:
             try:
                 with TemporaryDirectory() as local_repo_dir:
-                    repo = git.Repo(repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
+                    repo = git.Repo(self._repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
                     repo.clone()
-                    repo.config_user_info(user_email='%s@is.a.bot' % self._user_name, user_name=self._user_name)
+                    repo.config_user_info(
+                        user_email='%s@is.a.bot' % self._user_name,
+                        user_name=self._user_name,
+                    )
 
                     self._run(repo)
             except git.GitError:
@@ -121,10 +117,10 @@ class Bot(object):
                 self.process_merge_request(merge_request, repo)
 
             time_to_sleep_in_secs = 60
-            log.info('Sleeping for %s seconds...' % time_to_sleep_in_secs)
+            log.info('Sleeping for %s seconds...', time_to_sleep_in_secs)
             time.sleep(time_to_sleep_in_secs)
 
-    def during_merge_embargo(self, target_branch):
+    def during_merge_embargo(self):
         now = datetime.utcnow()
         return any(interval.covers(now) for interval in self.embargo_intervals)
 
@@ -150,39 +146,40 @@ class Bot(object):
             source_project_id = merge_request.source_project_id
             target_project_id = merge_request.target_project_id
 
-            if not (project_id == source_project_id == target_project_id):
+            if not project_id == source_project_id == target_project_id:
                 raise CannotMerge("I don't yet know how to handle merge requests from different projects")
 
-            if self.during_merge_embargo(merge_request.target_branch):
+            if self.during_merge_embargo():
                 log.info('Merge embargo! -- SKIPPING')
                 return
 
             self.rebase_and_accept_merge_request(merge_request, repo)
             log.info('Successfully merged !%s.', merge_request.info['iid'])
-        except CannotMerge as e:
-            message = "I couldn't merge this branch: %s" % e.reason
+        except CannotMerge as err:
+            message = "I couldn't merge this branch: %s" % err.reason
             log.warning(message)
             merge_request.unassign()
             merge_request.comment(message)
-        except git.GitError as e:
-            log.exception(e)
+        except git.GitError as err:
+            log.exception(err)
             merge_request.comment('Something seems broken on my local git repo; check my logs!')
             raise
-        except Exception as e:
-            log.exception(e)
+        except Exception as err:
+            log.exception(err)
             merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
             raise
 
     def rebase_and_accept_merge_request(self, merge_request, repo):
-        mr = merge_request
-        previous_sha = mr.sha
+        previous_sha = merge_request.sha
         no_failure = object()
         last_failure = no_failure
         merged = False
 
         while not merged:
             # NB. this will be a no-op if there is nothing to rebase
-            actual_sha = self.push_rebased_version(repo, mr.source_branch, mr.target_branch)
+            actual_sha = push_rebased_version(
+                repo, merge_request.source_branch, merge_request.target_branch
+            )
             if last_failure != no_failure:
                 if actual_sha == previous_sha:
                     raise CannotMerge('merge request was rejected by GitLab: %r', last_failure)
@@ -195,54 +192,26 @@ class Bot(object):
             time.sleep(2)
 
             try:
-                mr.accept(remove_branch=True, sha=actual_sha)
-            except gitlab.NotAcceptable as e:
-                log.info('Not acceptable! -- %s', e.error_message)
-                last_failure = e.error_message
+                merge_request.accept(remove_branch=True, sha=actual_sha)
+            except gitlab.NotAcceptable as err:
+                log.info('Not acceptable! -- %s', err.error_message)
+                last_failure = err.error_message
                 previous_sha = actual_sha
             except gitlab.Unauthorized:
                 log.warning('Unauthorized!')
                 raise CannotMerge('My user cannot accept merge requests!')
-            except gitlab.ApiError as e:
-                log.exception(e)
+            except gitlab.ApiError as err:
+                log.exception(err)
                 raise CannotMerge('had some issue with gitlab, check my logs...')
             else:
-                self.wait_for_branch_to_be_merged(mr)
+                self.wait_for_branch_to_be_merged(merge_request)
                 merged = True
 
         if last_failure != no_failure:
-            mr.comment("My job would be easier if people didn't jump the queue and pushed directly... *sigh*")
+            merge_request.comment(
+                "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
+            )
 
-
-    def push_rebased_version(self, repo, source_branch, target_branch):
-        if source_branch == target_branch:
-            raise CannotMerge('source and target branch seem to coincide!')
-
-        branch_rebased, changes_pushed = False, False
-        sha = None
-        try:
-            repo.rebase(branch=source_branch, new_base=target_branch)
-            branch_rebased = True
-
-            sha = repo.get_head_commit_hash()
-
-            repo.push_force(source_branch)
-            changes_pushed = True
-        except git.GitError as e:
-            if not branch_rebased:
-                raise CannotMerge('got conflicts while rebasing, your problem now...')
-
-            if not changes_pushed :
-                raise CannotMerge('failed to push rebased changes, check my logs!')
-
-            raise
-        else:
-            return sha
-        finally:
-            # A failure to clean up probably means something is fucked with the git repo
-            # and likely explains any previous failure, so it will better to just
-            # raise a GitError
-            repo.remove_branch(source_branch)
 
     @connect_if_needed
     def wait_for_branch_to_be_merged(self, merge_request):
@@ -318,7 +287,7 @@ class Bot(object):
 
     @connect_if_needed
     def fetch_commit_build_status(self, commit_sha):
-        api= self._api
+        api = self._api
         project_id = self._project_id
 
         return api.call(GET(
@@ -335,3 +304,34 @@ class CannotMerge(Exception):
             return 'Unknown reason!'
 
         return args[0]
+
+
+def push_rebased_version(repo, source_branch, target_branch):
+    if source_branch == target_branch:
+        raise CannotMerge('source and target branch seem to coincide!')
+
+    branch_rebased, changes_pushed = False, False
+    sha = None
+    try:
+        repo.rebase(branch=source_branch, new_base=target_branch)
+        branch_rebased = True
+
+        sha = repo.get_head_commit_hash()
+
+        repo.push_force(source_branch)
+        changes_pushed = True
+    except git.GitError:
+        if not branch_rebased:
+            raise CannotMerge('got conflicts while rebasing, your problem now...')
+
+        if not changes_pushed:
+            raise CannotMerge('failed to push rebased changes, check my logs!')
+
+        raise
+    else:
+        return sha
+    finally:
+        # A failure to clean up probably means something is fucked with the git repo
+        # and likely explains any previous failure, so it will better to just
+        # raise a GitError
+        repo.remove_branch(source_branch)

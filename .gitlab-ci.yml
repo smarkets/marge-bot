@@ -7,3 +7,7 @@ before_script:
 UnitTests:
   script:
     - ./docker_run pytest --cov=marge
+
+PyLint:
+  script:
+    - ./docker_run pylint marge

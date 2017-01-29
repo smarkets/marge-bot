@@ -4,3 +4,4 @@ requests
 # testing
 pytest
 pytest-cov
+pylint

@@ -1,5 +1,7 @@
+from datetime import time
+
 import maya
-from marge.interval import WeeklyInterval, time
+from marge.interval import WeeklyInterval
 
 def date(spec):
     return maya.parse(spec).datetime()

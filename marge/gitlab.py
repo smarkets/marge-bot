@@ -1,7 +1,7 @@
 import json
-import requests
-
 from collections import namedtuple
+
+import requests
 
 
 class Api(object):
@@ -13,40 +13,40 @@ class Api(object):
         method = command.method
         url = self._api_base_url + command.endpoint
         headers = {'PRIVATE-TOKEN': self._auth_token}
-        r = method(url, headers=headers, **command.call_args)
+        response = method(url, headers=headers, **command.call_args)
 
-        if r.status_code == 200:
-            return command.extract(r.json()) if command.extract else r.json()
+        if response.status_code == 200:
+            return command.extract(response.json()) if command.extract else response.json()
 
-        if r.status_code == 201:
+        if response.status_code == 201:
             return True  # Created
 
-        if r.status_code == 304:
+        if response.status_code == 304:
             return False  # Not Modified
 
         errors = {
-          400: BadRequest,
-          401: Unauthorized,
-          403: Forbidden,
-          404: NotFound,
-          405: MethodNotAllowed,
-          406: NotAcceptable,
-          409: Conflict,
-          422: Unprocessable,
-          500: InternalServerError,
+            400: BadRequest,
+            401: Unauthorized,
+            403: Forbidden,
+            404: NotFound,
+            405: MethodNotAllowed,
+            406: NotAcceptable,
+            409: Conflict,
+            422: Unprocessable,
+            500: InternalServerError,
         }
 
         def other_error(code, msg):
-            exception = InternalServerError if 500 < code  < 600 else UnknownError
+            exception = InternalServerError if 500 < code < 600 else UnexpectedError
             return exception(code, msg)
 
-        error = errors.get(r.status_code, other_error)
+        error = errors.get(response.status_code, other_error)
         try:
-            err_message =  r.json()
+            err_message = response.json()
         except json.JSONDecodeError:
-            err_message = r.reason
+            err_message = response.reason
 
-        raise error(r.status_code, err_message)
+        raise error(response.status_code, err_message)
 
     def collect_all_pages(self, get_command):
         result = []
