@@ -21,13 +21,15 @@ _INFO = {
 class TestMergeRequest(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
-        self.mr = MergeRequest(project_id=1234, merge_request_id=42, api=self.api, info=_INFO)
+        self.mr = MergeRequest(api=self.api, info=_INFO)
 
-    def test_init_fetches_info(self):
-        self.api.call = Mock(return_value=_INFO)
+    def test_fetch_by_id(self):
+        api = self.api
+        api.call = Mock(return_value=_INFO)
 
-        merge_request = MergeRequest(project_id=1234, merge_request_id=42, api=self.api)
-        self.api.call.assert_called_once_with(GET('/projects/1234/merge_requests/42'))
+        merge_request = MergeRequest.fetch_by_id(project_id=1234, merge_request_id=42, api=api)
+
+        api.call.assert_called_once_with(GET('/projects/1234/merge_requests/42'))
         assert merge_request.info == _INFO
 
     def test_refetch_info(self):
@@ -69,7 +71,7 @@ class TestMergeRequest(object):
         self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/42', {'assignee_id': None}))
 
     def test_accept(self):
-        self._load({'sha': 'badc0de'})
+        self._load(dict(_INFO, sha='badc0de'))
 
         for b in (True, False):
             self.mr.accept(remove_branch=b)

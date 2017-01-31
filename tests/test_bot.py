@@ -35,15 +35,10 @@ class TestRebaseAndAcceptMergeRequest(object):
         self.api = bot._api
         self.bot = bot
 
-    def _merge_request(self):
-        api = self.api
-        info = _merge_request_info()
-        return MergeRequest(project_id=info['project_id'], merge_request_id=info['id'], api=api, info=info)
-
     @patch('time.sleep')
     @patch('marge.bot.push_rebased_version')
     def test_succeeds_first_time(self, time_sleep, push_rebased_version):
-        merge_request =  self._merge_request()
+        merge_request =  MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock()
 
         repo = Mock(marge.git.Repo)
@@ -62,7 +57,7 @@ class TestRebaseAndAcceptMergeRequest(object):
     @patch('time.sleep')
     @patch('marge.bot.push_rebased_version')
     def test_succeeds_second_time(self, time_sleep, push_rebased_version):
-        merge_request =  self._merge_request()
+        merge_request =  MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock(side_effect=[marge.gitlab.NotAcceptable('blah'), None])
 
         repo = Mock(marge.git.Repo)
