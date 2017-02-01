@@ -3,7 +3,10 @@ from unittest.mock import Mock, patch
 import marge.bot
 import marge.git
 import marge.gitlab
+import marge.project
 from marge.merge_request import MergeRequest
+
+import tests.test_project as test_project
 
 
 def _merge_request_info(**override_fields):
@@ -24,15 +27,15 @@ def _merge_request_info(**override_fields):
 
 
 class TestRebaseAndAcceptMergeRequest(object):
-    @patch('marge.gitlab.Api')
-    def setup_method(self, _method, _api_class):
-        bot = marge.bot.Bot(user_name='bot', auth_token='token', gitlab_url='url', project_path='some/project')
+    def setup_method(self, _method):
+        self.api = Mock(marge.gitlab.Api)
+        project = marge.project.Project(self.api, test_project.INFO)
+        bot = marge.bot.Bot(api=self.api, project=project, user_name='bot')
         assert not bot.connected
 
         bot.connect()
         assert bot.connected
 
-        self.api = bot._api
         self.bot = bot
 
     @patch('time.sleep')

@@ -1,5 +1,5 @@
 [MESSAGE CONTROL]
-disable=missing-docstring
+disable=missing-docstring,invalid-name
 
 [BASIC]
 good-names=i,j,k,_,id

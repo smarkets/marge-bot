@@ -62,6 +62,17 @@ class Api(object):
         return result
 
 
+def from_singleton_list(fun):
+    def extractor(response_list):
+        assert isinstance(response_list, list), type(response_list)
+        assert len(response_list) <= 1, len(response_list)
+        if len(response_list) == 0:
+            return None
+        return fun(response_list[0])
+
+    return extractor
+
+
 class Command(namedtuple('Command', 'endpoint args extract')):
     def __new__(cls, endpoint, args=None, extract=None):
         return super(Command, cls).__new__(cls, endpoint, args or {}, extract)

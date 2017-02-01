@@ -7,8 +7,11 @@ from tempfile import TemporaryDirectory
 from . import git
 from . import gitlab
 from . import merge_request as merge_request_module
+from . import project as project_module
 
 MergeRequest = merge_request_module.MergeRequest
+Project = project_module.Project
+
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
@@ -24,72 +27,40 @@ def connect_if_needed(method):
 
 
 
-def _from_singleton_list(fun):
-    def extractor(response_list):
-        assert isinstance(response_list, list), type(response_list)
-        assert len(response_list) <= 1, len(response_list)
-        if len(response_list) == 0:
-            return None
-        return fun(response_list[0])
-
-    return extractor
-
-
 def _get_id(json):
     return json['id']
 
 
 class Bot(object):
-    def __init__(self, *, user_name, auth_token, gitlab_url, project_path, ssh_key_file=None):
+    def __init__(self, *, api, user_name, project, ssh_key_file=None):
+        assert project.merge_requests_enabled
+        assert project.only_allow_merge_if_build_succeeds
+
         self._user_name = user_name
-        self._auth_token = auth_token
-        self._gitlab_url = gitlab_url
-        self._project_path = project_path
         self._ssh_key_file = ssh_key_file
         self.max_ci_waiting_time = timedelta(minutes=10)
 
         self.embargo_intervals = []
 
-        self._api = None
+        self._api = api
         self._user_id = None
-        self._project_id = None
-        self._repo_url = None
+        self._project = project
 
     @property
     def connected(self):
-        return self._api is not None
+        return self._user_id is not None
 
     def connect(self):
-        self._api = gitlab.Api(self._gitlab_url, self._auth_token)
-
-        log.info('Getting user_id for %s', self._user_name)
         self._user_id = self.get_my_user_id()
         assert self._user_id, "Couldn't find user id"
-
-        log.info('Getting project_id for %s', self._project_path)
-        self._project_id = self.get_project_id()
-        assert self._project_id, "Couldn't find project id"
-
-        log.info('Getting remote repo location')
-        project = self.fetch_project_info()
-        self._repo_url = project['ssh_url_to_repo']
-
-        log.info('Validating project config...')
-        assert self._repo_url, self._repo_url
-        if not (project['merge_requests_enabled'] and project['only_allow_merge_if_build_succeeds']):
-            self._api = None
-            assert False, "Project is not configured correctly: %s " % {
-                'merge_requests_enabled': project['merge_requests_enabled'],
-                'only_allow_merge_if_build_succeeds': project['only_allow_merge_if_build_succeeds'],
-            }
-
 
     @connect_if_needed
     def start(self):
         while True:
             try:
                 with TemporaryDirectory() as local_repo_dir:
-                    repo = git.Repo(self._repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
+                    repo_url = self._project.ssh_url_to_repo
+                    repo = git.Repo(repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
                     repo.clone()
                     repo.config_user_info(
                         user_email='%s@is.a.bot' % self._user_name,
@@ -108,7 +79,7 @@ class Bot(object):
     def _run(self, repo):
         while True:
             log.info('Fetching merge requests assigned to me...')
-            all_merge_requests = MergeRequest.fetch_all_opened(self._project_id, self._api)
+            all_merge_requests = MergeRequest.fetch_all_opened(self._project.id, self._api)
             my_merge_requests = [mr for mr in all_merge_requests if mr.assignee == self._user_id]
 
             log.info('Got %s requests to merge', len(my_merge_requests))
@@ -256,39 +227,19 @@ class Bot(object):
 
         raise CannotMerge('CI is taking too long')
 
-    @connect_if_needed
     def get_my_user_id(self):
         api = self._api
         user_name = self._user_name
         return api.call(GET(
             '/users',
             {'username': user_name},
-            _from_singleton_list(_get_id)
+            gitlab.from_singleton_list(_get_id)
         ))
-
-    @connect_if_needed
-    def get_project_id(self):
-        api = self._api
-        project_path = self._project_path
-
-        def filter_by_path_with_namespace(projects):
-            return [p for p in projects if p['path_with_namespace'] == project_path]
-
-        return api.call(GET(
-            '/projects',
-            extract=lambda projects: _from_singleton_list(_get_id)(filter_by_path_with_namespace(projects))
-        ))
-
-    @connect_if_needed
-    def fetch_project_info(self):
-        api = self._api
-        project_id = self._project_id
-        return api.call(GET('/projects/%s' % project_id))
 
     @connect_if_needed
     def fetch_commit_build_status(self, commit_sha):
         api = self._api
-        project_id = self._project_id
+        project_id = self._project.id
 
         return api.call(GET(
             '/projects/%s/repository/commits/%s' % (project_id, commit_sha),

@@ -7,6 +7,8 @@ import sys
 
 from . import bot
 from . import interval
+from . import gitlab
+from . import project as project_module
 
 
 def _parse_args(args):
@@ -24,11 +26,15 @@ def _parse_args(args):
 def main(args=sys.argv[1:]):
     options = _parse_args(args)
     auth_token = options.auth_token_file.readline().strip()
+
+    api = gitlab.Api(options.gitlab_url, auth_token)
+    project = project_module.Project.fetch_by_path(options.project, api)
+    assert project, "Couldn't find project %s" % options.project
+
     marge_bot = bot.Bot(
+        api=api,
         user_name=options.user,
-        auth_token=auth_token,
-        gitlab_url=options.gitlab_url,
-        project_path=options.project,
+        project=project,
         ssh_key_file=options.ssh_key_file,
     )
 
