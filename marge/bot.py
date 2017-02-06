@@ -153,7 +153,7 @@ class Bot(object):
             )
             if last_failure != no_failure:
                 if actual_sha == previous_sha:
-                    raise CannotMerge('merge request was rejected by GitLab: %r', last_failure)
+                    raise CannotMerge('merge request was rejected by GitLab: %r' % last_failure)
 
             log.info('Commit id to merge %r', actual_sha)
             time.sleep(5)
