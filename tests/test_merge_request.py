@@ -9,6 +9,7 @@ _INFO = {
     'title': 'a title',
     'project_id': 1234,
     'assignee': {'id': 77},
+    'author': {'id': 88},
     'state': 'opened',
     'sha': 'dead4g00d',
     'source_project_id': 5678,
@@ -48,6 +49,7 @@ class TestMergeRequest(object):
         assert mr.iid == 54
         assert mr.title == 'a title'
         assert mr.assignee_id == 77
+        assert mr.author_id == 88
         assert mr.state == 'opened'
         assert mr.source_branch == 'useless_new_feature'
         assert mr.target_branch == 'master'

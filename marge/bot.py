@@ -109,7 +109,7 @@ class Bot(object):
             else:
                 log.info('The merge request is an unknown state: %r', state)
                 merge_request.comment('The merge request seems to be in a weird state: %r!', state)
-            merge_request.unassign()
+            self.unassign_from_mr(merge_request)
             return
 
         try:
@@ -129,7 +129,7 @@ class Bot(object):
         except CannotMerge as err:
             message = "I couldn't merge this branch: %s" % err.reason
             log.warning(message)
-            merge_request.unassign()
+            self.unassign_from_mr(merge_request)
             merge_request.comment(message)
         except git.GitError as err:
             log.exception(err)
@@ -139,6 +139,13 @@ class Bot(object):
             log.exception(err)
             merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
             raise
+
+    def unassign_from_mr(self, mr):
+        author_id = mr.author_id
+        if author_id != self._user_id:
+            mr.assign_to(author_id)
+        else:
+            mr.unassign()
 
     def rebase_and_accept_merge_request(self, merge_request, repo):
         previous_sha = merge_request.sha

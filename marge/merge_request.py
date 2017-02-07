@@ -54,6 +54,10 @@ class MergeRequest(object):
         return assignee.get('id')
 
     @property
+    def author_id(self):
+        return self.info['author'].get('id')
+
+    @property
     def source_branch(self):
         return self.info['source_branch']
 
