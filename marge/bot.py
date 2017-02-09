@@ -80,7 +80,7 @@ class Bot(object):
         while True:
             log.info('Fetching merge requests assigned to me...')
             all_merge_requests = MergeRequest.fetch_all_opened(self._project.id, self._api)
-            my_merge_requests = [mr for mr in all_merge_requests if mr.assignee == self._user_id]
+            my_merge_requests = [mr for mr in all_merge_requests if mr.assignee_id == self._user_id]
 
             log.info('Got %s requests to merge', len(my_merge_requests))
             for merge_request in my_merge_requests:
