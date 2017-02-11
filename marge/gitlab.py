@@ -62,7 +62,8 @@ class Api(object):
         return result
 
 
-def from_singleton_list(fun):
+def from_singleton_list(fun=None):
+    fun = fun or (lambda x: x)
     def extractor(response_list):
         assert isinstance(response_list, list), type(response_list)
         assert len(response_list) <= 1, len(response_list)

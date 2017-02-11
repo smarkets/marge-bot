@@ -4,9 +4,11 @@ import marge.bot
 import marge.git
 import marge.gitlab
 import marge.project
+import marge.user
 from marge.merge_request import MergeRequest
 
 import tests.test_project as test_project
+import tests.test_user as test_user
 
 
 def _merge_request_info(**override_fields):
@@ -30,11 +32,8 @@ class TestRebaseAndAcceptMergeRequest(object):
     def setup_method(self, _method):
         self.api = Mock(marge.gitlab.Api)
         project = marge.project.Project(self.api, test_project.INFO)
-        bot = marge.bot.Bot(api=self.api, project=project, user_name='bot')
-        assert not bot.connected
-
-        bot.connect()
-        assert bot.connected
+        user = marge.user.User(self.api, test_user.INFO)
+        bot = marge.bot.Bot(api=self.api, project=project, user=user)
 
         self.bot = bot
 

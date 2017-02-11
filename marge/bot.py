@@ -1,7 +1,6 @@
 import logging as log
 import time
 from datetime import datetime, timedelta
-from functools import wraps
 from tempfile import TemporaryDirectory
 
 from . import git
@@ -15,46 +14,20 @@ Project = project_module.Project
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
-def connect_if_needed(method):
-    @wraps(method)
-    def wrapper(*args, **kwargs):
-        self = args[0]
-        if not self.connected:
-            self.connect()
-        return method(*args, **kwargs)
-
-    return wrapper
-
-
-
-def _get_id(json):
-    return json['id']
-
-
 class Bot(object):
-    def __init__(self, *, api, user_name, project, ssh_key_file=None):
+    def __init__(self, *, api, user, project, ssh_key_file=None):
         assert project.merge_requests_enabled
         assert project.only_allow_merge_if_build_succeeds
 
-        self._user_name = user_name
         self._ssh_key_file = ssh_key_file
         self.max_ci_waiting_time = timedelta(minutes=10)
 
         self.embargo_intervals = []
 
         self._api = api
-        self._user_id = None
         self._project = project
+        self._user = user
 
-    @property
-    def connected(self):
-        return self._user_id is not None
-
-    def connect(self):
-        self._user_id = self.get_my_user_id()
-        assert self._user_id, "Couldn't find user id"
-
-    @connect_if_needed
     def start(self):
         while True:
             try:
@@ -63,8 +36,8 @@ class Bot(object):
                     repo = git.Repo(repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
                     repo.clone()
                     repo.config_user_info(
-                        user_email='%s@is.a.bot' % self._user_name,
-                        user_name=self._user_name,
+                        user_email='%s@is.a.bot' % self._user.username,
+                        user_name=self._user.name,
                     )
 
                     self._run(repo)
@@ -75,12 +48,11 @@ class Bot(object):
                 log.warning('Sleeping for %s seconds before restarting', sleep_time_in_secs)
                 time.sleep(sleep_time_in_secs)
 
-    @connect_if_needed
     def _run(self, repo):
         while True:
             log.info('Fetching merge requests assigned to me...')
             all_merge_requests = MergeRequest.fetch_all_opened(self._project.id, self._api)
-            my_merge_requests = [mr for mr in all_merge_requests if mr.assignee_id == self._user_id]
+            my_merge_requests = [mr for mr in all_merge_requests if mr.assignee_id == self._user.id]
 
             log.info('Got %s requests to merge', len(my_merge_requests))
             for merge_request in my_merge_requests:
@@ -98,7 +70,7 @@ class Bot(object):
     def process_merge_request(self, merge_request, repo):
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
-        if self._user_id != merge_request.assignee_id:
+        if self._user.id != merge_request.assignee_id:
             log.info('It is not assigned to us anymore! -- SKIPPING')
             return
 
@@ -142,7 +114,7 @@ class Bot(object):
 
     def unassign_from_mr(self, mr):
         author_id = mr.author_id
-        if author_id != self._user_id:
+        if author_id != self._user.id:
             mr.assign_to(author_id)
         else:
             mr.unassign()
@@ -191,7 +163,6 @@ class Bot(object):
             )
 
 
-    @connect_if_needed
     def wait_for_branch_to_be_merged(self, merge_request):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
@@ -210,7 +181,6 @@ class Bot(object):
 
         raise CannotMerge('It is taking too long to see the request marked as merged!')
 
-    @connect_if_needed
     def wait_for_ci_to_pass(self, commit_sha):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
@@ -234,16 +204,6 @@ class Bot(object):
 
         raise CannotMerge('CI is taking too long')
 
-    def get_my_user_id(self):
-        api = self._api
-        user_name = self._user_name
-        return api.call(GET(
-            '/users',
-            {'username': user_name},
-            gitlab.from_singleton_list(_get_id)
-        ))
-
-    @connect_if_needed
     def fetch_commit_build_status(self, commit_sha):
         api = self._api
         project_id = self._project.id
