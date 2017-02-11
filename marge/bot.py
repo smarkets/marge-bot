@@ -3,15 +3,16 @@ import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
+from . import commit as commit_module
 from . import git
 from . import gitlab
 from . import merge_request as merge_request_module
 from . import project as project_module
 
+
+Commit = commit_module.Commit
 MergeRequest = merge_request_module.MergeRequest
 Project = project_module.Project
-
-GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
 class Bot(object):
@@ -186,7 +187,7 @@ class Bot(object):
         waiting_time_in_secs = 10
 
         while datetime.utcnow() - time_0 < self.max_ci_waiting_time:
-            ci_status = self.fetch_commit_build_status(commit_sha)
+            ci_status = Commit.fetch_by_id(self._project.id, commit_sha, self._api).status
             if ci_status == 'success':
                 return
 
@@ -203,15 +204,6 @@ class Bot(object):
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long')
-
-    def fetch_commit_build_status(self, commit_sha):
-        api = self._api
-        project_id = self._project.id
-
-        return api.call(GET(
-            '/projects/%s/repository/commits/%s' % (project_id, commit_sha),
-            extract=lambda commit: commit['status'],
-        ))
 
 
 class CannotMerge(Exception):
