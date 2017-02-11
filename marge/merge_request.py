@@ -4,10 +4,7 @@ from . import gitlab
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
 
-class MergeRequest(object):
-    def __init__(self, api, info):
-        self._api = api
-        self._info = info
+class MergeRequest(gitlab.Resource):
 
     @classmethod
     def fetch_by_id(cls, project_id, merge_request_id, api):
@@ -25,16 +22,8 @@ class MergeRequest(object):
         return [cls(api, merge_request_info) for merge_request_info in merge_requests]
 
     @property
-    def id(self):
-        return self._info['id']
-
-    @property
     def project_id(self):
         return self._info['project_id']
-
-    @property
-    def info(self):
-        return self._info
 
     @property
     def iid(self):

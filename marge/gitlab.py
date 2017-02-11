@@ -170,3 +170,17 @@ class InternalServerError(ApiError):
 
 class UnexpectedError(ApiError):
     pass
+
+
+class Resource(object):
+    def __init__(self, api, info):
+        self._info = info
+        self._api = api
+
+    @property
+    def info(self):
+        return self._info
+
+    @property
+    def id(self):
+        return self.info['id']

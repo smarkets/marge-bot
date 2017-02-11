@@ -6,11 +6,7 @@ from . import gitlab
 GET = gitlab.GET
 
 
-class Project(object):
-
-    def __init__(self, api, info):
-        self._api = api
-        self._info = info
+class Project(gitlab.Resource):
 
     @classmethod
     def fetch_by_id(cls, project_id, api):
@@ -28,10 +24,6 @@ class Project(object):
         return gitlab.from_singleton_list(make_project)(filter_by_path_with_namespace(all_projects))
 
     @property
-    def id(self):
-        return self.info['id']
-
-    @property
     def path_with_namespace(self):
         return self.info['path_with_namespace']
 
@@ -46,7 +38,3 @@ class Project(object):
     @property
     def only_allow_merge_if_build_succeeds(self):
         return self.info['only_allow_merge_if_build_succeeds']
-
-    @property
-    def info(self):
-        return self._info
