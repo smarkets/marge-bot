@@ -36,7 +36,7 @@ class TestRepo(object):
 
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path fetch origin',
-            'git -C /tmp/local/path checkout feature_branch',
+            'git -C /tmp/local/path checkout feature_branch --',
             'git -C /tmp/local/path rebase origin/master_of_the_universe',
         ]
 
@@ -52,7 +52,7 @@ class TestRepo(object):
 
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path fetch origin',
-            'git -C /tmp/local/path checkout feature_branch',
+            'git -C /tmp/local/path checkout feature_branch --',
             'git -C /tmp/local/path rebase origin/master_of_the_universe',
             'git -C /tmp/local/path rebase --abort',
         ]
@@ -66,7 +66,7 @@ class TestRepo(object):
     def test_remove_branch(self, mocked_run):
         self.repo.remove_branch('some_branch')
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout master',
+            'git -C /tmp/local/path checkout master --',
             'git -C /tmp/local/path branch -D some_branch',
         ]
 
@@ -77,7 +77,7 @@ class TestRepo(object):
     def test_push_force(self, mocked_run):
         self.repo.push_force('my_branch')
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout my_branch',
+            'git -C /tmp/local/path checkout my_branch --',
             'git -C /tmp/local/path diff-index --quiet HEAD',
             'git -C /tmp/local/path ls-files --others',
             'git -C /tmp/local/path push --force origin my_branch',
@@ -93,7 +93,7 @@ class TestRepo(object):
             self.repo.push_force('my_branch')
 
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout my_branch',
+            'git -C /tmp/local/path checkout my_branch --',
             'git -C /tmp/local/path diff-index --quiet HEAD',
         ]
 
@@ -108,7 +108,7 @@ class TestRepo(object):
             self.repo.push_force('my_branch')
 
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout my_branch',
+            'git -C /tmp/local/path checkout my_branch --',
             'git -C /tmp/local/path diff-index --quiet HEAD',
             'git -C /tmp/local/path ls-files --others',
         ]

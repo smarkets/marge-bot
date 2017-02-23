@@ -22,7 +22,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         success = False
 
         self.git('fetch', 'origin')
-        self.git('checkout', branch)
+        self.git('checkout', branch, '--')
 
         try:
             self.git('rebase', 'origin/%s' % new_base)
@@ -34,11 +34,11 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
 
     def remove_branch(self, branch):
         assert branch != 'master'
-        self.git('checkout', 'master')
+        self.git('checkout', 'master', '--')
         self.git('branch', '-D', branch)
 
     def push_force(self, branch):
-        self.git('checkout', branch)
+        self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
 
