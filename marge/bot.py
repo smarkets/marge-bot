@@ -16,7 +16,7 @@ Project = project_module.Project
 
 
 class Bot(object):
-    def __init__(self, *, api, user, project, ssh_key_file=None):
+    def __init__(self, *, api, user, user_email, project, ssh_key_file=None):
         assert project.merge_requests_enabled
         assert project.only_allow_merge_if_build_succeeds
 
@@ -28,6 +28,7 @@ class Bot(object):
         self._api = api
         self._project = project
         self._user = user
+        self._user_email = user_email
 
     def start(self):
         while True:
@@ -37,7 +38,7 @@ class Bot(object):
                     repo = git.Repo(repo_url, local_repo_dir, ssh_key_file=self._ssh_key_file)
                     repo.clone()
                     repo.config_user_info(
-                        user_email='%s@is.a.bot' % self._user.username,
+                        user_email=self._user_email,
                         user_name=self._user.name,
                     )
 

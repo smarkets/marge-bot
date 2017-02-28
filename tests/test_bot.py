@@ -33,7 +33,7 @@ class TestRebaseAndAcceptMergeRequest(object):
         self.api = Mock(marge.gitlab.Api)
         project = marge.project.Project(self.api, test_project.INFO)
         user = marge.user.User(self.api, test_user.INFO)
-        bot = marge.bot.Bot(api=self.api, project=project, user=user)
+        bot = marge.bot.Bot(api=self.api, project=project, user=user, user_email='bla@invalid')
 
         self.bot = bot
 
