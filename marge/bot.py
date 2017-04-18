@@ -21,7 +21,7 @@ class Bot(object):
         assert project.only_allow_merge_if_build_succeeds
 
         self._ssh_key_file = ssh_key_file
-        self.max_ci_waiting_time = timedelta(minutes=10)
+        self.max_ci_waiting_time = timedelta(minutes=15)
 
         self.embargo_intervals = []
 
