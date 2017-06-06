@@ -1,11 +1,16 @@
 [MESSAGE CONTROL]
-disable=missing-docstring,invalid-name
+disable=missing-docstring,invalid-name,dangerous-default-value
 
-[BASIC]
-good-names=i,j,k,_,id
+[TYPECHECK]
+ignored-classes=Popen
 
 [FORMAT]
 max-line-length=110
 
 [DESIGN]
 max-attributes=15
+
+[REPORTS]
+output-format=parseable
+files-output=no
+reports=no

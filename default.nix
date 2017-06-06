@@ -14,8 +14,7 @@ python.mkDerivation {
      export NO_TESTS_OVER_WIRE=1
      export PYTHONDONTWRITEBYTECODE=1
      #export PYTHONPATH=$PYTHONPATH:/.
-     # disabled because it fails for now
-     # pylint marge
+     pylint marge
      # FIXME(alexander): why do I need to screw w/ PYTHONPATH?
      PYTHONPATH=$PYTHONPATH:. py.test --cov marge
   '';

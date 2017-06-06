@@ -43,7 +43,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
 
         untracked_files = self.git('ls-files', '--others').stdout  # check no untracked files
-        if len(untracked_files) != 0:
+        if untracked_files:
             raise GitError('There are untracked files', untracked_files)
 
         self.git('push', '--force', 'origin', branch)

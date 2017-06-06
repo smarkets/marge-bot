@@ -67,7 +67,7 @@ def from_singleton_list(fun=None):
     def extractor(response_list):
         assert isinstance(response_list, list), type(response_list)
         assert len(response_list) <= 1, len(response_list)
-        if len(response_list) == 0:
+        if not response_list:
             return None
         return fun(response_list[0])
 
@@ -112,8 +112,7 @@ def _prepare_params(params):
     def process(val):
         if isinstance(val, bool):
             return 'true' if val else 'false'
-        else:
-            return str(val)
+        return str(val)
 
     return {key: process(val) for key, val in params.items()}
 
@@ -129,8 +128,7 @@ class ApiError(Exception):
         arg = args[1]
         if isinstance(arg, dict):
             return arg.get('message')
-        else:
-            return arg
+        return arg
 
 
 class BadRequest(ApiError):

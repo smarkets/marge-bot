@@ -25,6 +25,7 @@ def _parse_args(args):
 
     return parser.parse_args(args)
 
+
 def main(args=sys.argv[1:]):
     options = _parse_args(args)
     auth_token = options.auth_token_file.readline().strip()

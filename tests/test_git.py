@@ -75,6 +75,7 @@ class TestRepo(object):
             self.repo.remove_branch('master')
 
     def test_push_force(self, mocked_run):
+        mocked_run.return_value = mocked_stdout(b'')
         self.repo.push_force('my_branch')
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path checkout my_branch --',

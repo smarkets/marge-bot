@@ -211,7 +211,7 @@ class CannotMerge(Exception):
     @property
     def reason(self):
         args = self.args
-        if len(args) == 0:
+        if not args:
             return 'Unknown reason!'
 
         return args[0]
