@@ -21,7 +21,7 @@ def _parse_args(args):
     arg('--gitlab-url', type=str, required=True, metavar='URL')
     arg('--project', type=str, required=True, metavar='GROUP/PROJECT')
     arg('--ssh-key-file', type=str, required=False, metavar='FILE')
-    arg('--embargo', type=str, action='append', metavar='INTERVAL')
+    arg('--embargo', type=str, action='append', metavar='INTERVAL', default=[])
 
     return parser.parse_args(args)
 
