@@ -37,8 +37,8 @@ class TestRebaseAndAcceptMergeRequest(object):
 
         self.bot = bot
 
-    @patch('time.sleep')
     @patch('marge.bot.push_rebased_version')
+    @patch('time.sleep')
     def test_succeeds_first_time(self, time_sleep, push_rebased_version):
         merge_request =  MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock()
@@ -56,8 +56,8 @@ class TestRebaseAndAcceptMergeRequest(object):
         merge_request.accept.assert_called_once_with(remove_branch=True, sha='new_sha')
         bot.wait_for_branch_to_be_merged.assert_called_once_with(merge_request)
 
-    @patch('time.sleep')
     @patch('marge.bot.push_rebased_version')
+    @patch('time.sleep')
     def test_succeeds_second_time(self, time_sleep, push_rebased_version):
         merge_request =  MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock(side_effect=[marge.gitlab.NotAcceptable('blah'), None])
