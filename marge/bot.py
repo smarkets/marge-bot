@@ -105,12 +105,12 @@ class Bot(object):
             log.warning(message)
             self.unassign_from_mr(merge_request)
             merge_request.comment(message)
-        except git.GitError as err:
-            log.exception(err)
+        except git.GitError:
+            log.exception('Unexpected Git error')
             merge_request.comment('Something seems broken on my local git repo; check my logs!')
             raise
-        except Exception as err:
-            log.exception(err)
+        except Exception:
+            log.exception('Unexpected Exception')
             merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
             raise
 
@@ -152,8 +152,8 @@ class Bot(object):
             except gitlab.Unauthorized:
                 log.warning('Unauthorized!')
                 raise CannotMerge('My user cannot accept merge requests!')
-            except gitlab.ApiError as err:
-                log.exception(err)
+            except gitlab.ApiError:
+                log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')
             else:
                 self.wait_for_branch_to_be_merged(merge_request)
