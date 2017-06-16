@@ -15,8 +15,6 @@ from . import user as user_module
 def _parse_args(args):
     parser = argparse.ArgumentParser(description=__doc__)
     arg = parser.add_argument
-    arg('--user', type=str, required=True)
-    arg('--user-email', type=str, required=False)
     arg('--auth-token-file', type=argparse.FileType('rt'), required=True, metavar='FILE')
     arg('--gitlab-url', type=str, required=True, metavar='URL')
     arg('--project', type=str, required=True, metavar='GROUP/PROJECT')
@@ -32,13 +30,11 @@ def main(args=sys.argv[1:]):
 
     api = gitlab.Api(options.gitlab_url, auth_token)
     project = project_module.Project.fetch_by_path(options.project, api)
-    user = user_module.User.fetch_by_username(options.user, api)
-    email = options.user_email or ('%s@is.a.bot' % options.user)
+    user = user_module.User.myself(api)
 
     marge_bot = bot.Bot(
         api=api,
         user=user,
-        user_email=email,
         project=project,
         ssh_key_file=options.ssh_key_file,
     )

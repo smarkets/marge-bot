@@ -13,10 +13,10 @@ First, create a user for Marge on your gitlab and add it to your project as a de
 
 The bot can then be started from the command line as follows:
 ```bash
-marge.app --user <user> --auth-token-file marge.token --gitlab-url 'http://your.gitlab.instance.com' --project group/name --ssh-key-file private-key
+marge.app --auth-token-file marge.token --gitlab-url 'http://your.gitlab.instance.com' --project group/name --ssh-key-file private-key
 ```
 
 ## Merge embargoes
 
-Marge can be configured not to merge during certain periods. E.g., to prevent her from merging during weekends, add `--embargo 'Friday 6pm - Monday 9am'`. 
+Marge can be configured not to merge during certain periods. E.g., to prevent her from merging during weekends, add `--embargo 'Friday 6pm - Monday 9am'`.
 More than one embargo period can be specified. Any merge request assigned to her during an embargo period, will be merged in only once all embargoes are over.

@@ -16,6 +16,10 @@ class TestProject(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
 
+    def test_fetch_myself(self):
+        user = User.myself(api=self.api)
+        self.api.call.assert_called_once_with(GET('/user'))
+
     def test_fetch_by_id(self):
         api = self.api
         api.call = Mock(return_value=INFO)
