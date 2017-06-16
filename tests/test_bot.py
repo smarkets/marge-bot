@@ -56,6 +56,9 @@ class TestRebaseAndAcceptMergeRequest(object):
             project=project,
             user=user,
             ssh_key_file='id_rsa',
+            add_reviewers=True,
+            add_tested=True,
+            impersonate_approvers=True,
         )
 
         self.bot = bot

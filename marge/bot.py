@@ -25,9 +25,9 @@ class Bot(object):
             user,
             project,
             ssh_key_file,
-            add_reviewers=True,
-            add_tested=True,
-            impersonate_approvers=True
+            add_reviewers,
+            add_tested,
+            impersonate_approvers
     ):
         assert project.merge_requests_enabled
         assert project.only_allow_merge_if_build_succeeds
