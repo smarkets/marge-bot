@@ -132,7 +132,7 @@ class Bot(object):
             actual_sha = push_rebased_version(
                 repo, merge_request.source_branch, merge_request.target_branch
             )
-            if last_failure != no_failure:
+            if last_failure is not no_failure:
                 if actual_sha == previous_sha:
                     raise CannotMerge('merge request was rejected by GitLab: %r' % last_failure)
 
@@ -159,7 +159,7 @@ class Bot(object):
                 self.wait_for_branch_to_be_merged(merge_request)
                 merged = True
 
-        if last_failure != no_failure:
+        if last_failure is not no_failure:
             merge_request.comment(
                 "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
             )
