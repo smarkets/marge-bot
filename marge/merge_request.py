@@ -13,17 +13,21 @@ class MergeRequest(gitlab.Resource):
         return merge_request
 
     @classmethod
-    def fetch_all_opened(cls, project_id, api):
-        merge_requests = api.collect_all_pages(GET(
-            '/projects/%s/merge_requests' % project_id,
+    def fetch_all_open_for_user(cls, project_id, user_id, api):
+        all_merge_request_infos = api.collect_all_pages(GET(
+            '/projects/{project_id}/merge_requests'.format(project_id=project_id),
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
         ))
+        my_merge_request_infos = [
+            mri for mri in all_merge_request_infos
+            if (mri['assignee'] or {}).get('id') == user_id
+        ]
 
-        return [cls(api, merge_request_info) for merge_request_info in merge_requests]
+        return [cls(api, merge_request_info) for merge_request_info in my_merge_request_infos]
 
     @property
     def project_id(self):
-        return self._info['project_id']
+        return self.info['project_id']
 
     @property
     def iid(self):
@@ -69,6 +73,14 @@ class MergeRequest(gitlab.Resource):
     @property
     def work_in_progress(self):
         return self.info['work_in_progress']
+
+    @property
+    def approved_by(self):
+        return self.info['approved_by']
+
+    @property
+    def web_url(self):
+        return self.info['web_url']
 
     def refetch_info(self):
         self._info = self._api.call(GET('/projects/%s/merge_requests/%s' % (self.project_id, self.id)))

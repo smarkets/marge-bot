@@ -7,8 +7,12 @@ GET = gitlab.GET
 class User(gitlab.Resource):
 
     @classmethod
-    def myself(cls, api):
-        return cls(api, api.call(GET('/user')))
+    def myself(cls, api, sudo=None):
+        return cls(api, api.call(GET('/user'), sudo=sudo))
+
+    @property
+    def is_admin(self):
+        return self.info.get('is_admin')
 
     @classmethod
     def fetch_by_id(cls, user_id, api):

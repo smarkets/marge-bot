@@ -6,7 +6,23 @@ from subprocess import PIPE, TimeoutExpired
 
 from collections import namedtuple
 
+
+from . import trailerfilter
+
 TIMEOUT_IN_SECS = 60
+
+
+def _filter_branch_script(trailer_name, trailer_values):
+    filter_script = 'TRAILERS={trailers} {script}'.format(
+        trailers=shlex.quote(
+            '\n'.join(
+                '{}: {}'.format(trailer_name, trailer_value)
+                for trailer_value in trailer_values or [''])
+        ),
+        script=trailerfilter.__file__,
+    )
+    return filter_script
+
 
 class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
     def clone(self):
@@ -16,28 +32,62 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         self.git('config', 'user.email', user_email)
         self.git('config', 'user.name', user_name)
 
-    def rebase(self, branch, new_base):
-        assert branch != new_base, branch
+    def tag_with_trailer(self, trailer_name, trailer_values, branch, start_commit):
+        """Replace `trailer_name` in commit messages with `trailer_values` in `branch` from `start_commit`.
+        """
 
-        success = False
+        # Strips all `$trailer_name``: lines and trailing newlines, adds an empty
+        # newline and tags on the `$trailer_name: $trailer_value` for each `trailer_value` in
+        # `trailer_values`.
+        filter_script = _filter_branch_script(trailer_name, trailer_values)
+        commit_range = start_commit + '..' + branch
+        try:
+            # --force = overwrite backup of last filter-branch
+            self.git('filter-branch', '--force', '--msg-filter', filter_script, commit_range)
+        except GitError:
+            log.warning('filter-branch failed, will try to restore')
+            self.git('reset', '--hard', 'refs/original/refs/heads/' + branch)
+            raise
+        return self.get_commit_hash()
+
+    def rebase(self, branch, new_base, source_repo_url=None):
+        """Rebase `new_base` into `branch` and return the new HEAD commit id.
+
+        By default `branch` and `new_base` are assumed to reside in the same
+        repo as `self`. However, if `source_repo_url` is passed and not `None`,
+        `branch` is taken from there.
+
+        Throws a `GitError` if the rebase fails. Will also try to --abort it.
+        """
+        assert source_repo_url or branch != new_base, branch
 
         self.git('fetch', 'origin')
-        self.git('checkout', branch, '--')
+        if source_repo_url:
+            # "upsert" remote 'source' and fetch it
+            try:
+                self.git('remote', 'rm', 'source')
+            except GitError:
+                pass
+            self.git('remote', 'add', 'source', source_repo_url)
+            self.git('fetch', 'source')
+            self.git('checkout', '-B', branch, 'source/' + branch, '--')
+        else:
+            self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
         try:
             self.git('rebase', 'origin/%s' % new_base)
-            success = True
         except GitError:
+            log.warning('rebase failed, doing an --abort')
             self.git('rebase', '--abort')
-
-        return success
+            raise
+        return self.get_commit_hash()
 
     def remove_branch(self, branch):
         assert branch != 'master'
         self.git('checkout', 'master', '--')
         self.git('branch', '-D', branch)
 
-    def push_force(self, branch):
+    def push_force(self, branch, source_repo_url=None):
         self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
@@ -46,11 +96,20 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         if untracked_files:
             raise GitError('There are untracked files', untracked_files)
 
-        self.git('push', '--force', 'origin', branch)
+        if source_repo_url:
+            assert self.get_remote_url('source') == source_repo_url
+            source = 'source'
+        else:
+            source = 'origin'
+        self.git('push', '--force', source, branch)
 
-    def get_head_commit_hash(self):
-        result = self.git('rev-parse', 'HEAD')
-        return str(result.stdout, encoding='ascii').strip()
+    def get_commit_hash(self, rev='HEAD'):
+        """Return commit hash for `rev` (default "HEAD")."""
+        result = self.git('rev-parse', rev)
+        return result.stdout.decode('ascii').strip()
+
+    def get_remote_url(self, name):
+        return self.git('config', '--get', 'remote.{}.url'.format(name)).stdout.decode('utf-8').strip()
 
     def git(self, *args, from_repo=True):
         env = None
@@ -93,6 +152,7 @@ def _run(*args, env=None, check=False, timeout=None):
                 retcode, process.args, output=stdout, stderr=stderr,
             )
         return subprocess.CompletedProcess(process.args, retcode, stdout, stderr)
+
 
 class GitError(Exception):
     pass

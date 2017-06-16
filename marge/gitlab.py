@@ -9,10 +9,12 @@ class Api(object):
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v3'
 
-    def call(self, command):
+    def call(self, command, sudo=None):
         method = command.method
         url = self._api_base_url + command.endpoint
         headers = {'PRIVATE-TOKEN': self._auth_token}
+        if sudo:
+            headers['SUDO'] = '%d' % sudo
         response = method(url, headers=headers, **command.call_args)
 
         if response.status_code == 200:
