@@ -10,4 +10,4 @@ UnitTests:
 
 PyLint:
   script:
-    - ./docker_run pylint marge
+    - ./docker_run pylint marge || [[ $? = 8 ]]  # ignore refactoring warnings
