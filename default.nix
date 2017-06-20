@@ -21,7 +21,7 @@ python.mkDerivation {
   meta = {
     homepage = "http://git.hanson.smarkets.com/hanson/marge";
     description = "A build bot for gitlab";
-    # license = with lib.licenses; [mit] ;
+    license = with lib.licenses; [bsd3] ;
     maintainers =  [
       "Daniel Gorin <daniel.gorin@smarkets.com>"
       "Alexander Schmolck <alexander.schmolck@smarkets.com>"
