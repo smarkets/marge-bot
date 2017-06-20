@@ -16,6 +16,7 @@ _INFO = {
     'target_project_id': 1234,
     'source_branch': 'useless_new_feature',
     'target_branch': 'master',
+    'work_in_progress': False,
 }
 
 
@@ -56,6 +57,7 @@ class TestMergeRequest(object):
         assert mr.sha == 'dead4g00d'
         assert mr.source_project_id == 5678
         assert mr.target_project_id == 1234
+        assert mr.work_in_progress == False
 
         self._load({'assignee': {}})
         assert mr.assignee_id == None

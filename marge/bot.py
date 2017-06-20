@@ -127,6 +127,9 @@ class Bot(object):
         merged = False
 
         while not merged:
+            if merge_request.work_in_progress:
+                raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
+
             # NB. this will be a no-op if there is nothing to rebase
             actual_sha = push_rebased_version(
                 repo, merge_request.source_branch, merge_request.target_branch

@@ -66,6 +66,9 @@ class MergeRequest(gitlab.Resource):
     def target_project_id(self):
         return self.info['target_project_id']
 
+    @property
+    def work_in_progress(self):
+        return self.info['work_in_progress']
 
     def refetch_info(self):
         self._info = self._api.call(GET('/projects/%s/merge_requests/%s' % (self.project_id, self.id)))
