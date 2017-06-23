@@ -8,7 +8,6 @@ import sys
 from . import bot
 from . import interval
 from . import gitlab
-from . import project as project_module
 from . import user as user_module
 
 
@@ -28,13 +27,6 @@ def _parse_args(args):
         required=True,
         metavar='URL',
         help='Your gitlab instance, e.g. https://gitlab.example.com',
-    )
-    arg(
-        '--project',
-        type=str,
-        required=True,
-        metavar='GROUP/PROJECT',
-        help='foo/bar if the url is https://gitlab.example.com/foo/bar.',
     )
     arg(
         '--ssh-key-file',
@@ -89,13 +81,11 @@ def main(args=sys.argv[1:]):
     auth_token = options.auth_token_file.readline().strip()
 
     api = gitlab.Api(options.gitlab_url, auth_token)
-    project = project_module.Project.fetch_by_path(options.project, api)
     user = user_module.User.myself(api)
 
     marge_bot = bot.Bot(
         api=api,
         user=user,
-        project=project,
         ssh_key_file=options.ssh_key_file,
         add_reviewers=options.add_reviewers,
         add_tested=options.add_tested,

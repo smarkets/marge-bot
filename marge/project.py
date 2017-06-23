@@ -1,3 +1,4 @@
+from enum import Enum, unique
 from functools import partial
 
 from . import gitlab
@@ -23,6 +24,15 @@ class Project(gitlab.Resource):
         all_projects = api.collect_all_pages(GET('/projects'))
         return gitlab.from_singleton_list(make_project)(filter_by_path_with_namespace(all_projects))
 
+    @classmethod
+    def fetch_all_mine(cls, api):
+        projects_info = api.collect_all_pages(GET(
+            '/projects',
+            {'membership': True, 'with_merge_requests_enabled': True},
+        ))
+
+        return [cls(api, project_info) for project_info in projects_info]
+
     @property
     def path_with_namespace(self):
         return self.info['path_with_namespace']
@@ -42,3 +52,17 @@ class Project(gitlab.Resource):
     @property
     def approvals_required(self):
         return self.info['approvals_before_merge']
+
+    @property
+    def access_level(self):
+        return AccessLevel(self.info['permissions']['project_access']['access_level'])
+
+
+@unique
+class AccessLevel(Enum):
+    # See https://docs.gitlab.com/ce/api/access_requests.html
+    guest = 10
+    reporter = 20
+    developer = 30
+    master = 40
+    owner = 50

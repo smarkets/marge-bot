@@ -5,7 +5,7 @@ from marge.gitlab import Api, GET, POST
 from marge.approvals import Approvals
 import marge.user
 # testing this here is more convenient
-from marge.bot import _get_reviewer_names_and_emails
+from marge.job import _get_reviewer_names_and_emails
 
 INFO = {
   "id": 5,

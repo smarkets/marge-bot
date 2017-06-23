@@ -34,8 +34,8 @@ Since she is at it, she can optionally provide some other goodies like tagging o
 
 ## Configuring and running
 
-First, create a user for Marge (we'll use `marge-bot` here) on your GitLab and add it to your project as a
-developer or admin. For certain features, namely, `--impersonate-approvers`, and `--add-reviewed-by`, you will
+First, create a user for Marge (we'll use `marge-bot` here) on your GitLab and add it to your projects
+as a developer. For certain features, namely, `--impersonate-approvers`, and `--add-reviewed-by`, you will
 need to grant `marge-bot` admin privileges.
 
 Second, from the user's `Profile Settings`, download the **PRIVATE TOKEN** and
@@ -58,9 +58,11 @@ The bot can then be started from the command line as follows:
 ```bash
 marge.app --auth-token-file marge-bot.token \
           --gitlab-url 'http://your.gitlab.instance.com' \
-          --project group/name \
           --ssh-key-file marge-bot-ssh-key
 ```
+
+Once running, the bot will continuously monitor all projects that have its user as a member and will
+pick up any changes in membership at runtime.
 
 ## Suggested worfklow
 1. Alice creates a new merge request and assigns Bob and Charles as reviewers

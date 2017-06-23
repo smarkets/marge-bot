@@ -6,6 +6,7 @@ import marge.commit
 import marge.bot
 import marge.git
 import marge.gitlab
+import marge.job
 import marge.project
 import marge.user
 from marge.merge_request import MergeRequest
@@ -46,59 +47,61 @@ class TestRebaseAndAcceptMergeRequest(object):
         marge.project.Project.fetch_by_id = _project_fetch_by_id
     def setup_method(self, _method):
         marge.project.Project.fetch_by_id = Mock(return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
-
         self.api = Mock(marge.gitlab.Api)
-        project = marge.project.Project(self.api, test_project.INFO)
 
+    def make_job(self, merge_request, options=None):
+        project = marge.project.Project(self.api, test_project.INFO)
+        repo = Mock(marge.git.Repo)
+        options = options or marge.job.MergeJobOptions.default()
         user = marge.user.User(self.api, dict(test_user.INFO, name='marge-bot'))
         bot = marge.bot.Bot(
             api=self.api,
-            project=project,
             user=user,
             ssh_key_file='id_rsa',
-            add_reviewers=True,
-            add_tested=True,
-            impersonate_approvers=True,
+            add_reviewers=options.add_reviewers,
+            add_tested=options.add_tested,
+            impersonate_approvers=options.reapprove,
         )
+        return marge.job.MergeJob(bot=bot, project=project, merge_request=merge_request, repo=repo)
 
-        self.bot = bot
 
-    @patch('marge.bot._get_reviewer_names_and_emails', return_value=[])
+    @patch('marge.job._get_reviewer_names_and_emails', return_value=[])
     @patch('marge.commit.Commit.last_on_branch', return_value=struct(id='af7a'))
     @patch('marge.commit.Commit.fetch_by_id', return_value=struct(status='success'))
     @patch('marge.project.Project.fetch_by_id', return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
-    @patch('marge.bot.push_rebased_and_rewritten_version', return_value=('505e', 'deadbeef', 'af7a'))
+    @patch('marge.job.push_rebased_and_rewritten_version', return_value=('505e', 'deadbeef', 'af7a'))
     @patch('time.sleep')
     def test_succeeds_first_time(self, time_sleep, push_rebased_and_rewritten_version, pfetch_by_id, cfetch_by_id, last_on_branch, _get_reviewers):
         merge_request = MergeRequest(self.api, _merge_request_info())
+        job = self.make_job(
+            merge_request,
+            marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
 
         merge_request.accept = Mock()
 
-        repo = Mock(marge.git.Repo)
-        bot = self.bot
-        bot.wait_for_ci_to_pass = Mock()
-        bot.wait_for_branch_to_be_merged = Mock()
+        job.wait_for_ci_to_pass = Mock()
+        job.wait_for_branch_to_be_merged = Mock()
         approvals = Mock(Approvals)
         approvals.sufficient = True
 
-        bot.rebase_and_accept_merge_request(merge_request, repo, approvals)
+        job.rebase_and_accept(approvals)
 
-        marge.bot.push_rebased_and_rewritten_version.assert_called_once_with(
-            repo=repo,
+        marge.job.push_rebased_and_rewritten_version.assert_called_once_with(
+            repo=job.repo,
             source_branch='useless_new_feature',
             target_branch='master',
-            reviewers=[],
+            reviewers=None,
             tested_by=['marge-bot <http://git.example.com/group/project/merge_request/666>'],
             source_repo_url='http://http://git.example.com/group/project.git',
         )
-        bot.wait_for_ci_to_pass.assert_called_once_with(5678, 'af7a')
+        job.wait_for_ci_to_pass.assert_called_once_with(5678, 'af7a')
         merge_request.accept.assert_called_once_with(remove_branch=True, sha='af7a')
-        bot.wait_for_branch_to_be_merged.assert_called_once_with(merge_request)
+        job.wait_for_branch_to_be_merged.assert_called_once_with()
 
-    @patch('marge.bot._get_reviewer_names_and_emails', return_value=[])
+    @patch('marge.job._get_reviewer_names_and_emails', return_value=[])
     @patch('marge.commit.Commit.last_on_branch', return_value=struct(id='af7a'))
     @patch('marge.commit.Commit.fetch_by_id', return_value=struct(status='success'))
-    @patch('marge.bot.push_rebased_and_rewritten_version', side_effect=[
+    @patch('marge.job.push_rebased_and_rewritten_version', side_effect=[
         ('505e', 'deadbeef', 'af7a'),
         ('505e2', 'deadbeef2', 'af7a2'),
     ])
@@ -106,29 +109,33 @@ class TestRebaseAndAcceptMergeRequest(object):
     def test_fails_on_not_acceptable_if_master_did_not_move(self, time_sleep, push_rebased_and_rewritten_version, fetch_by_id, last_on_branch, _get_reviewers):
         merge_request = MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock(side_effect=[marge.gitlab.NotAcceptable('blah'), None])
+        job = self.make_job(merge_request)
 
-        repo = Mock(marge.git.Repo)
-        bot = self. bot
-        bot.wait_for_ci_to_pass = Mock()
-        bot.wait_for_branch_to_be_merged = Mock()
+        repo = job.repo
+        job.wait_for_ci_to_pass = Mock()
+        job.wait_for_branch_to_be_merged = Mock()
         approvals = Mock(Approvals)
-        with pytest.raises(marge.bot.CannotMerge):
-            bot.rebase_and_accept_merge_request(merge_request, repo, approvals)
 
+        expected_message = "Someone pushed to branch while we were trying to merge"
+        with pytest.raises(marge.job.CannotMerge, message=expected_message):
+            job.rebase_and_accept(approvals)
 
-    @patch('marge.bot._get_reviewer_names_and_emails', return_value=[])
+    @patch('marge.job._get_reviewer_names_and_emails', return_value=[])
     @patch('marge.commit.Commit.fetch_by_id', return_value=struct(status='success'))
     @patch('time.sleep')
     def test_succeeds_second_time_if_master_moved(self, time_sleep, last_on_branch, _get_reviewers):
         merge_request = MergeRequest(self.api, _merge_request_info())
         merge_request.accept = Mock(side_effect=[marge.gitlab.NotAcceptable('blah'), None])
+        job = self.make_job(
+            merge_request,
+            options=marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=True),
+        )
 
-        repo = Mock(marge.git.Repo)
+        repo = job.repo
         repo.project_id = 5678
 
-        bot = self.bot
-        bot.wait_for_ci_to_pass = Mock()
-        bot.wait_for_branch_to_be_merged = Mock()
+        job.wait_for_ci_to_pass = Mock()
+        job.wait_for_branch_to_be_merged = Mock()
 
         approvals = Mock(Approvals)
 
@@ -150,13 +157,13 @@ class TestRebaseAndAcceptMergeRequest(object):
             return _fake_last_on_branch
 
         with patch('marge.commit.Commit.last_on_branch', side_effect=_make_fake_last_on_branch()), \
-             patch('marge.bot.push_rebased_and_rewritten_version', side_effect=[
+             patch('marge.job.push_rebased_and_rewritten_version', side_effect=[
                   (original_master.id, 'deadbeef', after_rebase_head.id),
                   (moved_master.id, 'deadbeef2', after_second_rebase_head.id),
              ]):
-            bot.rebase_and_accept_merge_request(merge_request, repo, approvals)
+            job.rebase_and_accept(approvals)
 
-            marge.bot.push_rebased_and_rewritten_version.assert_called_with(
+            marge.job.push_rebased_and_rewritten_version.assert_called_with(
                 repo=repo,
                 source_branch='useless_new_feature',
                 target_branch='master',
@@ -165,19 +172,18 @@ class TestRebaseAndAcceptMergeRequest(object):
                 tested_by=['marge-bot <http://git.example.com/group/project/merge_request/666>'],
             )
 
-            bot.wait_for_ci_to_pass.assert_any_call(5678, after_rebase_head.id)
+            job.wait_for_ci_to_pass.assert_any_call(5678, after_rebase_head.id)
             merge_request.accept.assert_any_call(remove_branch=True, sha=after_rebase_head.id)
-            bot.wait_for_ci_to_pass.assert_any_call(5678, after_second_rebase_head.id)
+            job.wait_for_ci_to_pass.assert_any_call(5678, after_second_rebase_head.id)
             merge_request.accept.assert_any_call(remove_branch=True, sha=after_second_rebase_head.id)
-            bot.wait_for_branch_to_be_merged.assert_called_once_with(merge_request)
+            job.wait_for_branch_to_be_merged.assert_called_once_with()
 
-    @patch('marge.bot.push_rebased_and_rewritten_version')
+    @patch('marge.job.push_rebased_and_rewritten_version')
     @patch('time.sleep')
     def test_wont_merge_wip_stuff(self, time_sleep, push_rebased_and_rewritten_version):
         merge_request = MergeRequest(self.api, _merge_request_info(work_in_progress=True))
+        job = self.make_job(merge_request)
 
-        repo = Mock(marge.git.Repo)
-        bot = self. bot
-
-        with pytest.raises(marge.bot.CannotMerge):
-            bot.rebase_and_accept_merge_request(merge_request, repo, Mock(Approvals))
+        expected_message = "Sorry, I can't merge requests marked as Work-In-Progress!"
+        with pytest.raises(marge.job.CannotMerge, message=expected_message):
+            job.rebase_and_accept(Mock(Approvals))
