@@ -9,7 +9,7 @@ INFO = {
     'path_with_namespace': 'cool/project',
     'ssh_url_to_repo': 'ssh://blah.com/cool/project.git',
     'merge_requests_enabled': True,
-    'only_allow_merge_if_build_succeeds': True,
+    'only_allow_merge_if_pipeline_succeeds': True,
 }
 
 
@@ -44,4 +44,4 @@ class TestProject(object):
         assert project.path_with_namespace == 'cool/project'
         assert project.ssh_url_to_repo == 'ssh://blah.com/cool/project.git'
         assert project.merge_requests_enabled == True
-        assert project.only_allow_merge_if_build_succeeds == True
+        assert project.only_allow_merge_if_pipeline_succeeds == True

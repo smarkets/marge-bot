@@ -7,8 +7,8 @@ GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 class MergeRequest(gitlab.Resource):
 
     @classmethod
-    def fetch_by_id(cls, project_id, merge_request_id, api):
-        merge_request = cls(api, {'id': merge_request_id, 'project_id': project_id})
+    def fetch_by_iid(cls, project_id, merge_request_iid, api):
+        merge_request = cls(api, {'iid': merge_request_iid, 'project_id': project_id})
         merge_request.refetch_info()
         return merge_request
 
@@ -83,27 +83,27 @@ class MergeRequest(gitlab.Resource):
         return self.info['web_url']
 
     def refetch_info(self):
-        self._info = self._api.call(GET('/projects/%s/merge_requests/%s' % (self.project_id, self.id)))
+        self._info = self._api.call(GET('/projects/%s/merge_requests/%s' % (self.project_id, self.iid)))
 
     def comment(self, message):
         return self._api.call(POST(
-            '/projects/%s/merge_requests/%s/notes' % (self.project_id, self.id),
+            '/projects/%s/merge_requests/%s/notes' % (self.project_id, self.iid),
             {'body': message},
         ))
 
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
-            '/projects/%s/merge_requests/%s/merge' % (self.project_id, self.id),
+            '/projects/%s/merge_requests/%s/merge' % (self.project_id, self.iid),
             dict(
                 should_remove_source_branch=remove_branch,
-                merge_when_build_succeeds=True,
+                merge_when_pipeline_succeeds=True,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
             ),
         ))
 
     def assign_to(self, user_id):
         return self._api.call(PUT(
-            '/projects/%s/merge_requests/%s' % (self.project_id, self.id),
+            '/projects/%s/merge_requests/%s' % (self.project_id, self.iid),
             {'assignee_id': user_id},
         ))
 

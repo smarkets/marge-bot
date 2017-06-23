@@ -9,7 +9,7 @@ from marge.bot import _get_reviewer_names_and_emails
 
 INFO = {
   "id": 5,
-  "iid": 5,
+  "iid": 6,
   "project_id": 1,
   "title": "Approvals API",
   "description": "Test",
@@ -67,10 +67,10 @@ class TestApprovals(object):
         api = self.api
         api.call = Mock(return_value=INFO)
 
-        approvals = Approvals.fetch_approvals_for_merge_request(project_id=1234, merge_request_id=5, api=api)
+        approvals = Approvals.fetch_approvals_for_merge_request(project_id=1234, merge_request_iid=6, api=api)
 
         api.call.assert_called_once_with(GET(
-            '/projects/1234/merge_requests/5/approvals'
+            '/projects/1234/merge_requests/6/approvals'
         ))
         assert approvals.info == INFO
 
@@ -87,8 +87,8 @@ class TestApprovals(object):
     def test_refetch_info(self):
         self.approvals.reapprove()
         self.api.call.has_calls([
-            call(POST(endpoint='/projects/1/merge_requests/5/approve', args={}, extract=None), sudo=1),
-            call(POST(endpoint='/projects/1/merge_requests/5/approve', args={}, extract=None), sudo=2)
+            call(POST(endpoint='/projects/1/merge_requests/6/approve', args={}, extract=None), sudo=1),
+            call(POST(endpoint='/projects/1/merge_requests/6/approve', args={}, extract=None), sudo=2)
         ])
 
 

@@ -36,8 +36,8 @@ class Project(gitlab.Resource):
         return self.info['merge_requests_enabled']
 
     @property
-    def only_allow_merge_if_build_succeeds(self):
-        return self.info['only_allow_merge_if_build_succeeds']
+    def only_allow_merge_if_pipeline_succeeds(self):
+        return self.info['only_allow_merge_if_pipeline_succeeds']
 
     @property
     def approvals_required(self):

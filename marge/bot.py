@@ -30,7 +30,7 @@ class Bot(object):
             impersonate_approvers
     ):
         assert project.merge_requests_enabled
-        assert project.only_allow_merge_if_build_succeeds
+        assert project.only_allow_merge_if_pipeline_succeeds
         # There's a bug in some recent versions of Gitlab, where is_admin is
         # not set, even for admins. Use sudo (which only admins can do) as a
         # hack as work around.
@@ -93,7 +93,7 @@ class Bot(object):
                 merge_request.refetch_info()
                 approvals = Approvals.fetch_approvals_for_merge_request(
                     self._project.id,
-                    merge_request.id,
+                    merge_request.iid,
                     self._api,
                 )
                 self.process_merge_request(merge_request, repo, approvals)

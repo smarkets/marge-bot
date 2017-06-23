@@ -7,7 +7,7 @@ import requests
 class Api(object):
     def __init__(self, gitlab_url, auth_token):
         self._auth_token = auth_token
-        self._api_base_url = gitlab_url.rstrip('/') + '/api/v3'
+        self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
 
     def call(self, command, sudo=None):
         method = command.method
