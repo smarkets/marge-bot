@@ -66,17 +66,32 @@ def _parse_args(args):
         action='store_true',
         help='marge pushes effectively don\'t change approval status',
     )
+    arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
     return parser.parse_args(args)
 
 
 def main(args=sys.argv[1:]):
     options = _parse_args(args)
+
+    # <https://stackoverflow.com/questions/16337511/log-all-requests-from-the-python-requests-module>
+    if options.debug:
+        import logging
+        import http.client
+        http.client.HTTPConnection.debuglevel = 2
+
+        logging.basicConfig()
+        logging.getLogger().setLevel(logging.DEBUG)
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.DEBUG)
+        requests_log.propagate = True
+
     auth_token = options.auth_token_file.readline().strip()
 
     api = gitlab.Api(options.gitlab_url, auth_token)
     project = project_module.Project.fetch_by_path(options.project, api)
     user = user_module.User.myself(api)
+
     marge_bot = bot.Bot(
         api=api,
         user=user,
