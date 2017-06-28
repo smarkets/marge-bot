@@ -1,6 +1,7 @@
 [MESSAGE CONTROL]
 disable=missing-docstring,invalid-name,dangerous-default-value
 
+
 [TYPECHECK]
 ignored-classes=Popen
 
@@ -14,3 +15,6 @@ max-attributes=15
 output-format=parseable
 files-output=no
 reports=no
+
+[VARIABLES]
+dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy
