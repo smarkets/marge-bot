@@ -321,9 +321,8 @@ def push_rebased_and_rewritten_version(
         raise CannotMerge('source and target branch seem to coincide!')
 
     branch_rebased = branch_rewritten = changes_pushed = False
-    rebased_sha = rewritten_sha = None
     try:
-        rebased_sha = repo.rebase(
+        rewritten_sha = rebased_sha = repo.rebase(
             branch=source_branch,
             new_base=target_branch,
             source_repo_url=source_repo_url
