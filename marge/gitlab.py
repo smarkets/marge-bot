@@ -193,6 +193,10 @@ class Resource(object):
     def api(self):
         return self._api
 
+    def __repr__(self):
+        return '{0.__class__.__name__}({0._api}, {0.info})'.format(self)
+
+
 class Version(namedtuple('Version', 'release edition')):
     @classmethod
     def parse(cls, string):

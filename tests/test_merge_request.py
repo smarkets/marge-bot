@@ -5,7 +5,7 @@ from marge.merge_request import MergeRequest
 
 _MARGE_ID = 77
 
-_INFO = {
+INFO = {
     'id': 42,
     'iid': 54,
     'title': 'a title',
@@ -26,19 +26,19 @@ class TestMergeRequest(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
         self.api.version = Mock(return_value=Version.parse('9.2.3-ee'))
-        self.mr = MergeRequest(api=self.api, info=_INFO)
+        self.mr = MergeRequest(api=self.api, info=INFO)
 
     def test_fetch_by_iid(self):
         api = self.api
-        api.call = Mock(return_value=_INFO)
+        api.call = Mock(return_value=INFO)
 
         merge_request = MergeRequest.fetch_by_iid(project_id=1234, merge_request_iid=54, api=api)
 
         api.call.assert_called_once_with(GET('/projects/1234/merge_requests/54'))
-        assert merge_request.info == _INFO
+        assert merge_request.info == INFO
 
     def test_refetch_info(self):
-        new_info = dict(_INFO, state='closed')
+        new_info = dict(INFO, state='closed')
         self.api.call = Mock(return_value=new_info)
 
         self.mr.refetch_info()
@@ -78,7 +78,7 @@ class TestMergeRequest(object):
         self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': None}))
 
     def test_accept(self):
-        self._load(dict(_INFO, sha='badc0de'))
+        self._load(dict(INFO, sha='badc0de'))
 
         for b in (True, False):
             self.mr.accept(remove_branch=b)
@@ -104,7 +104,7 @@ class TestMergeRequest(object):
 
     def test_fetch_all_opened_for_me(self):
         api = self.api
-        mr1, mr_not_me, mr2 = _INFO, dict(_INFO, assignee={'id': _MARGE_ID+1}, id=679), dict(_INFO, id=678)
+        mr1, mr_not_me, mr2 = INFO, dict(INFO, assignee={'id': _MARGE_ID+1}, id=679), dict(INFO, id=678)
         api.collect_all_pages = Mock(return_value=[mr1, mr_not_me, mr2])
         result = MergeRequest.fetch_all_open_for_user(1234, user_id=_MARGE_ID, api=api)
         api.collect_all_pages.assert_called_once_with(GET(
