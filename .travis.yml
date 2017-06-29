@@ -1,0 +1,5 @@
+language: python
+python:
+  - "3.6"
+install: "pip install -r requirements_frozen.txt && pip install -e ."
+script: "(pylint marge || [[ $? = 8 ]]) && pytest --cov=marge"

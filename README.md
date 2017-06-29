@@ -1,5 +1,4 @@
-[![build status](http://git.hanson.smarkets.com/hanson/marge/badges/master/build.svg)](http://git.hanson.smarkets.com/hanson/marge/commits/master)
-[![coverage report](http://git.hanson.smarkets.com/hanson/marge/badges/master/coverage.svg)](http://git.hanson.smarkets.com/hanson/marge/commits/master)
+[![build status](https://travis-ci.org/smarkets/marge.png?branch=master)](https://travis-ci.org/smarkets/marge)
 
 # Marge
 
