@@ -4,7 +4,6 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 
 from . import git, gitlab
-from .approvals import Approvals
 from .commit import Commit
 from .project import Project
 from .user import User
@@ -54,12 +53,7 @@ class MergeJob(object):
                 log.info('Merge embargo! -- SKIPPING')
                 return
 
-            approvals = Approvals.fetch_approvals_for_merge_request(
-                self._project.id,
-                merge_request.iid,
-                self._bot.api,
-            )
-
+            approvals = merge_request.fetch_approvals()
             self.rebase_and_accept(approvals)
             log.info('Successfully merged !%s.', merge_request.info['iid'])
         except CannotMerge as err:

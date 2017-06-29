@@ -48,6 +48,7 @@ class TestRebaseAndAcceptMergeRequest(object):
     def setup_method(self, _method):
         marge.project.Project.fetch_by_id = Mock(return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
         self.api = Mock(marge.gitlab.Api)
+        self.api.version = Mock(return_value=marge.gitlab.Version.parse('9.2.3-ee'))
 
     def make_job(self, merge_request, options=None, user_is_admin=True):
         project = marge.project.Project(self.api, test_project.INFO)

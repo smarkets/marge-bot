@@ -63,6 +63,10 @@ class Api(object):
 
         return result
 
+    def version(self):
+        response = self.call(GET('/version'))
+        return Version.parse(response['version'])
+
 
 def from_singleton_list(fun=None):
     fun = fun or (lambda x: x)
@@ -184,3 +188,14 @@ class Resource(object):
     @property
     def id(self):
         return self.info['id']
+
+    @property
+    def api(self):
+        return self._api
+
+class Version(namedtuple('Version', 'release edition')):
+    @classmethod
+    def parse(cls, string):
+        release_string, edition = string.split('-', maxsplit=1)
+        release = tuple(int(number) for number in release_string.split('.'))
+        return cls(release=release, edition=edition)

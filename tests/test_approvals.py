@@ -1,8 +1,9 @@
 from collections import OrderedDict
 from unittest.mock import ANY, call, Mock, patch
 
-from marge.gitlab import Api, GET, POST
+from marge.gitlab import Api, GET, POST, Version
 from marge.approvals import Approvals
+from marge.merge_request import MergeRequest
 import marge.user
 # testing this here is more convenient
 from marge.job import _get_reviewer_names_and_emails
@@ -61,13 +62,15 @@ USERS = {
 class TestApprovals(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
+        self.api.version = Mock(return_value=Version.parse('9.2.3-ee'))
         self.approvals = Approvals(api=self.api, info=INFO)
 
-    def test_fetch_by_id(self):
+    def test_fetch_from_merge_request(self):
         api = self.api
         api.call = Mock(return_value=INFO)
 
-        approvals = Approvals.fetch_approvals_for_merge_request(project_id=1234, merge_request_iid=6, api=api)
+        merge_request = MergeRequest(api, {'id': 74, 'iid': 6, 'project_id': 1234})
+        approvals = merge_request.fetch_approvals()
 
         api.call.assert_called_once_with(GET(
             '/projects/1234/merge_requests/6/approvals'

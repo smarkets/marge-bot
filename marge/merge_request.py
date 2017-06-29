@@ -1,4 +1,5 @@
 from . import gitlab
+from .approvals import Approvals
 
 
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
@@ -83,17 +84,20 @@ class MergeRequest(gitlab.Resource):
         return self.info['web_url']
 
     def refetch_info(self):
-        self._info = self._api.call(GET('/projects/%s/merge_requests/%s' % (self.project_id, self.iid)))
+        self._info = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}'.format(self)))
 
     def comment(self, message):
-        return self._api.call(POST(
-            '/projects/%s/merge_requests/%s/notes' % (self.project_id, self.iid),
-            {'body': message},
-        ))
+        if self._api.version().release >= (9, 2, 3):
+            notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
+        else:
+            # gitlab botched the v4 api before 9.2.3
+            notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
+
+        return self._api.call(POST(notes_url, {'body': message}))
 
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
-            '/projects/%s/merge_requests/%s/merge' % (self.project_id, self.iid),
+            '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
             dict(
                 should_remove_source_branch=remove_branch,
                 merge_when_pipeline_succeeds=True,
@@ -103,9 +107,16 @@ class MergeRequest(gitlab.Resource):
 
     def assign_to(self, user_id):
         return self._api.call(PUT(
-            '/projects/%s/merge_requests/%s' % (self.project_id, self.iid),
+            '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
             {'assignee_id': user_id},
         ))
 
     def unassign(self):
         return self.assign_to(None)
+
+    def fetch_approvals(self):
+        # 'id' needed for for gitlab 9.2.2 hack (see Approvals.refetch_info())
+        info = {'id': self.id, 'iid': self.iid, 'project_id': self.project_id}
+        approvals = Approvals(self.api, info)
+        approvals.refetch_info()
+        return approvals

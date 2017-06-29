@@ -1,6 +1,6 @@
 from unittest.mock import call, Mock
 
-from marge.gitlab import Api, GET, POST, PUT
+from marge.gitlab import Api, GET, POST, PUT, Version
 from marge.merge_request import MergeRequest
 
 _MARGE_ID = 77
@@ -25,6 +25,7 @@ _INFO = {
 class TestMergeRequest(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
+        self.api.version = Mock(return_value=Version.parse('9.2.3-ee'))
         self.mr = MergeRequest(api=self.api, info=_INFO)
 
     def test_fetch_by_iid(self):
