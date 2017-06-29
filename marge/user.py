@@ -30,7 +30,7 @@ class User(gitlab.Resource):
 
     @property
     def name(self):
-        return self.info['name']
+        return self.info['name'].strip()
 
     @property
     def username(self):
