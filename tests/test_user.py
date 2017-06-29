@@ -9,6 +9,7 @@ INFO = {
     'username': 'john_smith',
     'name': 'John Smith',
     'state': 'active',
+    'is_admin': False,
 }
 
 
@@ -18,7 +19,7 @@ class TestProject(object):
 
     def test_fetch_myself(self):
         user = User.myself(api=self.api)
-        self.api.call.assert_called_once_with(GET('/user'), sudo=None)
+        self.api.call.assert_called_once_with(GET('/user'))
 
     def test_fetch_by_id(self):
         api = self.api

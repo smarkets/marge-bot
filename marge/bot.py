@@ -4,7 +4,6 @@ from datetime import datetime
 from tempfile import TemporaryDirectory
 
 from . import git
-from . import gitlab
 from . import merge_request as merge_request_module
 from . import store
 from .job import MergeJob, MergeJobOptions
@@ -24,16 +23,6 @@ class Bot(object):
             add_tested,
             impersonate_approvers
     ):
-        # There's a bug in some recent versions of Gitlab, where is_admin is
-        # not set, even for admins. Use sudo (which only admins can do) as a
-        # hack as work around.
-        # See e.g. <https://gitlab.com/gitlab-org/gitlab-ce/issues/34325>
-        if user.is_admin is None:
-            try:
-                user.myself(api=api, sudo=user.id)
-                user._info['is_admin'] = True  # pylint: disable=protected-access
-            except gitlab.Forbidden:
-                pass
         if not user.is_admin:
             assert not impersonate_approvers, "{0.username} is not an admin, can't impersonate!".format(user)
             assert not add_reviewers, (

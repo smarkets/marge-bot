@@ -7,12 +7,22 @@ GET = gitlab.GET
 class User(gitlab.Resource):
 
     @classmethod
-    def myself(cls, api, sudo=None):
-        return cls(api, api.call(GET('/user'), sudo=sudo))
+    def myself(cls, api):
+        info = api.call(GET('/user'))
+
+        if info.get('is_admin') is None:  # WORKAROUND FOR BUG IN 9.2.2
+            try:
+                # sudoing succeeds iff we are admin
+                api.call(GET('/user'), sudo=info['id'])
+                info['is_admin'] = True
+            except gitlab.Forbidden:
+                info['is_admin'] = False
+
+        return cls(api, info)
 
     @property
     def is_admin(self):
-        return self.info.get('is_admin')
+        return self.info['is_admin']
 
     @classmethod
     def fetch_by_id(cls, user_id, api):

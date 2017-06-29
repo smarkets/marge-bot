@@ -49,11 +49,11 @@ class TestRebaseAndAcceptMergeRequest(object):
         marge.project.Project.fetch_by_id = Mock(return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
         self.api = Mock(marge.gitlab.Api)
 
-    def make_job(self, merge_request, options=None):
+    def make_job(self, merge_request, options=None, user_is_admin=True):
         project = marge.project.Project(self.api, test_project.INFO)
         repo = Mock(marge.git.Repo)
         options = options or marge.job.MergeJobOptions.default()
-        user = marge.user.User(self.api, dict(test_user.INFO, name='marge-bot'))
+        user = marge.user.User(self.api, dict(test_user.INFO, name='marge-bot', is_admin=user_is_admin))
         bot = marge.bot.Bot(
             api=self.api,
             user=user,
