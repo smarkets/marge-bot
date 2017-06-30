@@ -111,9 +111,10 @@ class MergeJob(object):
             log.info('Commit id to merge %r', actual_sha)
             time.sleep(5)
 
-            self.wait_for_ci_to_pass(source_project.id, actual_sha)
-            log.info('CI passed!')
-            time.sleep(2)
+            if source_project.only_allow_merge_if_pipeline_succeeds:
+                self.wait_for_ci_to_pass(source_project.id, actual_sha)
+                log.info('CI passed!')
+                time.sleep(2)
 
             sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id
             # Make sure no-one managed to race and push to the branch in the
