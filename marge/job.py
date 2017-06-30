@@ -84,17 +84,19 @@ class MergeJob(object):
                     'Insufficient approvals '
                     '(have: {0.approver_usernames} missing: {0.approvals_left})'.format(approvals)
                 )
+            source_project = (
+                self._project if merge_request.source_project_id == self._project.id else
+                Project.fetch_by_id(merge_request.source_project_id, api=api)
+            )
+
+            should_add_tested = self.opts.add_tested and source_project.only_allow_merge_if_pipeline_succeeds
             tested_by = (
-                ['{0._bot.user.name} <{1.web_url}>'.format(self, merge_request)] if self.opts.add_tested
+                ['{0._bot.user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
                 else None
             )
             reviewers = (
                 _get_reviewer_names_and_emails(approvals=approvals, api=api) if self.opts.add_reviewers
                 else None
-            )
-            source_project = (
-                self._project if merge_request.source_project_id == self._project.id else
-                Project.fetch_by_id(merge_request.source_project_id, api=api)
             )
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
             # NB. this will be a no-op if there is nothing to rebase/rewrite

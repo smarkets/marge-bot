@@ -46,7 +46,7 @@ class TestRebaseAndAcceptMergeRequest(object):
     def teardown_method(self, _method):
         marge.project.Project.fetch_by_id = _project_fetch_by_id
     def setup_method(self, _method):
-        marge.project.Project.fetch_by_id = Mock(return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
+        marge.project.Project.fetch_by_id = Mock(return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git', only_allow_merge_if_pipeline_succeeds=True))
         self.api = Mock(marge.gitlab.Api)
         self.api.version = Mock(return_value=marge.gitlab.Version.parse('9.2.3-ee'))
 
@@ -69,10 +69,9 @@ class TestRebaseAndAcceptMergeRequest(object):
     @patch('marge.job._get_reviewer_names_and_emails', return_value=[])
     @patch('marge.commit.Commit.last_on_branch', return_value=struct(id='af7a'))
     @patch('marge.commit.Commit.fetch_by_id', return_value=struct(status='success'))
-    @patch('marge.project.Project.fetch_by_id', return_value=struct(id=5678, ssh_url_to_repo='http://http://git.example.com/group/project.git'))
     @patch('marge.job.push_rebased_and_rewritten_version', return_value=('505e', 'deadbeef', 'af7a'))
     @patch('time.sleep')
-    def test_succeeds_first_time(self, time_sleep, push_rebased_and_rewritten_version, pfetch_by_id, cfetch_by_id, last_on_branch, _get_reviewers):
+    def test_succeeds_first_time(self, time_sleep, push_rebased_and_rewritten_version, cfetch_by_id, last_on_branch, _get_reviewers):
         merge_request = MergeRequest(self.api, _merge_request_info())
         job = self.make_job(
             merge_request,
