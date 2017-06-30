@@ -126,7 +126,11 @@ class MergeJob(object):
             # approval can't be withdrawn after we've pushed (resetting
             # approvals) and CI runs.
             if self.opts.reapprove:
-                approvals.reapprove()
+                # approving is not idempotent, so we need to check first that there are no approvals,
+                # otherwise we'll get a failure on trying to re-instate the previous approvals
+                current_approvals = merge_request.fetch_approvals()
+                if not current_approvals.sufficient:
+                    approvals.reapprove()
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
