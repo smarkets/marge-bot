@@ -108,7 +108,7 @@ class MergeJob(object):
                 reviewers=reviewers,
                 tested_by=tested_by,
             )
-            log.info('Commit id to merge %r', actual_sha)
+            log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
 
             if source_project.only_allow_merge_if_pipeline_succeeds:
@@ -138,6 +138,7 @@ class MergeJob(object):
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we rebased, just try again
                 if new_target_sha != target_sha:
+                    log.info('Someone was naughty and by-passed marge')
                     merge_request.comment(
                         "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
                     )

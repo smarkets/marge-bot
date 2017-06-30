@@ -80,7 +80,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
         try:
-            self.git('rebase', 'origin/%s' % new_base)
+            self.git('rebase', 'origin/' + new_base)
         except GitError:
             log.warning('rebase failed, doing an --abort')
             self.git('rebase', '--abort')
