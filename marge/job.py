@@ -258,7 +258,7 @@ def push_rebased_and_rewritten_version(
                 trailer_name='Reviewed-by',
                 trailer_values=reviewers,
                 branch=source_branch,
-                start_commit=['source/', 'origin/'][source_repo_url is None] + target_branch,
+                start_commit='origin/' + target_branch,
             )
         if tested_by is not None:
             rewritten_sha = repo.tag_with_trailer(
