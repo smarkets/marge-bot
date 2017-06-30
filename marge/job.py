@@ -280,7 +280,7 @@ def push_rebased_and_rewritten_version(
 
         raise
     else:
-        target_sha = repo.get_commit_hash(target_branch)
+        target_sha = repo.get_commit_hash('origin/' + target_branch)
         return target_sha, rebased_sha, rewritten_sha
     finally:
         # A failure to clean up probably means something is fucked with the git repo
