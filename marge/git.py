@@ -46,7 +46,12 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
             self.git('filter-branch', '--force', '--msg-filter', filter_script, commit_range)
         except GitError:
             log.warning('filter-branch failed, will try to restore')
-            self.git('reset', '--hard', 'refs/original/refs/heads/' + branch)
+            try:
+                self.get_commit_hash('refs/original/refs/heads/')
+            except GitError:
+                log.warning('No changes have been effected by filter-branch')
+            else:
+                self.git('reset', '--hard', 'refs/original/refs/heads/' + branch)
             raise
         return self.get_commit_hash()
 

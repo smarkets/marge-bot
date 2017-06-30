@@ -57,6 +57,10 @@ class TestRepo(object):
         def fail_on_filter_branch(*args, **kwargs):
             if 'filter-branch' in args:
                 raise subprocess.CalledProcessError(returncode=1, cmd='git rebase blah')
+            elif 'rev-parse' in args or 'reset' in args:
+                return mock.Mock()
+            else:
+                raise Exception('Unexpected call:', args)
 
         mocked_run.side_effect = fail_on_filter_branch
 
@@ -71,8 +75,9 @@ class TestRepo(object):
             pass
         else:
             assert False
-        rewrite, abort = get_calls(mocked_run)
+        rewrite, check, abort = get_calls(mocked_run)
         assert 'filter-branch' in rewrite
+        assert check == 'git -C /tmp/local/path rev-parse refs/original/refs/heads/'
         assert abort == 'git -C /tmp/local/path reset --hard refs/original/refs/heads/feature_branch'
 
     def test_rebase_same_branch(self, mocked_run):
