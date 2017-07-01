@@ -2,4 +2,7 @@
 ENV/
 .cache
 *.egg-info
+.coverage
 
+# nix stuff
+result
