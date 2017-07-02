@@ -33,9 +33,12 @@ Since she is at it, she can optionally provide some other goodies like tagging o
 
 ## Configuring and running
 
-First, create a user for Marge (we'll use `marge-bot` here) on your GitLab and add it to your projects
-as a developer. For certain features, namely, `--impersonate-approvers`, and `--add-reviewed-by`, you will
-need to grant `marge-bot` admin privileges.
+First, create a user for Marge on your GitLab. We'll use `marge-bot` here; but
+*we recommend you start the user name with a space*, e.g. ` marge-bot`, so Marge
+sorts topmost and is quick to assign to (our code strips trailing whitespace in
+the user name, so it won't show up elsewhere). Then add it to your projects as a
+developer or admin. For certain features, namely, `--impersonate-approvers`, and
+`--add-reviewed-by`, you will need to grant `marge-bot` admin privileges.
 
 Second, from the user's `Profile Settings`, download the **PRIVATE TOKEN** and
 put it in a file (e.g., `marge-bot.token`). Be aware that there are other token
