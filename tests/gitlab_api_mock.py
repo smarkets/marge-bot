@@ -7,6 +7,7 @@ import marge.gitlab as gitlab
 GET = gitlab.GET
 POST = gitlab.POST
 
+
 class Api(gitlab.Api):
     def __init__(self, gitlab_url, auth_token, initial_state):
         super(Api, self).__init__(gitlab_url, auth_token)
@@ -53,7 +54,7 @@ class Api(gitlab.Api):
         return more_specific or self._transitions[_key(command, sudo, None)]
 
     def add_transition(self, command, response, sudo=None, from_state=None, to_state=None):
-        from_states = from_state if type(from_state) == list else [from_state]
+        from_states = from_state if isinstance(from_state, list) else [from_state]
 
         for from_state in from_states:
             show_from = '*' if from_state is None else repr(from_state)
@@ -78,7 +79,7 @@ class Api(gitlab.Api):
         self.add_resource('/projects/{0.id}', info, sudo, from_state, to_state)
         self.add_transition(
             GET('/projects/{0.id}/merge_requests'.format(attrs(info))),
-            List('/projects/\d+/merge_requests/\d+$', self),
+            List(r'/projects/\d+/merge_requests/\d+$', self),
             sudo, from_state, to_state,
         )
 
@@ -95,7 +96,10 @@ class Api(gitlab.Api):
 
     def expected_note(self, merge_request, note, sudo=None, from_state=None, to_state=None):
         self.add_transition(
-            POST('/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(attrs(merge_request)), args={'body': note}),
+            POST(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(attrs(merge_request)),
+                args={'body': note}
+            ),
             LeaveNote(note, self),
             sudo, from_state, to_state,
         )
@@ -109,15 +113,17 @@ class Ok(namedtuple('Ok', 'result')):
     def __call__(self):
         return self.result
 
+
 class Error(namedtuple('Error', 'exc')):
     def __call__(self):
         raise self.exc
+
 
 class List(namedtuple('List', 'prefix api')):
     def _call__(self):
         candidates = (
             command for command, _ in self.api._transitions.keys()
-            if type(command) == GET and re.match(self.prefix, command.endpoint)
+            if isinstance(command, GET) and re.match(self.prefix, command.endpoint)
         )
 
         results = []
@@ -129,13 +135,16 @@ class List(namedtuple('List', 'prefix api')):
 
         return results
 
+
 class LeaveNote(namedtuple('LeaveNote', 'note api')):
     def __call__(self):
         self.api.notes.append(self.note)
         return {}
 
+
 class MockedEndpointNotFound(Exception):
     pass
+
 
 class attrs(object):
     def __init__(self, d):
