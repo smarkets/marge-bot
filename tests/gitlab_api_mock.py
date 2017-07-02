@@ -27,7 +27,7 @@ class Api(gitlab.Api):
         except KeyError:
             page = command.args.get('page')
             if page == 0:
-                no_page_args = dict((k, v) for k, v in args.items() if k not in ['page', 'per_page'])
+                no_page_args = dict((k, v) for k, v in command.args.items() if k not in ['page', 'per_page'])
                 try:
                     return self.call(command._replace(args=no_page_args))
                 except MockedEndpointNotFound:
