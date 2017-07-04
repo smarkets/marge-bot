@@ -4,7 +4,7 @@ let version = "0.0.1";
     py = python.packages;
 in
 python.mkDerivation {
-  pversion = "${version}";
+  version = "${version}";
   name = "marge-${version}";
   src = ./.;
   # The dependencies, referring to variables in <nixpkgs>.
@@ -19,7 +19,7 @@ python.mkDerivation {
      PYTHONPATH=$PYTHONPATH:. py.test --cov marge
   '';
   meta = {
-    homepage = "http://git.hanson.smarkets.com/hanson/marge";
+    homepage = "http://github.com/smarkets/marge";
     description = "A build bot for gitlab";
     license = with lib.licenses; [bsd3] ;
     maintainers =  [
