@@ -1,5 +1,5 @@
 with import <nixpkgs> {};
-let version = "0.0.1";
+let version = builtins.replaceStrings ["\n"] [""] (builtins.readFile ./version);
     python = (import ./requirements.nix { inherit pkgs; });
     py = python.packages;
 in
