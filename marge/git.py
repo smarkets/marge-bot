@@ -75,9 +75,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
                 pass
             self.git('remote', 'add', 'source', source_repo_url)
             self.git('fetch', 'source')
-            self.git('checkout', '-B', branch, 'source/' + branch, '--')
+            self.checkout(branch, 'source/' + branch)
         else:
-            self.git('checkout', '-B', branch, 'origin/' + branch, '--')
+            self.checkout(branch, 'origin/' + branch)
 
         try:
             self.git('rebase', 'origin/' + new_base)
@@ -87,13 +87,23 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
             raise
         return self.get_commit_hash()
 
+    def checkout(self, branch, source_branch=None, create=False):
+        """Lifted into helper for the annoying '--' disambiguation."""
+        if source_branch:
+            assert not create
+            self.git('checkout', '-B', branch, source_branch, '--')
+        elif create:
+            self.git('checkout', '-b', branch, '--')
+        else:
+            self.git('checkout', branch, '--')
+
     def remove_branch(self, branch):
         assert branch != 'master'
-        self.git('checkout', 'master', '--')
+        self.checkout('master')
         self.git('branch', '-D', branch)
 
     def push_force(self, branch, source_repo_url=None):
-        self.git('checkout', branch, '--')
+        self.checkout(branch)
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
 
@@ -116,7 +126,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
     def get_remote_url(self, name):
         return self.git('config', '--get', 'remote.{}.url'.format(name)).stdout.decode('utf-8').strip()
 
-    def git(self, *args, from_repo=True):
+    def git(self, *args, check=True, from_repo=True):
         env = None
         if self.ssh_key_file:
             env = os.environ.copy()
@@ -129,7 +139,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
 
         log.info('Running %s', ' '.join(shlex.quote(w) for w in command))
         try:
-            return _run(*command, env=env, check=True, timeout=TIMEOUT_IN_SECS)
+            return _run(*command, env=env, check=check, timeout=TIMEOUT_IN_SECS)
         except subprocess.CalledProcessError as err:
             log.warning('git returned %s', err.returncode)
             log.warning('stdout: %r', err.stdout)
