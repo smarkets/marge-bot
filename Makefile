@@ -11,3 +11,7 @@ clean:
 
 .PHONY: bump-requirements
 bump-requirements: clean requirements_frozen.txt
+
+.PHONY: dockerize
+dockerize: dockerize.nix
+	docker load --input $$(nix-build dockerize.nix)
