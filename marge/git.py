@@ -13,7 +13,7 @@ TIMEOUT_IN_SECS = 60
 
 
 def _filter_branch_script(trailer_name, trailer_values):
-    filter_script = 'TRAILERS={trailers} {script}'.format(
+    filter_script = 'TRAILERS={trailers} python3 {script}'.format(
         trailers=shlex.quote(
             '\n'.join(
                 '{}: {}'.format(trailer_name, trailer_value)
