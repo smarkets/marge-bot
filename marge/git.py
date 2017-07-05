@@ -11,6 +11,12 @@ from . import trailerfilter
 
 TIMEOUT_IN_SECS = 60
 
+# Turning off StrictHostKeyChecking is a nasty hack to approximate
+# just accepting the hostkey sight unseen the first time marge
+# connects. The proper solution would be to pass in known_hosts as
+# a commandline parameter, but in practice few people will bother anyway and
+# in this case the threat of MiTM seems somewhat bogus.
+GIT_SSH_COMMAND = "ssh -o StrictHostKeyChecking=no "
 
 def _filter_branch_script(trailer_name, trailer_values):
     filter_script = 'TRAILERS={trailers} python3 {script}'.format(
@@ -120,7 +126,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
         env = None
         if self.ssh_key_file:
             env = os.environ.copy()
-            env['GIT_SSH_COMMAND'] = "ssh -i %s" % self.ssh_key_file
+            env['GIT_SSH_COMMAND'] = " ".join([GIT_SSH_COMMAND, "-i", self.ssh_key_file])
 
         command = ['git']
         if from_repo:
