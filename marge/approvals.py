@@ -7,7 +7,7 @@ class Approvals(gitlab.Resource):
     """Approval info for a MergeRequest."""
 
     def refetch_info(self):
-        if self._api.version().release >= (9, 2, 3):
+        if self._api.version().release >= (9, 2, 2):
             approver_url = '/projects/{0.project_id}/merge_requests/{0.iid}/approvals'.format(self)
         else:
             # gitlab botched the v4 api before 9.2.3
@@ -46,7 +46,7 @@ class Approvals(gitlab.Resource):
         (which may invalidate approvals, depending on gitlab settings) and then
         restore the approval status.
         """
-        if self._api.version().release >= (9, 2, 3):
+        if self._api.version().release >= (9, 2, 2):
             approve_url = '/projects/{0.project_id}/merge_requests/{0.iid}/approve'.format(self)
         else:
             # gitlab botched the v4 api before 9.2.3
