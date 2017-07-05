@@ -89,7 +89,7 @@ class MergeJob(object):
                 Project.fetch_by_id(merge_request.source_project_id, api=api)
             )
 
-            should_add_tested = self.opts.add_tested and source_project.only_allow_merge_if_pipeline_succeeds
+            should_add_tested = self.opts.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
             tested_by = (
                 ['{0._bot.user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
                 else None
