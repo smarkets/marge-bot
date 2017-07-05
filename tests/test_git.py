@@ -7,6 +7,7 @@ import unittest.mock as mock
 import pytest
 
 import marge.git
+from marge.git import GIT_SSH_COMMAND
 
 
 @mock.patch('marge.git._run')
@@ -156,8 +157,8 @@ class TestRepo(object):
         repo = self.repo._replace(ssh_key_file='/foo/id_rsa')
         repo.config_user_info('bart', 'bart@gmail.com')
         assert get_calls(mocked_run) == [
-            "GIT_SSH_COMMAND='ssh -i /foo/id_rsa' git -C /tmp/local/path config user.email bart@gmail.com",
-            "GIT_SSH_COMMAND='ssh -i /foo/id_rsa' git -C /tmp/local/path config user.name bart",
+            "GIT_SSH_COMMAND='%s -i /foo/id_rsa' git -C /tmp/local/path config user.email bart@gmail.com" % GIT_SSH_COMMAND,
+            "GIT_SSH_COMMAND='%s -i /foo/id_rsa' git -C /tmp/local/path config user.name bart" % GIT_SSH_COMMAND,
         ]
 
 def get_calls(mocked_run):

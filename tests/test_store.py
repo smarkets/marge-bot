@@ -2,6 +2,7 @@ import os.path
 import tempfile
 import unittest.mock as mock
 
+import marge.git
 import marge.store
 import marge.user
 
@@ -38,7 +39,7 @@ class TestRepoManager(object):
         assert os.path.dirname(repo.local_path) == repo_manager.root_dir
         assert repo.local_path != repo_manager.root_dir
 
-        env = "GIT_SSH_COMMAND='ssh -i /ssh/key'"
+        env = "GIT_SSH_COMMAND='%s -i /ssh/key'" % marge.git.GIT_SSH_COMMAND
         assert get_git_calls(git_run) == [
             "%s git clone --origin=origin %s %s" % (env, project.ssh_url_to_repo, repo.local_path),
             "%s git -C %s config user.email pparker@bugle.com" % (env, repo.local_path),
