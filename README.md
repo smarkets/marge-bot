@@ -63,6 +63,10 @@ marge.app --auth-token-file marge-bot.token \
           --ssh-key-file marge-bot-ssh-key
 ```
 
+Alternatively, you can also pass the auth token as the environment variable
+`MARGE_AUTH_TOKEN` and the **CONTENTS** of the ssh-key-file as the environment
+variable `MARGE_SSH_KEY`.
+
 Once running, the bot will continuously monitor all projects that have its user as a member and will
 pick up any changes in membership at runtime.
 
