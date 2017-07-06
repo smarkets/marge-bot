@@ -9,7 +9,7 @@ from collections import namedtuple
 
 from . import trailerfilter
 
-TIMEOUT_IN_SECS = 60
+TIMEOUT_IN_SECS = 120
 
 # Turning off StrictHostKeyChecking is a nasty hack to approximate
 # just accepting the hostkey sight unseen the first time marge
