@@ -1,4 +1,5 @@
 import json
+import logging as log
 from collections import namedtuple
 
 import requests
@@ -15,7 +16,10 @@ class Api(object):
         headers = {'PRIVATE-TOKEN': self._auth_token}
         if sudo:
             headers['SUDO'] = '%d' % sudo
+        log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
         response = method(url, headers=headers, **command.call_args)
+        log.debug('RESPONSE CODE: %s', response.status_code)
+        log.debug('RESPONSE BODY: %r', response.json())
 
         if response.status_code == 200:
             return command.extract(response.json()) if command.extract else response.json()

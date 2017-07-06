@@ -4,6 +4,7 @@ An auto-merger of merge requests for GitLab
 
 import argparse
 import contextlib
+import logging
 import os
 import sys
 import tempfile
@@ -67,19 +68,6 @@ def _parse_args(args):
     return parser.parse_args(args)
 
 
-def _setup_debug_logging():
-    # <https://stackoverflow.com/questions/16337511/log-all-requests-from-the-python-requests-module>
-    import logging
-    import http.client
-    http.client.HTTPConnection.debuglevel = 2
-
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
-    requests_log = logging.getLogger("requests.packages.urllib3")
-    requests_log.setLevel(logging.DEBUG)
-    requests_log.propagate = True
-
-
 @contextlib.contextmanager
 def _secret_auth_token_and_ssh_key(options):
     if options.auth_token_file is None:
@@ -99,12 +87,13 @@ def _secret_auth_token_and_ssh_key(options):
         yield auth_token.strip(), ssh_key_file
 
 
-
 def main(args=sys.argv[1:]):
+    logging.basicConfig()
+
     options = _parse_args(args)
 
     if options.debug:
-        _setup_debug_logging()
+        logging.getLogger().setLevel(logging.DEBUG)
 
     with _secret_auth_token_and_ssh_key(options) as (auth_token, ssh_key_file):
         api = gitlab.Api(options.gitlab_url, auth_token)
