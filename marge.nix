@@ -1,4 +1,4 @@
-{pkgs ? import <nixpkgs> {}}:
+{pkgs ? import ./pinnedNixpkgs.nix }:
 with pkgs;
 let version = builtins.replaceStrings ["\n"] [""] (builtins.readFile ./version);
     python = (import ./requirements.nix { inherit pkgs; });

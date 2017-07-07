@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import ./pinnedNixpkgs.nix }:
 with pkgs;
 let callPackage = pkgs.lib.callPackageWith (pkgs);
   marge = callPackage ./marge.nix {};
