@@ -45,13 +45,13 @@ class TestRepo(object):
     def test_reviewer_tagging_success(self, mocked_run):
         self.repo.tag_with_trailer(
             trailer_name='Reviewed-by',
-            trailer_values=['John Simon <john@invalid.com>'],
+            trailer_values=['John Simon <john@invalid>'],
             branch='feature_branch',
             start_commit='origin/master_of_the_universe',
         )
 
         rewrite, parse = get_calls(mocked_run)
-        assert re.match('git -C /tmp/local/path filter-branch --force --msg-filter.*John Simon <john@invalid.com>.*origin/master_of_the_universe..feature_branch', rewrite)
+        assert re.match('git -C /tmp/local/path filter-branch --force --msg-filter.*John Simon <john@invalid>.*origin/master_of_the_universe..feature_branch', rewrite)
         assert parse == 'git -C /tmp/local/path rev-parse HEAD'
 
     def test_reviewer_tagging_failure(self, mocked_run):
@@ -221,11 +221,33 @@ Tested-by: T. Estes <testes@example.com>
 Reviewed-by: Roger Ebert <ebert@example.com>
 Reviewed-by: John Simon <simon@example.com>
 '''
-    assert _filter_test(with_tested_by, 'Tested-by', []) == '''Fix: bug in BLah.
+    assert _filter_test('Test: frobnificator', 'Tested-by', []) == 'Test: frobnificator\n'
+    assert _filter_test('Test: frobnificator', 'Tested-by', ['T. Estes <testes@example.com>']) == (
+        '''Test: frobnificator
 
-Some stuff.
-Some More stuff (really? Yeah: really!)
-
-Reviewed-by: R. Viewer <rviewer@example.com>
-Signed-off-by: Stephen Offer <soffer@example.com>
+Tested-by: T. Estes <testes@example.com>
 '''
+    )
+
+
+def test_filter_fails_on_empty_commit_messages():
+    with pytest.raises(Exception):
+        _filter_test('', [])
+
+
+def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
+    with pytest.raises(Exception):
+        _filter_test(
+            'Tested-by: T. Estes <testes@example.com>',
+            'Tested-by',
+            ['T. Estes <testes@example.com>']
+        )
+    with pytest.raises(Exception):
+        _filter_test('', 'Tested-by', ['T. Estes <testes@example.com>'])
+
+
+def test_filter_treats_the_first_commit_line_not_as_a_trailer_unless_it_matches_the_trailer_name_passed_in():
+    _filter_test(
+        'Tested-by: T. Estes <testes@example.com>',
+        'Reviewed-by', ['Reviewed-by: John Simon <john@invalid>']
+    ) == 'Tested-by: T. Estes <testes@example.com>'
