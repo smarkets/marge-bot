@@ -21,7 +21,7 @@ python.mkDerivation {
   '';
 
   meta = {
-    homepage = "https://github.com/smarkets/marge";
+    homepage = "https://github.com/smarkets/marge-bot";
     description = "A build bot for gitlab";
     license = with lib.licenses; [bsd3] ;
     maintainers =  [
