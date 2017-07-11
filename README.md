@@ -3,51 +3,67 @@
 # Marge-bot
 
 Marge-bot is a merge-bot for GitLab that, beside other goodies,
-implements [the Not Rocket Science Rule Of Software Engineering:](http://graydon2.dreamwidth.org/1597.html)
+implements
+[the Not Rocket Science Rule Of Software Engineering:](http://graydon2.dreamwidth.org/1597.html)
 
 > automatically maintain a repository of code that always passes all the tests.
 
 -- Graydon Hoare, main author of Rust
 
-This simple rule of thumb is still nowadays surprisingly difficult to
-implement with the state-of-the-art tools, and more so in a way that scales
-with team size.
+This simple rule of thumb is still nowadays surprisingly difficult to implement
+with the state-of-the-art tools, and more so in a way that scales with team
+size.
 
 Take, for instance, GitHub's well-known
 [pull-request workflow](https://help.github.com/categories/collaborating-with-issues-and-pull-requests).
-Here, CI needs to pass on the branch before the pull request can be accepted but after that, the branch
-is immediately merged (or rebased) into master. By the time this happens, enough changes may have occurred
-to induce test breakage, but this is only to be found out when the commits have already landed.
+Here, CI needs to pass on the branch before the pull request can be accepted but
+after that, the branch is immediately merged (or rebased) into master. By the
+time this happens, enough changes may have occurred to induce test breakage, but
+this is only to be found out when the commits have already landed.
 
-GitLab (in their [enterprise edition](https://about.gitlab.com/products/)),  offers an important improvement
-here with their [semi-linear history and fast-forward](https://docs.gitlab.com/ee/user/project/merge_requests/) merge request methods: in both cases a merge request can only be accepted if the resulting master branch will be effectively the same as the merge request branch on which CI has passed. If master has changed since the tests were last ran, it is the *user's responsibility* to rebase the changes and retry. But this just doesn't scale: if you have, a mono-repo, a large team working on short-lived branches, a CI pipeline that takes 5-10 minutes to complete... then the number of times one need's to rebase-and-try-to-accept starts to become unbearable.
+GitLab (in their [enterprise edition](https://about.gitlab.com/products/)),
+offers an important improvement here with
+their
+[semi-linear history and fast-forward](https://docs.gitlab.com/ee/user/project/merge_requests/) merge
+request methods: in both cases a merge request can only be accepted if the
+resulting master branch will be effectively the same as the merge request branch
+on which CI has passed. If master has changed since the tests were last ran, it
+is the *user's responsibility* to rebase the changes and retry. But this just
+doesn't scale: if you have, a mono-repo, a large team working on short-lived
+branches, a CI pipeline that takes 5-10 minutes to complete... then the number
+of times one need's to rebase-and-try-to-accept starts to become unbearable.
 
-Marge-bot offers the simplest of workflows: when a merge-request is ready, just assign it to its user, and let her
-do all the rebase-wait-retry for you. If anything goes wrong (merge conflicts, tests that fail, etc.) she'll
-leave a message on the merge-request, so you'll get notified. Marge-bot can handle an adversarial environment
-where some developers prefer to merge their own changes, so the barrier for adoption is really low.
+Marge-bot offers the simplest of workflows: when a merge-request is ready, just
+assign it to its user, and let her do all the rebase-wait-retry for you. If
+anything goes wrong (merge conflicts, tests that fail, etc.) she'll leave a
+message on the merge-request, so you'll get notified. Marge-bot can handle an
+adversarial environment where some developers prefer to merge their own changes,
+so the barrier for adoption is really low.
 
-Since she is at it, she can optionally provide some other goodies like tagging of commits
-(e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
+Since she is at it, she can optionally provide some other goodies like tagging
+of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 
 ## Configuring and running
 
-First, create a user for Marge-bot on your GitLab. We'll use `marge-bot` as username here as well.
-GitLab sorts users by Name, so we recommend you pick one that starts with a space,
-e.g. ` Marge Bot`, so it is quicker to assign to (our code strips trailing whitespace in
-the name, so it won't show up elsewhere). Then add `marge-bot` to your projects as
-`Developer` or `Master`, the latter being required if she will merge to protected branches.
+First, create a user for Marge-bot on your GitLab. We'll use `marge-bot` as
+username here as well. GitLab sorts users by Name, so we recommend you pick one
+that starts with a space, e.g. ` Marge Bot`, so it is quicker to assign to (our
+code strips trailing whitespace in the name, so it won't show up elsewhere).
+Then add `marge-bot` to your projects as `Developer` or `Master`, the latter
+being required if she will merge to protected branches.
 
 For certain features, namely, `--impersonate-approvers`, and
-`--add-reviewed-by`, you will need to grant `marge-bot` admin privileges as well. In the latter, so that she can query the email of the reviewers to include it in the commit.
+`--add-reviewed-by`, you will need to grant `marge-bot` admin privileges as
+well. In the latter, so that she can query the email of the reviewers to include
+it in the commit.
 
 Second, you need an authentication token for the `marge-bot` user. If she was
 made an admin to handle approver impersonation and/or adding a reviewed-by
-field, then you will need to use the **PRIVATE TOKEN** found in her
-`Profile Settings`. Otherwise, you can just use a personal access token that
-can be generated from `Profile Settings -> Access Tokens`. Make sure it has
-`api`  and `read_user` scopes. Put the token in a file, e.g. `marge-bot.token`.
+field, then you will need to use the **PRIVATE TOKEN** found in her `Profile
+Settings`. Otherwise, you can just use a personal access token that can be
+generated from `Profile Settings -> Access Tokens`. Make sure it has `api` and
+`read_user` scopes. Put the token in a file, e.g. `marge-bot.token`.
 
 Finally, create a new ssh key-pair, e.g like so
 
@@ -102,17 +118,19 @@ See below for the meaning of the additional flags.
    they approve the merge request and assign it to `marge-bot` for merging.
 
 3. Marge-bot rebases the latest target branch (typically master) into the
-   merge-request branch and pushes it. Once the tests have passed and there is
-   a sufficient number of approvals (if a minimal approvals limit has been set on the project),
-   Marge-bot will merge (or rebase, depending on project settings) the merge request via the GitLab API.
-   It can also add some headers to all commits in the merge request as described in the next section.
+   merge-request branch and pushes it. Once the tests have passed and there is a
+   sufficient number of approvals (if a minimal approvals limit has been set on
+   the project), Marge-bot will merge (or rebase, depending on project settings)
+   the merge request via the GitLab API. It can also add some headers to all
+   commits in the merge request as described in the next section.
 
 
 ## Adding Reviewed-by: and Tested: messages to commits
 Marge-bot supports automated addition of the following
-two [standardized git commit headers](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes): `Reviewed-by` and `Tested-by`. For the
-latter it uses `Marge Bot <$MERGE_REQUEST_URL>` as a slight abuse of the
-convention (here `Marge Bot` is the name of the `marge-bot` user in GitLab).
+two [standardized git commit headers](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes):
+`Reviewed-by` and `Tested-by`. For the latter it uses `Marge Bot
+<$MERGE_REQUEST_URL>` as a slight abuse of the convention (here `Marge Bot` is
+the name of the `marge-bot` user in GitLab).
 
 If you pass `--add-reviewers` and the list of approvers is non-empty and you
 have enough approvers to meet the required approver count, Marge will add a the
@@ -141,7 +159,7 @@ reasons:
 If you want a full audit trail, you will configure Gitlab
 [require approvals](https://docs.gitlab.com/ee/user/project/merge_requests/merge_request_approvals.html#approvals-required)
 for PRs and also turn on
-[reset approvals on push]( https://docs.gitlab.com/ee/user/project/merge_requests/merge_request_approvals.html#reset-approvals-on-push).
+[reset approvals on push](https://docs.gitlab.com/ee/user/project/merge_requests/merge_request_approvals.html#reset-approvals-on-push).
 Unfortunately, since Marge-bot's flow is based on pushing to the source branch, this
 means it will reset the approval status if the latter option is enabled.
 However, if you have given Marge-bot admin privileges and turned on
@@ -166,10 +184,11 @@ in case of issues. In addition, by passing the `--debug` flag, additional info
 such as REST requests and responses will be logged. When opening an issue,
 please include a relevant section of the log, ideally ran with `--debug` enabled.
 
-The most common source of issues is the presence of git-hooks that reject Marge-bot as a committer. These may have been explicitly installed by someone
-in your organization or they may come from the project configuration. E.g.,
-if you are using `Settings -> Repository -> Commit author's email`, you may
-need to whitelist `marge-bot`'s email.
+The most common source of issues is the presence of git-hooks that reject
+Marge-bot as a committer. These may have been explicitly installed by someone in
+your organization or they may come from the project configuration. E.g., if you
+are using `Settings -> Repository -> Commit author's email`, you may need to
+whitelist `marge-bot`'s email.
 
 Some versions of GitLab are not good at reporting merge failures due to hooks
 (the REST API may even claim the merge operation succeeded), you can find
