@@ -112,7 +112,7 @@ reasons:
 
 1. Seeing where stuff "came from" in a rebase-based workflow
 2. Knowing that a commit has been tested, which is e.g. important for bisection
-   so you canf easily and automatically `git bisect --skip` untested commits.
+   so you can easily and automatically `git bisect --skip` untested commits.
 
 ## Impersonating approvers
 If you want a full audit trail, you will configure Gitlab
