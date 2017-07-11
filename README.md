@@ -105,7 +105,7 @@ docker run
   smarketshq/marge-bot:0.1.0 \
   --add-tested \
   --add-reviewers \
-  --impersonate-approvers
+  --impersonate-approvers \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
