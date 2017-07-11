@@ -43,7 +43,7 @@ For certain features, namely, `--impersonate-approvers`, and
 `--add-reviewed-by`, you will need to grant `marge-bot` admin privileges as well. In the latter, so that she can query the email of the reviewers to include it in the commit.
 
 Second, you need an authentication token for the `marge-bot` user. If she was
-made an admin to handle approver impersonation and/or adding a reviewed-by 
+made an admin to handle approver impersonation and/or adding a reviewed-by
 field, then you will need to use the **PRIVATE TOKEN** found in her
 `Profile Settings`. Otherwise, you can just use a personal access token that
 can be generated from `Profile Settings -> Access Tokens`. Make sure it has
@@ -58,7 +58,7 @@ ssh-keygen -t ed25519 -C marge-bot@invalid -f marge-bot-ssh-key -P ''
 Add the public key (`marge-bot-ssh-key.pub`) to the user's `SSH Keys` in Gitlab
 and keep the private one handy.
 
-The bot can then be started from the command line as follows:
+The bot can then be started from the command line as follows (using the minimal settings):
 ```bash
 marge.app --auth-token-file marge-bot.token \
           --gitlab-url 'http://your.gitlab.instance.com' \
@@ -67,10 +67,33 @@ marge.app --auth-token-file marge-bot.token \
 
 Alternatively, you can also pass the auth token as the environment variable
 `MARGE_AUTH_TOKEN` and the **CONTENTS** of the ssh-key-file as the environment
-variable `MARGE_SSH_KEY`.
+variable `MARGE_SSH_KEY`. This is very useful for running the official docker
+image we provide:
 
-Once running, the bot will continuously monitor all projects that have its user as a member and will
-pick up any changes in membership at runtime.
+```bash
+docker run
+  -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
+  -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
+  smarketshq/marge-bot:0.1.0 \
+  --gitlab-url='http://your.gitlab.instance.com'
+```
+
+Once running, the bot will continuously monitor all projects that have its user
+as a member and will pick up any changes in membership at runtime.
+
+For completeness sake, here's how we run marge-bot at smarkets ourselves:
+```
+docker run
+  -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
+  -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
+  smarketshq/marge-bot:0.1.0 \
+  --add-tested \
+  --add-reviewers \
+  --impersonate-approvers
+  --gitlab-url='http://your.gitlab.instance.com'
+```
+
+See below for the meaning of the additional flags.
 
 ## Suggested worfklow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
