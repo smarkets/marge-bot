@@ -65,7 +65,7 @@ class Bot(object):
             for project in my_projects:
                 project_name = project.path_with_namespace
 
-                if project.access_level.value < AccessLevel.reporter.value:
+                if not project.access_level or project.access_level.value < AccessLevel.reporter.value:
                     log.warning("Don't have enough permissions to browse merge requests in %s!", project_name)
                     continue
 

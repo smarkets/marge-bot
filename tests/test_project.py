@@ -13,8 +13,23 @@ INFO = {
     'permissions': {
         'project_access': {
             'access_level': AccessLevel.developer.value,
+        },
+        'group_access': {
+            'access_level': AccessLevel.developer.value,
         }
     }
+}
+
+GROUP_ACCESS = {
+    'project_access': None,
+    'group_access': {
+        'access_level': AccessLevel.developer.value,
+    }
+}
+
+NONE_ACCESS = {
+    'project_access': None,
+    'group_access': None
 }
 
 
@@ -64,3 +79,9 @@ class TestProject(object):
         assert project.merge_requests_enabled == True
         assert project.only_allow_merge_if_pipeline_succeeds == True
         assert project.access_level == AccessLevel.developer
+
+    def test_group_access(self):
+        project = Project(api=self.api, info=dict(INFO, permissions=GROUP_ACCESS))
+        project2 = Project(api=self.api, info=dict(INFO, permissions=NONE_ACCESS))
+        assert project.access_level == AccessLevel.developer
+        assert project2.access_level == None

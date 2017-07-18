@@ -55,8 +55,10 @@ class Project(gitlab.Resource):
 
     @property
     def access_level(self):
-        return AccessLevel(self.info['permissions']['project_access']['access_level'])
-
+        if self.info['permissions']['project_access']:
+            return AccessLevel(self.info['permissions']['project_access']['access_level'])
+        elif self.info['permissions']['group_access']:
+            return AccessLevel(self.info['permissions']['group_access']['access_level'])
 
 @unique
 class AccessLevel(Enum):
