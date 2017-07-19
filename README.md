@@ -90,7 +90,7 @@ image we provide:
 docker run
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
-  smarketshq/marge-bot:0.1.0 \
+  smarketshq/marge-bot \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
@@ -102,7 +102,7 @@ For completeness sake, here's how we run marge-bot at smarkets ourselves:
 docker run
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
-  smarketshq/marge-bot:0.1.0 \
+  smarketshq/marge-bot \
   --add-tested \
   --add-reviewers \
   --impersonate-approvers \
