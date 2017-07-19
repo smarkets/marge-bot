@@ -1,4 +1,4 @@
-[![build status](https://travis-ci.org/smarkets/marge.png?branch=master)](https://travis-ci.org/smarkets/marge)
+[![build status](https://travis-ci.org/smarkets/marge-bot.png?branch=master)](https://travis-ci.org/smarkets/marge-bot)
 
 # Marge-bot
 
