@@ -111,6 +111,18 @@ docker run
 
 See below for the meaning of the additional flags.
 
+Kubernetes templating with ktmpl:
+```bash
+ktmpl ./deploy.yml \
+--parameter APP_NAME "marge-bot" \
+--parameter APP_IMAGE "smarketshq/marge-bot" \
+--parameter KUBE_NAMESPACE "marge-bot" \
+--parameter MARGE_GITLAB_URL 'http://your.gitlab.instance.com' \
+--parameter MARGE_AUTH_TOKEN "$(cat marge-bot.token)" \
+--parameter MARGE_SSH_KEY "$(cat marge-bot-ssh-key)" \
+--parameter REPLICA_COUNT 1 | kubectl -n=${KUBE_NAMESPACE} apply --force -f -
+```
+
 ## Suggested worfklow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
 
