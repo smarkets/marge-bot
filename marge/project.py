@@ -1,3 +1,4 @@
+import logging as log
 from enum import Enum, unique
 from functools import partial
 
@@ -31,7 +32,18 @@ class Project(gitlab.Resource):
             {'membership': True, 'with_merge_requests_enabled': True},
         ))
 
-        return [cls(api, project_info) for project_info in projects_info]
+        def project_seems_ok(project_info):
+            # A bug in at least GitLab 9.3.5 would make GitLab not report permissions after
+            # moving subgroups. See for full story #19.
+            permissions = project_info['permissions']
+            permissions_ok = bool(permissions['project_access'] or permissions['group_access'])
+            if not permissions_ok:
+                project_name = project_info['path_with_namespace']
+                log.warning('Ignoring project %s since GitLab provided no user permissions', project_name)
+
+            return permissions_ok
+
+        return [cls(api, project_info) for project_info in projects_info if project_seems_ok(project_info)]
 
     @property
     def path_with_namespace(self):
@@ -55,10 +67,10 @@ class Project(gitlab.Resource):
 
     @property
     def access_level(self):
-        if self.info['permissions']['project_access']:
-            return AccessLevel(self.info['permissions']['project_access']['access_level'])
-        elif self.info['permissions']['group_access']:
-            return AccessLevel(self.info['permissions']['group_access']['access_level'])
+        permissions = self.info['permissions']
+        effective_access = permissions['project_access'] or permissions['group_access']
+        assert effective_access is not None, "GitLab failed to provide user permissions on project"
+        return AccessLevel(effective_access['access_level'])
 
 @unique
 class AccessLevel(Enum):

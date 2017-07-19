@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+import pytest
 
 from marge.gitlab import Api, GET
 from marge.project import AccessLevel, Project
@@ -82,6 +83,7 @@ class TestProject(object):
 
     def test_group_access(self):
         project = Project(api=self.api, info=dict(INFO, permissions=GROUP_ACCESS))
-        project2 = Project(api=self.api, info=dict(INFO, permissions=NONE_ACCESS))
+        bad_project = Project(api=self.api, info=dict(INFO, permissions=NONE_ACCESS))
         assert project.access_level == AccessLevel.developer
-        assert project2.access_level == None
+        with pytest.raises(AssertionError):
+            bad_project.access_level
