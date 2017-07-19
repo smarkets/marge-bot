@@ -1,0 +1,86 @@
+---
+kind: "Template"
+apiVersion: "v1"
+metadata:
+  name: "marge-ephemeral"
+  annotations:
+    description: "Provides a marge template"
+labels:
+  template: "marge template"
+objects:
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      namespace: "$(KUBE_NAMESPACE)"
+      name: marge-secrets
+    type: Opaque
+    data:
+      MARGE_AUTH_TOKEN: "$(MARGE_AUTH_TOKEN)"
+      MARGE_SSH_KEY: "$(MARGE_SSH_KEY)"
+  - kind: Deployment
+    apiVersion: apps/v1beta1
+    metadata:
+      name: "$(APP_NAME)"
+      namespace: "$(KUBE_NAMESPACE)"
+      labels:
+        k8s-app: "$(APP_NAME)"
+    spec:
+      replicas: "$((REPLICA_COUNT))"
+      template:
+        metadata:
+          labels:
+            k8s-app: "$(APP_NAME)"
+        spec:
+          serviceAccountName: default
+          containers:
+            - name: app
+              image: "$(APP_IMAGE)"
+              imagePullPolicy: Always
+              args: ["--gitlab-url=$(MARGE_GITLAB_URL)", "--impersonate-approvers", "--add-tested"]
+              env:
+                - name: MARGE_AUTH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: marge-secrets
+                      key: MARGE_AUTH_TOKEN
+                - name: MARGE_SSH_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: marge-secrets
+                      key: MARGE_SSH_KEY
+parameters:
+  - name: "APP_NAME"
+    description: "Name of the app"
+    value: "marge-bot"
+    required: true
+    parameterType: "string"
+  - name: "APP_IMAGE"
+    description: "App image name to run"
+    value: "smarketshq/marge-bot"
+    required: true
+    parameterType: "string"
+  - name: "KUBE_NAMESPACE"
+    description: "Kube namespace"
+    value: "marge"
+    required: true
+    parameterType: "string"
+  - name: "REPLICA_COUNT"
+    description: "Number of replicas to run"
+    value: 1
+    required: true
+    parameterType: "int"
+  - name: "MARGE_GITLAB_URL"
+    description: "Marge gitlab url"
+    value: "http://your.gitlab.instance.com"
+    required: true
+    parameterType: "string"
+  - name: "MARGE_AUTH_TOKEN"
+    description: "Marge gitlab auth token"
+    value: 0
+    required: true
+    parameterType: "base64"
+  - name: "MARGE_SSH_KEY"
+    description: "Marge gitlab rsa key"
+    value: 0
+    required: true
+    parameterType: "base64"
