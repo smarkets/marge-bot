@@ -15,3 +15,11 @@ bump-requirements: clean requirements_frozen.txt
 .PHONY: dockerize
 dockerize: dockerize.nix
 	docker load --input $$(nix-build dockerize.nix)
+
+
+.PHONY: dockerhub
+docker-push:
+	docker login
+	docker tag smarketshq/marge-bot:$$(cat version) smarketshq/marge-bot:latest
+	docker push smarketshq/marge-bot:$$(cat version)
+	docker push smarketshq/marge-bot:latest
