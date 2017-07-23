@@ -21,7 +21,8 @@ class Bot(object):
             ssh_key_file,
             add_reviewers,
             add_tested,
-            impersonate_approvers
+            impersonate_approvers,
+            project_regexp,
     ):
         if not user.is_admin:
             assert not impersonate_approvers, "{0.username} is not an admin, can't impersonate!".format(user)
@@ -35,6 +36,8 @@ class Bot(object):
 
         self._api = api
         self._user = user
+
+        self.project_regexp = project_regexp
 
         self.merge_options = MergeJobOptions(
             add_tested=add_tested,
@@ -61,8 +64,18 @@ class Bot(object):
         while True:
             log.info('Finding out my current projects...')
             my_projects = Project.fetch_all_mine(self._api)
-
-            for project in my_projects:
+            filtered_projects = [p for p in my_projects if self.project_regexp.match(p.path_with_namespace)]
+            filtered_out = set(my_projects) - set(filtered_projects)
+            if filtered_out:
+                log.debug(
+                    'Projects that match project_regexp: %s',
+                    [p.path_with_namespace for p in filtered_projects]
+                )
+                log.debug(
+                    'Projects that do not match project_regexp: %s',
+                    [p.path_with_namespace for p in filtered_out]
+                )
+            for project in filtered_projects:
                 project_name = project.path_with_namespace
 
                 if project.access_level.value < AccessLevel.reporter.value:
