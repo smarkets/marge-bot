@@ -177,6 +177,20 @@ prevent shipping late on a Friday, but still want to allow marking merge request
 More than one embargo period can be specified. Any merge request assigned to her
 during an embargo period, will be merged in only once all embargoes are over.
 
+## Restricting the list of projects marge-bot considers
+
+By default marge-bot will work on all projects that she is a member of.
+Sometimes it is useful to restrict a specific instance of marge-bot to a subset
+of projects. You can specify a regexp that projects must match (anchored at the
+start of the string) with `--project-regexp`.
+
+One use-case is if you want to use different configurations (e.g.
+--add-reviewers on one project, but not the others). A simple way of doing is
+run two instances of marge-bot passing `--add-reviewers --project-regexp
+project/with_reviewers` to the first instance and `--project-regexp
+(?!project/with_reviewers)` to the second ones. The latter regexp is a negative
+look-ahead and will match any string not starting with `project/with_reviewers`.
+
 ## Troubleshooting
 
 Marge-bot continuously logs what she is doing, so this is a good place to look

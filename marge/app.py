@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import logging
 import os
+import re
 import sys
 import tempfile
 
@@ -15,9 +16,17 @@ from . import gitlab
 from . import user as user_module
 
 
+
 def _parse_args(args):
     parser = argparse.ArgumentParser(description=__doc__)
     arg = parser.add_argument
+
+    def regexp(s):
+        try:
+            return re.compile(s)
+        except re.error as err:
+            raise argparse.ArgumentTypeError('Invalid regexp: %r (%s)' % s, err.msg)
+
     arg(
         '--auth-token-file',
         type=argparse.FileType('rt'),
@@ -63,6 +72,12 @@ def _parse_args(args):
         action='store_true',
         help='marge pushes effectively don\'t change approval status',
     )
+    arg(
+        '--project-regexp',
+        type=regexp,
+        default='.*',
+        help="Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'",
+    )
     arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
     return parser.parse_args(args)
@@ -106,6 +121,7 @@ def main(args=sys.argv[1:]):
             add_reviewers=options.add_reviewers,
             add_tested=options.add_tested,
             impersonate_approvers=options.impersonate_approvers,
+            project_regexp=options.project_regexp,
         )
 
         for embargo in options.embargo:
