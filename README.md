@@ -54,7 +54,7 @@ Then add `marge-bot` to your projects as `Developer` or `Master`, the latter
 being required if she will merge to protected branches.
 
 For certain features, namely, `--impersonate-approvers`, and
-`--add-reviewed-by`, you will need to grant `marge-bot` admin privileges as
+`--add-reviewers`, you will need to grant `marge-bot` admin privileges as
 well. In the latter, so that she can query the email of the reviewers to include
 it in the commit.
 
@@ -185,7 +185,7 @@ of projects. You can specify a regexp that projects must match (anchored at the
 start of the string) with `--project-regexp`.
 
 One use-case is if you want to use different configurations (e.g.
---add-reviewers on one project, but not the others). A simple way of doing is
+`--add-reviewers` on one project, but not the others). A simple way of doing is
 run two instances of marge-bot passing `--add-reviewers --project-regexp
 project/with_reviewers` to the first instance and `--project-regexp
 (?!project/with_reviewers)` to the second ones. The latter regexp is a negative
