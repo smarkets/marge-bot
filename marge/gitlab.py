@@ -204,6 +204,11 @@ class Resource(object):
 class Version(namedtuple('Version', 'release edition')):
     @classmethod
     def parse(cls, string):
-        release_string, edition = string.split('-', maxsplit=1)
+        maybe_split_string = string.split('-', maxsplit=1)
+        if len(maybe_split_string) == 2:
+            release_string, edition = maybe_split_string
+        else:
+            release_string, edition = string, None
+
         release = tuple(int(number) for number in release_string.split('.'))
         return cls(release=release, edition=edition)
