@@ -212,3 +212,7 @@ class Version(namedtuple('Version', 'release edition')):
 
         release = tuple(int(number) for number in release_string.split('.'))
         return cls(release=release, edition=edition)
+
+    @property
+    def is_ee(self):
+        return self.edition == 'ee'
