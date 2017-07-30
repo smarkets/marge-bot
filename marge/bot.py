@@ -22,7 +22,7 @@ class Bot(object):
             add_reviewers,
             add_tested,
             impersonate_approvers,
-            project_regexp,
+            project_regexp
     ):
         if not user.is_admin:
             assert not impersonate_approvers, "{0.username} is not an admin, can't impersonate!".format(user)
