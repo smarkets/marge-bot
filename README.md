@@ -123,6 +123,11 @@ ktmpl ./deploy.yml \
 --parameter REPLICA_COUNT 1 | kubectl -n=${KUBE_NAMESPACE} apply --force -f -
 ```
 
+To insert the key into env variable statically, for example docker-compose:
+```bash
+ruby -e 'p ARGF.read' marge-bot-ssh-key
+```
+
 ## Suggested worfklow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
 
