@@ -94,8 +94,10 @@ docker run \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-Once running, the bot will continuously monitor all projects that have its user
-as a member and will pick up any changes in membership at runtime.
+Note that all command line arguments have an environment variable equivalent,
+so `--gitlab-url` corresponds to `MARGE_GITLAB_URL`, etc. Once running, the
+bot will continuously monitor all projects that have its user as a member and
+will pick up any changes in membership at runtime.
 
 For completeness sake, here's how we run marge-bot at smarkets ourselves:
 ```bash

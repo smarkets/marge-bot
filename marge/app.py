@@ -19,7 +19,17 @@ from . import user as user_module
 
 def _parse_args(args):
     parser = argparse.ArgumentParser(description=__doc__)
-    arg = parser.add_argument
+
+    def arg(name, env_var=True, **kwargs):
+        if env_var:
+            env_var_name = 'MARGE_' + name[2:].replace('-', '_').upper()
+            env_var_val = os.getenv(env_var_name)
+            if env_var_val:
+                if kwargs.get('action') in ['store_true', 'store_false']:
+                    env_var_val = env_var_val.lower() in ['true', 'yes', '1']
+                kwargs = dict(kwargs, default=env_var_val, required=False)
+
+        parser.add_argument(name, **kwargs)
 
     def regexp(s):
         try:
@@ -32,6 +42,7 @@ def _parse_args(args):
         type=argparse.FileType('rt'),
         metavar='FILE',
         help='Your gitlab token; must provide this flag or set MARGE_AUTH_TOKEN',
+        env_var=False,
     )
     arg(
         '--gitlab-url',
@@ -48,6 +59,7 @@ def _parse_args(args):
             'Path to the private ssh key for marge so it can clone/push. '
             'Provide or set MARGE_SSH_KEY (to the *contents*)'
         ),
+        env_var=False,
     )
     arg(
         '--embargo',
