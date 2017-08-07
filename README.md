@@ -87,7 +87,7 @@ variable `MARGE_SSH_KEY`. This is very useful for running the official docker
 image we provide:
 
 ```bash
-docker run
+docker run \
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
   smarketshq/marge-bot \
@@ -98,8 +98,8 @@ Once running, the bot will continuously monitor all projects that have its user
 as a member and will pick up any changes in membership at runtime.
 
 For completeness sake, here's how we run marge-bot at smarkets ourselves:
-```
-docker run
+```bash
+docker run \
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
   smarketshq/marge-bot \
