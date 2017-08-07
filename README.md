@@ -123,9 +123,9 @@ ktmpl ./deploy.yml \
 --parameter REPLICA_COUNT 1 | kubectl -n=${KUBE_NAMESPACE} apply --force -f -
 ```
 
-To insert the key into env variable statically, for example docker-compose:
+To insert the key into env variable statically, for example env file used by docker-compose:
 ```bash
-ruby -e 'p ARGF.read' marge-bot-ssh-key
+ruby -e 'print "MARGE_SSH_KEY="; p ARGF.read' marge-bot-ssh-key >> .env
 ```
 
 ## Suggested worfklow
