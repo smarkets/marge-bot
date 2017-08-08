@@ -108,12 +108,14 @@ def _secret_auth_token_and_ssh_key(options):
         yield auth_token.strip(), ssh_key_file
     else:
         with tempfile.NamedTemporaryFile(mode='w', prefix='ssh-key-') as env_ssh_key_file:
-            ssh_key = os.getenv('MARGE_SSH_KEY')
-            assert ssh_key, "You need to pass --ssh-key-file or set envvar MARGE_SSH_KEY"
-            env_ssh_key_file.write(ssh_key + '\n')
-            env_ssh_key_file.flush()
-            yield auth_token.strip(), env_ssh_key_file.name
-            env_ssh_key_file.close()
+            try:
+                ssh_key = os.getenv('MARGE_SSH_KEY')
+                assert ssh_key, "You need to pass --ssh-key-file or set envvar MARGE_SSH_KEY"
+                env_ssh_key_file.write(ssh_key + '\n')
+                env_ssh_key_file.flush()
+                yield auth_token.strip(), env_ssh_key_file.name
+            finally:
+                env_ssh_key_file.close()
 
 
 def main(args=sys.argv[1:]):
