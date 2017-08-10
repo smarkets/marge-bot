@@ -48,7 +48,7 @@ of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 First, create a user for Marge-bot on your GitLab. We'll use `marge-bot` as
 username here as well. GitLab sorts users by Name, so we recommend you pick one
-that starts with a space, e.g. ` Marge Bot`, so it is quicker to assign to (our
+that starts with a space, e.g. ` Marge Bot`, so it is quicker to assign to (our
 code strips trailing whitespace in the name, so it won't show up elsewhere).
 Then add `marge-bot` to your projects as `Developer` or `Master`, the latter
 being required if she will merge to protected branches.
