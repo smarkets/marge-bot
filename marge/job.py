@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from . import git, gitlab
 from .commit import Commit
+from .interval import IntervalUnion
 from .project import Project
 from .user import User
 
@@ -49,7 +50,7 @@ class MergeJob(object):
             return
 
         try:
-            if self._bot.during_merge_embargo():
+            if self.during_merge_embargo():
                 log.info('Merge embargo! -- SKIPPING')
                 return
 
@@ -212,6 +213,9 @@ class MergeJob(object):
         else:
             mr.unassign()
 
+    def during_merge_embargo(self):
+        now = datetime.utcnow()
+        return self.opts.embargo.covers(now)
 
 def push_rebased_and_rewritten_version(
         repo,
@@ -302,7 +306,7 @@ def _get_reviewer_names_and_emails(approvals, api):
     return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, api)) for uid in uids]
 
 
-class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers reapprove')):
+class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers reapprove embargo')):
     __slots__ = ()
 
     @property
@@ -310,8 +314,14 @@ class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers re
         return self.add_tested or self.add_reviewers
 
     @classmethod
-    def default(cls, add_tested=False, add_reviewers=False, reapprove=False):
-        return cls(add_tested=add_tested, add_reviewers=add_reviewers, reapprove=reapprove)
+    def default(cls, add_tested=False, add_reviewers=False, reapprove=False, embargo=None):
+        embargo = embargo or IntervalUnion.empty()
+        return cls(
+            add_tested=add_tested,
+            add_reviewers=add_reviewers,
+            reapprove=reapprove,
+            embargo=embargo,
+        )
 
 
 class CannotMerge(Exception):
