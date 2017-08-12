@@ -1,12 +1,10 @@
 import logging as log
 import time
-from datetime import datetime
 from tempfile import TemporaryDirectory
 
 from . import git
 from . import merge_request as merge_request_module
 from . import store
-from .interval import IntervalUnion
 from .job import MergeJob, MergeJobOptions
 from .project import AccessLevel, Project
 
@@ -23,7 +21,8 @@ class Bot(object):
             add_reviewers,
             add_tested,
             impersonate_approvers,
-            project_regexp
+            project_regexp,
+            embargo_intervals=None,
     ):
         if not user.is_admin:
             assert not impersonate_approvers, "{0.username} is not an admin, can't impersonate!".format(user)
@@ -33,17 +32,16 @@ class Bot(object):
 
         self._ssh_key_file = ssh_key_file
 
-        self.embargo_intervals = IntervalUnion.empty()
-
         self._api = api
         self._user = user
 
         self.project_regexp = project_regexp
 
-        self.merge_options = MergeJobOptions(
+        self.merge_options = MergeJobOptions.default(
             add_tested=add_tested,
             add_reviewers=add_reviewers,
             reapprove=impersonate_approvers,
+            embargo=embargo_intervals,
         )
 
     def start(self):
@@ -110,7 +108,3 @@ class Bot(object):
             time_to_sleep_in_secs = 60
             log.info('Sleeping for %s seconds...', time_to_sleep_in_secs)
             time.sleep(time_to_sleep_in_secs)
-
-    def during_merge_embargo(self):
-        now = datetime.utcnow()
-        return self.embargo_intervals.covers(now)

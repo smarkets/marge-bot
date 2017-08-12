@@ -177,6 +177,7 @@ class TestRebaseAndAccept(object):
             add_tested=options.add_tested,
             impersonate_approvers=options.reapprove,
             project_regexp='.*',
+            embargo_intervals=None,
         )
         return marge.job.MergeJob(bot=bot, project=project, merge_request=merge_request, repo=repo)
 

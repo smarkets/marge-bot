@@ -136,9 +136,7 @@ def main(args=sys.argv[1:]):
             add_tested=options.add_tested,
             impersonate_approvers=options.impersonate_approvers,
             project_regexp=options.project_regexp,
+            embargo_intervals=options.embargo,
         )
-
-        if options.embargo:
-            marge_bot.embargo_intervals = options.embargo
 
         marge_bot.start()
