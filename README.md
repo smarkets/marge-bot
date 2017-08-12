@@ -188,8 +188,9 @@ This is useful for example if you automatically deploy from master and want to
 prevent shipping late on a Friday, but still want to allow marking merge requests as
 "to be merged on Monday": just assign them to `marge-bot` as any other day.
 
-More than one embargo period can be specified. Any merge request assigned to her
-during an embargo period, will be merged in only once all embargoes are over.
+More than one embargo period can be specified, separated by commas. Any merge
+request assigned to her during an embargo period, will be merged in only once all
+embargoes are over.
 
 ## Restricting the list of projects marge-bot considers
 

@@ -63,11 +63,9 @@ def _parse_args(args):
     )
     arg(
         '--embargo',
-        type=str,
-        action='append',
-        metavar='INTERVAL',
-        default=[],
-        help='Time during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".',
+        type=interval.IntervalUnion.from_human,
+        metavar='INTERVAL[,..]',
+        help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".',
     )
     arg(
         '--add-reviewers',
@@ -140,7 +138,7 @@ def main(args=sys.argv[1:]):
             project_regexp=options.project_regexp,
         )
 
-        for embargo in options.embargo:
-            marge_bot.embargo_intervals.append(interval.WeeklyInterval.from_human(embargo))
+        if options.embargo:
+            marge_bot.embargo_intervals = options.embargo
 
         marge_bot.start()

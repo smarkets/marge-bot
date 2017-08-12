@@ -58,6 +58,24 @@ class WeeklyInterval(object):
     def __ne__(self, other):
         return not self == other
 
+    def __repr__(self):
+        pat = '{class_name}({from_weekday}, {from_time}, {to_weekday}, {to_time})'
+        if self._is_complement_interval:
+            return pat.format(
+                class_name=self.__class__.__name__,
+                from_weekday=self._to_weekday,
+                from_time=self._to_time,
+                to_weekday=self._from_weekday,
+                to_time=self._from_time,
+            )
+        else:
+            return pat.format(
+                class_name=self.__class__.__name__,
+                from_weekday=self._from_weekday,
+                from_time=self._from_time,
+                to_weekday=self._to_weekday,
+                to_time=self._to_time,
+            )
 
     @classmethod
     def from_human(cls, string):
@@ -74,12 +92,8 @@ class WeeklyInterval(object):
         to_weekday, to_time = parse_part(to_)
         return cls(from_weekday, from_time, to_weekday, to_time)
 
-
-
-
     def covers(self, date):
         return self._interval_covers(date) != self._is_complement_interval
-
 
     def _interval_covers(self, date):
         weekday = date.date().weekday()
@@ -96,3 +110,31 @@ class WeeklyInterval(object):
             return False
 
         return True
+
+
+class IntervalUnion(object):
+    def __init__(self, iterable):
+        self._intervals = list(iterable)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __repr__(self):
+        return '{o.__class__.__name__}({o._intervals})'.format(o=self)
+
+    @classmethod
+    def empty(cls):
+        return cls(())
+
+    @classmethod
+    def from_human(cls, string):
+        strings = string.split(',')
+        return cls(WeeklyInterval.from_human(s) for s in strings)
+
+    def covers(self, date):
+        return any(interval.covers(date) for interval in self._intervals)
