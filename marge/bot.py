@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from . import git
 from . import merge_request as merge_request_module
 from . import store
+from .interval import IntervalUnion
 from .job import MergeJob, MergeJobOptions
 from .project import AccessLevel, Project
 
@@ -32,7 +33,7 @@ class Bot(object):
 
         self._ssh_key_file = ssh_key_file
 
-        self.embargo_intervals = []
+        self.embargo_intervals = IntervalUnion.empty()
 
         self._api = api
         self._user = user
@@ -112,4 +113,4 @@ class Bot(object):
 
     def during_merge_embargo(self):
         now = datetime.utcnow()
-        return any(interval.covers(now) for interval in self.embargo_intervals)
+        return self.embargo_intervals.covers(now)
