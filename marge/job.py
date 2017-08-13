@@ -171,6 +171,11 @@ class MergeJob(object):
                     raise CannotMerge(
                         'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
                     )
+                elif merge_request.state == 'reopened':
+                    raise CannotMerge(
+                        'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
+                        'is rejecting my commits; maybe my email needs to be white-listed?'
+                    )
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')
