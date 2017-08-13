@@ -164,6 +164,13 @@ class MergeJob(object):
                 else:
                     log.warning('For the record, merge request state is %r', merge_request.state)
                     raise
+            except gitlab.MethodNotAllowed as e:
+                log.warning('Not Allowed!: %s', e)
+                merge_request.refetch_info()
+                if merge_request.work_in_progress:
+                    raise CannotMerge(
+                        'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
+                    )
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')
