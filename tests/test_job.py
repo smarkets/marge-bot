@@ -339,6 +339,26 @@ class TestRebaseAndAccept(object):
         assert api.state == 'oops_someone_closed_it'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
+    def test_tells_explicitly_that_gitlab_refused_to_merge(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        rewritten_sha = mocklab.rewritten_sha
+        api.add_transition(
+            PUT(
+                '/projects/1234/merge_requests/54/merge',
+                dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
+            ),
+            Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
+            from_state='passed', to_state='rejected_for_misterious_reasons',
+        )
+        message = "Gitlab refused to merge this request and I don't know why!"
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            with mocklab.expected_failure(message):
+                job = self.make_job()
+                job.execute()
+        assert api.state == 'rejected_for_misterious_reasons'
+        assert api.notes == ["I couldn't merge this branch: %s" % message]
+
+
     def test_wont_merge_wip_stuff(self, time_sleep):
         api, mocklab = self.api, self.mocklab
         wip_merge_request = dict(mocklab.merge_request_info, work_in_progress=True)
