@@ -178,6 +178,13 @@ class MergeJob(object):
                     )
                 elif merge_request.state == 'closed':
                     raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
+                elif merge_request.state == 'merged':
+                    # We are not covering any observed behaviour here, but if at this
+                    # point the request is merged, our job is done, so no need to complain
+                    log.info('Merge request is already merged, someone was faster!')
+                    rebased_into_up_to_date_target_branch = True
+                else:
+                    raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')
