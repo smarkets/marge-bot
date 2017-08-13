@@ -1,9 +1,11 @@
 import contextlib
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import pytest
 
 import marge.commit
+import marge.interval
 import marge.git
 import marge.gitlab
 import marge.job
@@ -11,6 +13,7 @@ import marge.project
 import marge.user
 from marge.approvals import Approvals
 from marge.gitlab import GET, PUT
+from marge.job import MergeJobOptions
 from marge.merge_request import MergeRequest
 
 import tests.test_approvals as test_approvals
@@ -275,3 +278,20 @@ class TestRebaseAndAccept(object):
             job = self.make_job()
             job.execute()
         assert api.state == 'merged'
+
+
+class TestMergeJobOptions(object):
+    def test_default(self):
+        assert MergeJobOptions.default() == MergeJobOptions(
+            add_tested=False,
+            add_reviewers=False,
+            reapprove=False,
+            embargo=marge.interval.IntervalUnion.empty(),
+            max_ci_waiting_time=timedelta(minutes=15),
+        )
+
+    def test_default_ci_time(self):
+        three_min = timedelta(minutes=3)
+        assert MergeJobOptions.default(max_ci_waiting_time=three_min) == MergeJobOptions.default()._replace(
+            max_ci_waiting_time=three_min
+        )

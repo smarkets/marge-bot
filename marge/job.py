@@ -17,7 +17,6 @@ class MergeJob(object):
         self._merge_request = merge_request
         self._repo = repo
         self._options = options
-        self.max_ci_waiting_time = timedelta(minutes=15)
         self.max_merge_waiting_time = timedelta(minutes=5)
 
     @property
@@ -166,7 +165,7 @@ class MergeJob(object):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
-        while datetime.utcnow() - time_0 < self.max_ci_waiting_time:
+        while datetime.utcnow() - time_0 < self._options.max_ci_waiting_time:
             ci_status = Commit.fetch_by_id(source_project_id, commit_sha, api).status
             if ci_status == 'success':
                 return
@@ -304,7 +303,11 @@ def _get_reviewer_names_and_emails(approvals, api):
     return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, api)) for uid in uids]
 
 
-class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers reapprove embargo')):
+_job_options = [
+    'add_tested', 'add_reviewers', 'reapprove', 'embargo', 'max_ci_waiting_time',
+]
+
+class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     __slots__ = ()
 
     @property
@@ -312,13 +315,19 @@ class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers re
         return self.add_tested or self.add_reviewers
 
     @classmethod
-    def default(cls, add_tested=False, add_reviewers=False, reapprove=False, embargo=None):
+    def default(
+            cls,
+            add_tested=False, add_reviewers=False, reapprove=False,
+            embargo=None, max_ci_waiting_time=None,
+    ):
         embargo = embargo or IntervalUnion.empty()
+        max_ci_waiting_time = max_ci_waiting_time or timedelta(minutes=15)
         return cls(
             add_tested=add_tested,
             add_reviewers=add_reviewers,
             reapprove=reapprove,
             embargo=embargo,
+            max_ci_waiting_time=max_ci_waiting_time,
         )
 
 

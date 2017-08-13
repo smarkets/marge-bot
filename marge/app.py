@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import tempfile
+from datetime import timedelta
 
 from . import bot
 from . import interval
@@ -87,6 +88,12 @@ def _parse_args(args):
         default='.*',
         help="Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'",
     )
+    arg(
+        '--max-ci-time-in-minutes',
+        type=int,
+        default=15,
+        help='How long to wait for CI to pass.',
+    )
     arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
     return parser.parse_args(args)
@@ -136,6 +143,7 @@ def main(args=sys.argv[1:]):
                 add_reviewers=options.add_reviewers,
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
+                max_ci_waiting_time=timedelta(minutes=options.max_ci_time_in_minutes),
             )
         )
 
