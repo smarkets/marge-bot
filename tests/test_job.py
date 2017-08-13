@@ -282,12 +282,38 @@ class TestRebaseAndAccept(object):
             dict(mocklab.merge_request_info, work_in_progress=True),
             from_state='now_is_wip',
         )
-        message ='The request was marked as WIP as I was processing it (maybe a WIP commit?)'
+        message = 'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
         with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
         assert api.state == 'now_is_wip'
+        assert api.notes == ["I couldn't merge this branch: %s" % message]
+
+    def test_guesses_git_hook_error_on_merge_refusal(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        rewritten_sha = mocklab.rewritten_sha
+        api.add_transition(
+            PUT(
+                '/projects/1234/merge_requests/54/merge',
+                dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
+            ),
+            Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
+            from_state='passed', to_state='rejected_by_git_hook',
+        )
+        api.add_merge_request(
+            dict(mocklab.merge_request_info, state='reopened'),
+            from_state='rejected_by_git_hook',
+        )
+        message = (
+            'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
+            'is rejecting my commits; maybe my email needs to be white-listed?'
+        )
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            with mocklab.expected_failure(message):
+                job = self.make_job()
+                job.execute()
+        assert api.state == 'rejected_by_git_hook'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
     def test_wont_merge_wip_stuff(self, time_sleep):
