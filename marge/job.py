@@ -78,6 +78,10 @@ class MergeJob(object):
         while not rebased_into_up_to_date_target_branch:
             if merge_request.work_in_progress:
                 raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
+            if merge_request.squash and self.opts.requests_commit_tagging:
+                raise CannotMerge(
+                    "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
+                )
             approvals.refetch_info()
             if not approvals.sufficient:
                 raise CannotMerge(
@@ -299,6 +303,12 @@ def _get_reviewer_names_and_emails(approvals, api):
 
 
 class MergeJobOptions(namedtuple('MergeJobOptions', 'add_tested add_reviewers reapprove')):
+    __slots__ = ()
+
+    @property
+    def requests_commit_tagging(self):
+        return self.add_tested or self.add_reviewers
+
     @classmethod
     def default(cls, add_tested=False, add_reviewers=False, reapprove=False):
         return cls(add_tested=add_tested, add_reviewers=add_reviewers, reapprove=reapprove)

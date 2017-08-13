@@ -64,6 +64,10 @@ class MergeRequest(gitlab.Resource):
         return self.info['sha']
 
     @property
+    def squash(self):
+        return self.info.get('squash', False)  # missing means auto-squash not supported
+
+    @property
     def source_project_id(self):
         return self.info['source_project_id']
 
