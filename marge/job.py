@@ -10,17 +10,15 @@ from .project import Project
 from .user import User
 
 class MergeJob(object):
-    def __init__(self, bot, project, merge_request, repo):
-        self._bot = bot
+    def __init__(self, api, user, project, merge_request, repo, options):
+        self._api = api
+        self._user = user
         self._project = project
         self._merge_request = merge_request
         self._repo = repo
+        self._options = options
         self.max_ci_waiting_time = timedelta(minutes=15)
         self.max_merge_waiting_time = timedelta(minutes=5)
-
-    @property
-    def user(self):
-        return self._bot.user
 
     @property
     def repo(self):
@@ -28,14 +26,14 @@ class MergeJob(object):
 
     @property
     def opts(self):
-        return self._bot.merge_options
+        return self._options
 
     def execute(self):
         merge_request = self._merge_request
 
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
-        if self.user.id != merge_request.assignee_id:
+        if self._user.id != merge_request.assignee_id:
             log.info('It is not assigned to us anymore! -- SKIPPING')
             return
 
@@ -72,7 +70,7 @@ class MergeJob(object):
             raise
 
     def rebase_and_accept(self, approvals):
-        api = self._bot.api
+        api = self._api
         merge_request = self._merge_request
         rebased_into_up_to_date_target_branch = False
 
@@ -96,7 +94,7 @@ class MergeJob(object):
 
             should_add_tested = self.opts.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
             tested_by = (
-                ['{0._bot.user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
+                ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
                 else None
             )
             reviewers = (
@@ -164,7 +162,7 @@ class MergeJob(object):
                 rebased_into_up_to_date_target_branch = True
 
     def wait_for_ci_to_pass(self, source_project_id, commit_sha):
-        api = self._bot.api
+        api = self._api
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
@@ -208,7 +206,7 @@ class MergeJob(object):
 
     def unassign_from_mr(self, mr):
         author_id = mr.author_id
-        if author_id != self.user.id:
+        if author_id != self._user.id:
             mr.assign_to(author_id)
         else:
             mr.unassign()

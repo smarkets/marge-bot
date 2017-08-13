@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 import marge.commit
-import marge.bot
 import marge.git
 import marge.gitlab
 import marge.job
@@ -169,17 +168,11 @@ class TestRebaseAndAccept(object):
         repo = Mock(marge.git.Repo)
         options = options or marge.job.MergeJobOptions.default()
         user = marge.user.User.myself(self.api)
-        bot = marge.bot.Bot(
-            api=self.api,
-            user=user,
-            ssh_key_file='id_rsa',
-            add_reviewers=options.add_reviewers,
-            add_tested=options.add_tested,
-            impersonate_approvers=options.reapprove,
-            project_regexp='.*',
-            embargo_intervals=None,
+        return marge.job.MergeJob(
+            api=api, user=user,
+            project=project, merge_request=merge_request, repo=repo,
+            options=options,
         )
-        return marge.job.MergeJob(bot=bot, project=project, merge_request=merge_request, repo=repo)
 
     def test_succeeds_first_time(self, time_sleep):
         api, mocklab = self.api, self.mocklab

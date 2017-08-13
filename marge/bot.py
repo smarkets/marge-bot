@@ -98,8 +98,9 @@ class Bot(object):
                         raise
 
                     job = MergeJob(
-                        bot=self,
+                        api=self._api, user=self._user,
                         project=project, merge_request=merge_request, repo=repo,
+                        options=self.merge_options,
                     )
                     job.execute()
                 else:
