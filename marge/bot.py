@@ -1,59 +1,43 @@
 import logging as log
 import time
+from collections import namedtuple
 from tempfile import TemporaryDirectory
 
 from . import git
+from . import job
 from . import merge_request as merge_request_module
 from . import store
-from .job import MergeJob, MergeJobOptions
 from .project import AccessLevel, Project
 
 MergeRequest = merge_request_module.MergeRequest
 
 
 class Bot(object):
-    def __init__(
-            self,
-            *,
-            api,
-            user,
-            ssh_key_file,
-            add_reviewers,
-            add_tested,
-            impersonate_approvers,
-            project_regexp,
-            embargo_intervals=None,
-    ):
+    def __init__(self, *, api, config):
+        self._api = api
+        self._config = config
+
+        user = config.user
+        opts = config.merge_opts
+
         if not user.is_admin:
-            assert not impersonate_approvers, "{0.username} is not an admin, can't impersonate!".format(user)
-            assert not add_reviewers, (
+            assert not opts.impersonate_approvers, (
+                "{0.username} is not an admin, can't impersonate!".format(user)
+            )
+            assert not opts.add_reviewers, (
                 "{0.username} is not an admin, can't lookup Reviewed-by: email addresses ".format(user)
             )
-
-        self._ssh_key_file = ssh_key_file
-
-        self._api = api
-        self._user = user
-
-        self.project_regexp = project_regexp
-
-        self.merge_options = MergeJobOptions.default(
-            add_tested=add_tested,
-            add_reviewers=add_reviewers,
-            reapprove=impersonate_approvers,
-            embargo=embargo_intervals,
-        )
 
     def start(self):
         with TemporaryDirectory() as root_dir:
             repo_manager = store.RepoManager(
-                user=self._user, root_dir=root_dir, ssh_key_file=self._ssh_key_file,
+                user=self.user, root_dir=root_dir, ssh_key_file=self._config.ssh_key_file,
             )
             self._run(repo_manager)
 
     @property
     def user(self):
-        return self._user
+        return self._config.user
 
     @property
     def api(self):
@@ -63,7 +47,8 @@ class Bot(object):
         while True:
             log.info('Finding out my current projects...')
             my_projects = Project.fetch_all_mine(self._api)
-            filtered_projects = [p for p in my_projects if self.project_regexp.match(p.path_with_namespace)]
+            project_regexp = self._config.project_regexp
+            filtered_projects = [p for p in my_projects if project_regexp.match(p.path_with_namespace)]
             filtered_out = set(my_projects) - set(filtered_projects)
             if filtered_out:
                 log.debug(
@@ -84,7 +69,7 @@ class Bot(object):
                 log.info('Fetching merge requests assigned to me in %s...', project_name)
                 my_merge_requests = MergeRequest.fetch_all_open_for_user(
                     project_id=project.id,
-                    user_id=self._user.id,
+                    user_id=self.user.id,
                     api=self._api
                 )
 
@@ -97,15 +82,21 @@ class Bot(object):
                         log.exception("Couldn't initialize repository for project!")
                         raise
 
-                    job = MergeJob(
-                        api=self._api, user=self._user,
+                    merge_job = job.MergeJob(
+                        api=self._api, user=self.user,
                         project=project, merge_request=merge_request, repo=repo,
-                        options=self.merge_options,
+                        options=self._config.merge_opts,
                     )
-                    job.execute()
+                    merge_job.execute()
                 else:
                     log.info('Nothing to merge at this point...')
 
             time_to_sleep_in_secs = 60
             log.info('Sleeping for %s seconds...', time_to_sleep_in_secs)
             time.sleep(time_to_sleep_in_secs)
+
+
+class BotConfig(namedtuple('BotConfig', 'user ssh_key_file project_regexp merge_opts')):
+    pass
+
+MergeJobOptions = job.MergeJobOptions

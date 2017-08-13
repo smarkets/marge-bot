@@ -16,7 +16,6 @@ from . import gitlab
 from . import user as user_module
 
 
-
 def _parse_args(args):
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -128,15 +127,17 @@ def main(args=sys.argv[1:]):
         api = gitlab.Api(options.gitlab_url, auth_token)
         user = user_module.User.myself(api)
 
-        marge_bot = bot.Bot(
-            api=api,
+        config = bot.BotConfig(
             user=user,
             ssh_key_file=ssh_key_file,
-            add_reviewers=options.add_reviewers,
-            add_tested=options.add_tested,
-            impersonate_approvers=options.impersonate_approvers,
             project_regexp=options.project_regexp,
-            embargo_intervals=options.embargo,
+            merge_opts=bot.MergeJobOptions.default(
+                add_tested=options.add_tested,
+                add_reviewers=options.add_reviewers,
+                reapprove=options.impersonate_approvers,
+                embargo=options.embargo,
+            )
         )
 
+        marge_bot = bot.Bot(api=api, config=config)
         marge_bot.start()
