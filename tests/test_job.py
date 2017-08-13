@@ -260,3 +260,24 @@ class TestRebaseAndAccept(object):
 
         assert api.state == 'initial'
         assert api.notes == ["I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!"]
+
+    def test_wont_merge_branches_with_autosquash_if_rewriting(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        autosquash_merge_request = dict(mocklab.merge_request_info, squash=True)
+        api.add_merge_request(autosquash_merge_request, from_state='initial')
+        admin_user = dict(mocklab.user_info, is_admin=True)
+        api.add_user(admin_user, is_current=True)
+
+        message = "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
+
+        for rewriting_opt in ('add_tested', 'add_reviewers'):
+            with mocklab.expected_failure(message):
+                job = self.make_job(marge.job.MergeJobOptions.default(**{rewriting_opt: True}))
+                job.execute()
+
+            assert api.state == 'initial'
+
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            job = self.make_job()
+            job.execute()
+        assert api.state == 'merged'
