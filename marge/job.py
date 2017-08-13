@@ -176,6 +176,8 @@ class MergeJob(object):
                         'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
                         'is rejecting my commits; maybe my email needs to be white-listed?'
                     )
+                elif merge_request.state == 'closed':
+                    raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')
