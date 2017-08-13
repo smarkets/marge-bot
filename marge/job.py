@@ -153,6 +153,17 @@ class MergeJob(object):
             except gitlab.Unauthorized:
                 log.warning('Unauthorized!')
                 raise CannotMerge('My user cannot accept merge requests!')
+            except gitlab.NotFound as e:
+                log.warning('Not Found!: %s', e)
+                merge_request.refetch_info()
+                if merge_request.state == 'merged':
+                    # someone must have hit "merge when build succeeds" and we lost the race,
+                    # the branch is gone and we got a 404. Anyway, our job here is done.
+                    # (see #33)
+                    rebased_into_up_to_date_target_branch = True
+                else:
+                    log.warning('For the record, merge request state is %r', merge_request.state)
+                    raise
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
                 raise CannotMerge('had some issue with gitlab, check my logs...')

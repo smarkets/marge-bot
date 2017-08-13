@@ -246,6 +246,27 @@ class TestRebaseAndAccept(object):
         assert api.state == 'merged'
         assert api.notes == ["My job would be easier if people didn't jump the queue and pushed directly... *sigh*"]
 
+    def test_handles_races_for_merging(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        rewritten_sha = mocklab.rewritten_sha
+        api.add_transition(
+            PUT(
+                '/projects/1234/merge_requests/54/merge',
+                dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
+            ),
+            Error(marge.gitlab.NotFound(404, {'message': '404 Branch Not Found'})),
+            from_state='passed', to_state='someone_else_merged',
+        )
+        api.add_merge_request(
+            dict(mocklab.merge_request_info, state='merged'),
+            from_state='someone_else_merged',
+        )
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            job = self.make_job()
+            job.execute()
+        assert api.state == 'someone_else_merged'
+        assert api.notes == []
+
     def test_wont_merge_wip_stuff(self, time_sleep):
         api, mocklab = self.api, self.mocklab
         wip_merge_request = dict(mocklab.merge_request_info, work_in_progress=True)
