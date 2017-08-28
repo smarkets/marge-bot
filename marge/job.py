@@ -10,7 +10,7 @@ from .project import Project
 from .user import User
 
 class MergeJob(object):
-    def __init__(self, api, user, project, merge_request, repo, options):
+    def __init__(self, *, api, user, project, merge_request, repo, options):
         self._api = api
         self._user = user
         self._project = project
@@ -252,6 +252,7 @@ class MergeJob(object):
         return self.opts.embargo.covers(now)
 
 def push_rebased_and_rewritten_version(
+        *,
         repo,
         source_branch,
         target_branch,
@@ -368,7 +369,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
 
     @classmethod
     def default(
-            cls,
+            cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             embargo=None, max_ci_waiting_time=None,
     ):
