@@ -100,6 +100,10 @@ class MergeJob(object):
                 _get_reviewer_names_and_emails(approvals=approvals, api=api) if self.opts.add_reviewers
                 else None
             )
+            part_of = (
+                '<{0.web_url}>'.format(merge_request) if self.opts.add_part_of
+                else None
+            )
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
             # NB. this will be a no-op if there is nothing to rebase/rewrite
             target_sha, _rebased_sha, actual_sha = push_rebased_and_rewritten_version(
@@ -109,6 +113,7 @@ class MergeJob(object):
                 source_repo_url=source_repo_url,
                 reviewers=reviewers,
                 tested_by=tested_by,
+                part_of=part_of,
             )
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
@@ -253,6 +258,7 @@ def push_rebased_and_rewritten_version(
         source_repo_url=None,
         reviewers=None,
         tested_by=None,
+        part_of=None,
 ):
     """Rebase `target_branch` into `source_branch`, optionally add trailers and push.
 
@@ -273,6 +279,8 @@ def push_rebased_and_rewritten_version(
     tested_by
        A list like ``["User Name <u.name@invalid.com>", ...]`` or `None`. ``None`` means
        existing Tested-by lines will be left alone, otherwise they will be replaced.
+    part_of
+       A string with likely a link to the merge request this commit is part-of, or ``None``.
 
     Returns
     -------
@@ -302,7 +310,14 @@ def push_rebased_and_rewritten_version(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
                 branch=source_branch,
-                start_commit=source_branch+'^'
+                start_commit=source_branch + '^'
+            )
+        if part_of is not None:
+            rewritten_sha = repo.tag_with_trailer(
+                trailer_name='Part-of',
+                trailer_values=[part_of],
+                branch=source_branch if tested_by is not None else (source_branch + '^'),
+                start_commit='origin/' + target_branch,
             )
         branch_rewritten = True
         repo.push_force(source_branch, source_repo_url)
@@ -336,7 +351,12 @@ def _get_reviewer_names_and_emails(approvals, api):
 
 
 _job_options = [
-    'add_tested', 'add_reviewers', 'reapprove', 'embargo', 'max_ci_waiting_time',
+    'add_tested',
+    'add_part_of',
+    'add_reviewers',
+    'reapprove',
+    'embargo',
+    'max_ci_waiting_time',
 ]
 
 class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
@@ -344,18 +364,19 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
 
     @property
     def requests_commit_tagging(self):
-        return self.add_tested or self.add_reviewers
+        return self.add_tested or self.add_part_of or self.add_reviewers
 
     @classmethod
     def default(
             cls,
-            add_tested=False, add_reviewers=False, reapprove=False,
+            add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             embargo=None, max_ci_waiting_time=None,
     ):
         embargo = embargo or IntervalUnion.empty()
         max_ci_waiting_time = max_ci_waiting_time or timedelta(minutes=15)
         return cls(
             add_tested=add_tested,
+            add_part_of=add_part_of,
             add_reviewers=add_reviewers,
             reapprove=reapprove,
             embargo=embargo,

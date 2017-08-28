@@ -139,9 +139,9 @@ ktmpl ./deploy.yml \
    commits in the merge request as described in the next section.
 
 
-## Adding Reviewed-by: and Tested: messages to commits
+## Adding tags to commits
 Marge-bot supports automated addition of the following
-two [standardized git commit headers](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes):
+two [standardized git commit tags](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes):
 `Reviewed-by` and `Tested-by`. For the latter it uses `Marge Bot
 <$MERGE_REQUEST_URL>` as a slight abuse of the convention (here `Marge Bot` is
 the name of the `marge-bot` user in GitLab).
@@ -168,6 +168,11 @@ reasons:
 1. Seeing where stuff "came from" in a rebase-based workflow
 2. Knowing that a commit has been tested, which is e.g. important for bisection
    so you can easily and automatically `git bisect --skip` untested commits.
+
+Additionally, by using `--add-part-of`, all commits will be tagged with a link
+to the merge request on which they were merged. This is useful, for example,
+to go from a commit shown in `git blame` to the merge request on which it was
+introduced.
 
 ## Impersonating approvers
 If you want a full audit trail, you will configure Gitlab

@@ -68,14 +68,19 @@ def _parse_args(args):
         help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".',
     )
     arg(
-        '--add-reviewers',
-        action='store_true',
-        help='add Reviewed-by: $approver for each approver of PR to each commit in PR'
-    )
-    arg(
         '--add-tested',
         action='store_true',
         help='add Tested: marge-bot <$PR_URL> for the final commit on branch after it passed CI',
+    )
+    arg(
+        '--add-part-of',
+        action='store_true',
+        help='add Part-of: <$PR_URL> to each commit in PR (except top commit when --add-tested is used)',
+    )
+    arg(
+        '--add-reviewers',
+        action='store_true',
+        help='add Reviewed-by: $approver for each approver of PR to each commit in PR',
     )
     arg(
         '--impersonate-approvers',
@@ -140,6 +145,7 @@ def main(args=sys.argv[1:]):
             project_regexp=options.project_regexp,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
+                add_part_of=options.add_part_of,
                 add_reviewers=options.add_reviewers,
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
