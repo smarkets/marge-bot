@@ -117,7 +117,7 @@ class MergeJob(object):
                 reviewers=reviewers,
                 tested_by=tested_by,
                 part_of=part_of,
-                autosquash=autosquash,
+                fixup=fixup,
             )
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
@@ -264,6 +264,7 @@ def push_rebased_and_rewritten_version(
         reviewers=None,
         tested_by=None,
         part_of=None,
+        fixup=None,
 ):
     """Rebase `target_branch` into `source_branch`, optionally add trailers and push.
 
@@ -286,6 +287,8 @@ def push_rebased_and_rewritten_version(
        existing Tested-by lines will be left alone, otherwise they will be replaced.
     part_of
        A string with likely a link to the merge request this commit is part-of, or ``None``.
+    fixup
+       Whether to fold in --fixup commits automatically.
 
     Returns
     -------
@@ -374,6 +377,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     @classmethod
     def default(
             cls, *,
+            cls,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             embargo=None, ci_timeout=None,
     ):
