@@ -397,6 +397,7 @@ class TestMergeJobOptions(object):
     def test_default(self):
         assert MergeJobOptions.default() == MergeJobOptions(
             add_tested=False,
+            add_part_of=False,
             add_reviewers=False,
             reapprove=False,
             embargo=marge.interval.IntervalUnion.empty(),
