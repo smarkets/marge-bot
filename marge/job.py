@@ -377,7 +377,6 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     @classmethod
     def default(
             cls, *,
-            cls,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             embargo=None, ci_timeout=None,
     ):
