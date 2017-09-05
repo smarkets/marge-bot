@@ -1,3 +1,5 @@
+  * 0.3.1:
+  *  - Fix start-up error when running as non-admin user #49.
   * 0.3.0:
     - Display better messages when GitLab refuses to merge #32, #33.
     - Handle auto-squash being selected #14.
