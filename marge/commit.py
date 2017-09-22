@@ -1,5 +1,7 @@
 import re
 
+from requests.utils import quote
+
 from . import gitlab
 
 
@@ -23,7 +25,7 @@ class Commit(gitlab.Resource):
         info = api.call(GET(
             '/projects/{project_id}/repository/branches/{branch}'.format(
                 project_id=project_id,
-                branch=branch,
+                branch=quote(branch, safe=''),
             ),
         ))['commit']
         return cls(api, info)
