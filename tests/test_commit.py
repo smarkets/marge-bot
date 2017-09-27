@@ -48,6 +48,11 @@ class TestProject(object):
         Commit.last_on_branch(project_id=1234, branch='foobar-branch', api=self.api)
         self.api.call.assert_called_once_with(GET('/projects/1234/repository/branches/foobar-branch'))
 
+    def test_last_on_branch_encoding(self):
+        self.api.call.side_effect = lambda *_, **__: {'commit': INFO}
+        Commit.last_on_branch(project_id=1234, branch='foo/bar', api=self.api)
+        self.api.call.assert_called_once_with(GET('/projects/1234/repository/branches/foo%2Fbar'))
+
     def test_properties(self):
         commit = Commit(api=self.api, info=INFO)
         assert commit.id == "6104942438c14ec7bd21c6cd5bd995272b3faff6"
