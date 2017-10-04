@@ -142,7 +142,7 @@ class MergeJob(object):
                 if new_target_sha != target_sha:
                     log.info('Someone was naughty and by-passed marge')
                     merge_request.comment(
-                        "My job would be easier if people didn't jump the queue and pushed directly... *sigh*"
+                        "My job would be easier if people didn't jump the queue and push directly... *sigh*"
                     )
                     continue
                 # otherwise the source branch has been pushed to or something
