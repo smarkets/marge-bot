@@ -121,7 +121,7 @@ class MockLab(object):
         )
         api.expected_note(
             self.merge_request_info,
-            "My job would be easier if people didn't jump the queue and pushed directly... *sigh*",
+            "My job would be easier if people didn't jump the queue and push directly... *sigh*",
             from_state=['pushed_but_master_moved', 'merge_rejected'],
         )
         api.expected_note(
@@ -244,7 +244,7 @@ class TestRebaseAndAccept(object):
             job.execute()
 
         assert api.state == 'merged'
-        assert api.notes == ["My job would be easier if people didn't jump the queue and pushed directly... *sigh*"]
+        assert api.notes == ["My job would be easier if people didn't jump the queue and push directly... *sigh*"]
 
     def test_handles_races_for_merging(self, time_sleep):
         api, mocklab = self.api, self.mocklab
