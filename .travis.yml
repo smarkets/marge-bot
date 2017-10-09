@@ -3,3 +3,9 @@ python:
   - "3.6"
 install: "pip install -r requirements_frozen.txt && pip install -e ."
 script: "(pylint marge || [[ $? = 8 ]]) && pytest --cov=marge"
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+      docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+      docker push smarkets/marge-bot;
+    fi
