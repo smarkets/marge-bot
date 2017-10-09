@@ -39,6 +39,10 @@ class MergeRequest(gitlab.Resource):
         return self.info['title']
 
     @property
+    def description(self):
+        return self.info['description']
+
+    @property
     def state(self):
         return self.info['state']
 
@@ -70,6 +74,10 @@ class MergeRequest(gitlab.Resource):
     @property
     def source_project_id(self):
         return self.info['source_project_id']
+
+    @property
+    def squash(self):
+        return self.info['squash']
 
     @property
     def target_project_id(self):

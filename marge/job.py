@@ -106,6 +106,8 @@ class MergeJob(object):
                 else None
             )
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
+
+            autosquash = merge_request.squash
             # NB. this will be a no-op if there is nothing to rebase/rewrite
             target_sha, _rebased_sha, actual_sha = push_rebased_and_rewritten_version(
                 repo=self.repo,
@@ -115,6 +117,7 @@ class MergeJob(object):
                 reviewers=reviewers,
                 tested_by=tested_by,
                 part_of=part_of,
+                autosquash=autosquash,
             )
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
