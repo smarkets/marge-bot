@@ -317,7 +317,7 @@ def push_rebased_and_rewritten_version(
             rewritten_sha = repo.tag_with_trailer(
                 trailer_name='Part-of',
                 trailer_values=[part_of],
-                branch=source_branch if tested_by is not None else (source_branch + '^'),
+                branch=source_branch,
                 start_commit='origin/' + target_branch,
             )
         branch_rewritten = True

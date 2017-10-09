@@ -139,9 +139,10 @@ ktmpl ./deploy.yml \
    commits in the merge request as described in the next section.
 
 
-## Adding tags to commits
+## Adding Reviewed-by:, Tested: and Part-of: to commit messages
+
 Marge-bot supports automated addition of the following
-two [standardized git commit tags](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes):
+two [standardized git commit trailers](https://www.kernel.org/doc/html/v4.11/process/submitting-patches.html#using-reported-by-tested-by-reviewed-by-suggested-by-and-fixes):
 `Reviewed-by` and `Tested-by`. For the latter it uses `Marge Bot
 <$MERGE_REQUEST_URL>` as a slight abuse of the convention (here `Marge Bot` is
 the name of the `marge-bot` user in GitLab).
@@ -155,24 +156,26 @@ target branch into your PR branch:
 Reviewed-by: A. Reviewer <a.reviewer@example.com>
 ```
 
-All existing `Reviewed-by:` tags on commits in the branch will be stripped. This
+All existing `Reviewed-by:` trailers on commits in the branch will be stripped. This
 feature requires marge to run with admin privileges due to a peculiarity of the
 GitLab API: only admin users can obtain email addresses of other users, even
 ones explicitly declared as public (strangely this limitation is particular to
 email, Skype handles etc. are visible to everyone).
 
-If you pass `--add-tested` the final commit in a PR will be tagged with
-`Tested-by: marge-bot <$MERGE_REQUEST_URL>`. This can be very useful for two
-reasons:
+If you pass `--add-tested` the final commit message in a PR will be tagged with
+`Tested-by: marge-bot <$MERGE_REQUEST_URL>` trailer. This can be very useful for
+two reasons:
 
 1. Seeing where stuff "came from" in a rebase-based workflow
 2. Knowing that a commit has been tested, which is e.g. important for bisection
    so you can easily and automatically `git bisect --skip` untested commits.
 
-Additionally, by using `--add-part-of`, all commits will be tagged with a link
-to the merge request on which they were merged. This is useful, for example,
-to go from a commit shown in `git blame` to the merge request on which it was
-introduced.
+Additionally, by using `--add-part-of`, all commit messages will be tagged with
+a `Part-of: <$MERGE_REQUEST_URL>` trailer to the merge request on which they
+were merged. This is useful, for example, to go from a commit shown in `git
+blame` to the merge request on which it was introduced or to easily revert a all
+commits introduced by a single Merge Request when using a fast-forward/rebase
+based merge workflow.
 
 ## Impersonating approvers
 If you want a full audit trail, you will configure Gitlab

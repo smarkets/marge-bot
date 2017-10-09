@@ -36,7 +36,11 @@ objects:
             - name: app
               image: "$(APP_IMAGE)"
               imagePullPolicy: Always
-              args: ["--gitlab-url=$(MARGE_GITLAB_URL)", "--impersonate-approvers", "--add-tested"]
+              args: ["--gitlab-url=$(MARGE_GITLAB_URL)",
+                     "--impersonate-approvers",
+                     "--add-tested",
+                     "--add-reviewed-by",
+                     "--add-part-of"]
               env:
                 - name: MARGE_AUTH_TOKEN
                   valueFrom:
