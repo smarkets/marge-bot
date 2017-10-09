@@ -40,7 +40,10 @@ objects:
                      "--impersonate-approvers",
                      "--add-tested",
                      "--add-reviewers",
-                     "--add-part-of"]
+                     "--add-part-of",
+                     "--fixup",
+                     "--rewrite-description-on-squash",
+                     ]
               env:
                 - name: MARGE_AUTH_TOKEN
                   valueFrom:

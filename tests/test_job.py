@@ -60,6 +60,7 @@ class MockLab(object):
             'id':  53,
             'iid': 54,
             'title': 'a title',
+            'description': 'too large for this margin',
             'project_id': 1234,
             'author': {'id': self.author_id},
             'assignee': {'id': self.user_id},
@@ -72,6 +73,7 @@ class MockLab(object):
             'target_branch': 'master',
             'work_in_progress': False,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
+            'squash': False,
         }
         api.add_merge_request(self.merge_request_info)
 
@@ -137,7 +139,8 @@ class MockLab(object):
     def push_rebased(self, *args, **kwargs):
         self.api.state = 'pushed'
         rebased_sha = 'deadbeef'
-        return self.initial_master_sha, rebased_sha, self.rewritten_sha
+        de_wip = False
+        return self.initial_master_sha, rebased_sha, self.rewritten_sha, de_wip
 
     @contextlib.contextmanager
     def expected_failure(self, message):
@@ -236,13 +239,15 @@ class TestRebaseAndAccept(object):
         )
 
         def push_effects():
+            de_wip = False
+
             assert api.state == 'initial'
             api.state = 'pushed_but_master_moved'
-            yield mocklab.initial_master_sha, 'f00ba4', first_rewritten_sha
+            yield mocklab.initial_master_sha, 'f00ba4', first_rewritten_sha, de_wip
 
             assert api.state == 'merge_rejected'
             api.state = 'pushed'
-            yield moved_master_sha, 'deadbeef', mocklab.rewritten_sha
+            yield moved_master_sha, 'deadbeef', mocklab.rewritten_sha, de_wip
 
         with patch('marge.job.push_rebased_and_rewritten_version', side_effect=push_effects()):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
@@ -376,14 +381,17 @@ class TestRebaseAndAccept(object):
         assert api.state == 'initial'
         assert api.notes == ["I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!"]
 
-    def test_wont_merge_branches_with_autosquash_if_rewriting(self, time_sleep):
+    def test_wont_merge_branches_with_autosquash_if_tagging_and_not_rewriting_description(self, time_sleep):
         api, mocklab = self.api, self.mocklab
         autosquash_merge_request = dict(mocklab.merge_request_info, squash=True)
         api.add_merge_request(autosquash_merge_request, from_state='initial')
         admin_user = dict(mocklab.user_info, is_admin=True)
         api.add_user(admin_user, is_current=True)
 
-        message = "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
+        message = (
+            "Sorry, merging requests marked as auto-squash (without --rewrite-description-on-squash)"
+            " would ruin my commit tagging!"
+        )
 
         for rewriting_opt in ('add_tested', 'add_reviewers'):
             with mocklab.expected_failure(message):
@@ -398,12 +406,40 @@ class TestRebaseAndAccept(object):
         assert api.state == 'merged'
 
 
+    def test_will_merge_branches_with_autosquash_if_rewriting(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        autosquash_merge_request = dict(mocklab.merge_request_info, squash=True)
+        api.add_merge_request(autosquash_merge_request, from_state='initial')
+        admin_user = dict(mocklab.user_info, is_admin=True)
+        api.add_user(admin_user, is_current=True)
+
+        message = (
+            "Sorry, merging requests marked as auto-squash (without --rewrite-description-on-squash)"
+            " would ruin my commit tagging!"
+        )
+
+        for rewriting_opt in ('add_tested', 'add_reviewers'):
+            with mocklab.expected_failure(message):
+                job = self.make_job(marge.job.MergeJobOptions.default(**{rewriting_opt: True}))
+                job.execute()
+
+            assert api.state == 'initial'
+
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            job = self.make_job()
+            job.execute()
+        assert api.state == 'merged'
+
+
+
 class TestMergeJobOptions(object):
     def test_default(self):
         assert MergeJobOptions.default() == MergeJobOptions(
             add_tested=False,
             add_part_of=False,
             add_reviewers=False,
+            fixup=False,
+            rewrite_description_on_squash=False,
             reapprove=False,
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),

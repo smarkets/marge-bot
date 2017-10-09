@@ -19,6 +19,7 @@ INFO = {
     'source_branch': 'useless_new_feature',
     'target_branch': 'master',
     'work_in_progress': False,
+    'squash': False,
 }
 
 

@@ -59,14 +59,29 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
-    def rebase(self, branch, new_base, source_repo_url=None):
-        """Rebase `new_base` into `branch` and return the new HEAD commit id.
+    def something_to_squash(self, new_base):
+        commit_range = 'origin/{}..HEAD'.format(new_base)
+        found_fixups = bool(self.git('log', '--grep', '^fixup!', commit_range).stdout)
+        # we don't want to autosquash those non-interactively, the outcome won't be good
+        found_squashs = bool(self.git('log', '--grep', '^squash!', commit_range).stdout)
+        log.debug('Found some squash! commits on %s, not squashing', new_base)
+        return found_fixups and not found_squashs
+
+    def rebase(self, branch, new_base, *, fixup=False, source_repo_url=None):
+        """Rebase `new_base` into `branch`.
 
         By default `branch` and `new_base` are assumed to reside in the same
         repo as `self`. However, if `source_repo_url` is passed and not `None`,
-        `branch` is taken from there.
+        `branch` is taken from there. If `fixup` is `True` ``fixup!`` commits
+        will be folded in automatically (as long as no ``squash!`` commits are
+        present).
 
-        Throws a `GitError` if the rebase fails. Will also try to --abort it.
+        Returns:
+           tuple: `(new_HEAD_commit_id, did_I_autosquash_fixup_commits)`
+
+        Raises:
+           GitError: if the rebase fails. Will also try to --abort it.
+
         """
         assert source_repo_url or branch != new_base, branch
 
@@ -83,14 +98,24 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         else:
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
+        autosquash = fixup and self.something_to_squash(new_base)
         try:
-            # -i and GIT_SEQUENCE_EDITOR are there to automatically fold !fixup and !squash commits,
-            self.git('rebase', '-i', 'origin/' + new_base, add_to_env={'GIT_SEQUENCE_EDITOR': 'true'})
+            if autosquash:
+                # automatically fold !fixup commits,
+                self.git(
+                    'rebase', '-i', '--autosquash', 'origin/' + new_base,
+                    add_to_env={'GIT_SEQUENCE_EDITOR': 'true'}
+                )
+                if not self.something_to_squash(new_base):
+                    log.warning("Still have !fixup/!squash commits left after autosquash on %s", branch)
+                    autosquash = False
+            else:
+                self.git('rebase', 'origin/' + new_base)
         except GitError:
             log.warning('rebase failed, doing an --abort')
             self.git('rebase', '--abort')
             raise
-        return self.get_commit_hash()
+        return self.get_commit_hash(), autosquash
 
     def remove_branch(self, branch):
         assert branch != 'master'
@@ -122,7 +147,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         return self.git('config', '--get', 'remote.{}.url'.format(name)).stdout.decode('utf-8').strip()
 
     def git(self, *args, from_repo=True, add_to_env={}):
-        env = dict(os.environ, add_to_env)
+        env = dict(os.environ, **add_to_env)
         if self.ssh_key_file:
             env = os.environ.copy()
             # ssh's handling of identity files is infuriatingly dumb, to get it

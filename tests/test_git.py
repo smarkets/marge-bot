@@ -34,7 +34,7 @@ class TestRepo(object):
             'git -C /tmp/local/path config user.name bart',
         ]
 
-    def test_rebase_success(self, mocked_run):
+    def test_rebase_without_fixup_success(self, mocked_run):
         self.repo.rebase('feature_branch', 'master_of_the_universe')
 
         assert get_calls(mocked_run) == [
@@ -43,6 +43,19 @@ class TestRepo(object):
             'git -C /tmp/local/path rebase origin/master_of_the_universe',
             'git -C /tmp/local/path rev-parse HEAD'
         ]
+
+    def test_rebase_with_fixup_success(self, mocked_run):
+        self.repo.rebase('feature_branch', 'master_of_the_universe', fixup=True)
+
+        assert get_calls(mocked_run) == [
+            'git -C /tmp/local/path fetch origin',
+            'git -C /tmp/local/path checkout -B feature_branch origin/feature_branch --',
+            "git -C /tmp/local/path log --grep '^fixup!' origin/master_of_the_universe..HEAD",
+            "git -C /tmp/local/path log --grep '^squash!' origin/master_of_the_universe..HEAD",
+            'git -C /tmp/local/path rebase origin/master_of_the_universe',
+            'git -C /tmp/local/path rev-parse HEAD',
+        ]
+
 
     def test_reviewer_tagging_success(self, mocked_run):
         self.repo.tag_with_trailer(
@@ -186,9 +199,9 @@ def _filter_test(s, trailer_name, trailer_values):
 def test_filter():
     assert _filter_test('Some Stuff', 'Tested-by', []) == 'Some Stuff\n'
     assert _filter_test('Some Stuff\n', 'Tested-by', []) == 'Some Stuff\n'
-    assert _filter_test('Some Stuff', 'Tested-by', ['T. Estes <testes@example.com>']) == '''Some Stuff
+    assert _filter_test('Some Stuff', 'Tested-by', ['T. Éstes <testes@example.com>']) == '''Some Stuff
 
-Tested-by: T. Estes <testes@example.com>
+Tested-by: T. Éstes <testes@example.com>
 '''
 
     test_commit_message=r'''Fix: bug in BLah.
@@ -200,7 +213,7 @@ Reviewed-by: R. Viewer <rviewer@example.com>
 Reviewed-by: R. Viewer <rviewer@example.com>
 Signed-off-by: Stephen Offer <soffer@example.com>
 '''
-    with_tested_by = _filter_test(test_commit_message, 'Tested-by', ['T. Estes <testes@example.com>'])
+    with_tested_by = _filter_test(test_commit_message, 'Tested-by', ['T. Éstes <testes@example.com>'])
     assert with_tested_by == '''Fix: bug in BLah.
 
 Some stuff.
@@ -208,7 +221,7 @@ Some More stuff (really? Yeah: really!)
 
 Reviewed-by: R. Viewer <rviewer@example.com>
 Signed-off-by: Stephen Offer <soffer@example.com>
-Tested-by: T. Estes <testes@example.com>
+Tested-by: T. Éstes <testes@example.com>
 '''
     with_new_reviewed_by = _filter_test(with_tested_by, 'Reviewed-by', [
         'Roger Ebert <ebert@example.com>', 'John Simon <simon@example.com>'
@@ -219,15 +232,15 @@ Some stuff.
 Some More stuff (really? Yeah: really!)
 
 Signed-off-by: Stephen Offer <soffer@example.com>
-Tested-by: T. Estes <testes@example.com>
+Tested-by: T. Éstes <testes@example.com>
 Reviewed-by: Roger Ebert <ebert@example.com>
 Reviewed-by: John Simon <simon@example.com>
 '''
     assert _filter_test('Test: frobnificator', 'Tested-by', []) == 'Test: frobnificator\n'
-    assert _filter_test('Test: frobnificator', 'Tested-by', ['T. Estes <testes@example.com>']) == (
+    assert _filter_test('Test: frobnificator', 'Tested-by', ['T. Éstes <testes@example.com>']) == (
         '''Test: frobnificator
 
-Tested-by: T. Estes <testes@example.com>
+Tested-by: T. Éstes <testes@example.com>
 '''
     )
 
@@ -240,16 +253,16 @@ def test_filter_fails_on_empty_commit_messages():
 def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
     with pytest.raises(Exception):
         _filter_test(
-            'Tested-by: T. Estes <testes@example.com>',
+            'Tested-by: T. Éstes <testes@example.com>',
             'Tested-by',
-            ['T. Estes <testes@example.com>']
+            ['T. Éstes <testes@example.com>']
         )
     with pytest.raises(Exception):
-        _filter_test('', 'Tested-by', ['T. Estes <testes@example.com>'])
+        _filter_test('', 'Tested-by', ['T. Éstes <testes@example.com>'])
 
 
 def test_filter_treats_the_first_commit_line_not_as_a_trailer_unless_it_matches_the_trailer_name_passed_in():
     _filter_test(
-        'Tested-by: T. Estes <testes@example.com>',
+        'Tested-by: T. Éstes <testes@example.com>',
         'Reviewed-by', ['Reviewed-by: John Simon <john@invalid>']
-    ) == 'Tested-by: T. Estes <testes@example.com>'
+    ) == 'Tested-by: T. Éstes <testes@example.com>'

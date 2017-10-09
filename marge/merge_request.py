@@ -1,9 +1,13 @@
+import sys
+
 from . import gitlab
 from .approvals import Approvals
 
 
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
 
+# create an unique object for default params in a reloadable fashion
+NIL = getattr(sys.modules.get('marge.merge_request'), 'NIL', object())
 
 class MergeRequest(gitlab.Resource):
 
@@ -76,10 +80,6 @@ class MergeRequest(gitlab.Resource):
         return self.info['source_project_id']
 
     @property
-    def squash(self):
-        return self.info['squash']
-
-    @property
     def target_project_id(self):
         return self.info['target_project_id']
 
@@ -107,6 +107,21 @@ class MergeRequest(gitlab.Resource):
 
         return self._api.call(POST(notes_url, {'body': message}))
 
+    def update(self, *, assignee_id=NIL, title=NIL, description=NIL):
+        params = {}
+        if assignee_id is not NIL:
+            params['assignee_id'] = assignee_id
+        if title is not NIL:
+            params['title'] = title
+        if description is not NIL:
+            params['description'] = description
+
+        return self._api.call(PUT(
+            '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
+            params,
+        ))
+
+
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
@@ -118,10 +133,7 @@ class MergeRequest(gitlab.Resource):
         ))
 
     def assign_to(self, user_id):
-        return self._api.call(PUT(
-            '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
-            {'assignee_id': user_id},
-        ))
+        return self.update(assignee_id=user_id)
 
     def unassign(self):
         return self.assign_to(None)

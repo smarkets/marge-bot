@@ -1,9 +1,10 @@
 import logging as log
+import re
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
 
-from . import git, gitlab
+from . import git, gitlab, trailerfilter
 from .commit import Commit
 from .interval import IntervalUnion
 from .project import Project
@@ -75,11 +76,14 @@ class MergeJob(object):
         rebased_into_up_to_date_target_branch = False
 
         while not rebased_into_up_to_date_target_branch:
-            if merge_request.work_in_progress:
+            if merge_request.work_in_progress and not self.opts.fixup:
                 raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
-            if merge_request.squash and self.opts.requests_commit_tagging:
+            squash = merge_request.squash
+            squash_and_tag = squash and self.opts.requests_commit_tagging
+            if squash_and_tag and not self.opts.rewrite_description_on_squash:
                 raise CannotMerge(
-                    "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
+                    "Sorry, merging requests marked as auto-squash (without --rewrite-description-on-squash)"
+                    " would ruin my commit tagging!"
                 )
             approvals.refetch_info()
             if not approvals.sufficient:
@@ -107,17 +111,16 @@ class MergeJob(object):
             )
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
 
-            autosquash = merge_request.squash
             # NB. this will be a no-op if there is nothing to rebase/rewrite
-            target_sha, _rebased_sha, actual_sha = push_rebased_and_rewritten_version(
+            target_sha, _rebased_sha, actual_sha, de_wip = push_rebased_and_rewritten_version(
                 repo=self.repo,
                 source_branch=merge_request.source_branch,
                 target_branch=merge_request.target_branch,
                 source_repo_url=source_repo_url,
-                reviewers=reviewers,
-                tested_by=tested_by,
-                part_of=part_of,
-                fixup=fixup,
+                reviewers=reviewers if not squash else None,
+                tested_by=tested_by if not squash else None,
+                part_of=part_of if not squash else None,
+                fixup=self.opts.fixup and not squash,
             )
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
@@ -143,6 +146,13 @@ class MergeJob(object):
                 self.wait_for_ci_to_pass(source_project.id, actual_sha)
                 log.info('CI passed!')
                 time.sleep(2)
+
+            if squash_and_tag:
+                assert self.opts.rewrite_description_on_squash
+                self.update_title_and_description(de_wip=True, reviewers=reviewers, tested_by=tested_by)
+            elif de_wip:
+                self.de_wip()
+
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
@@ -200,6 +210,20 @@ class MergeJob(object):
             else:
                 self.wait_for_branch_to_be_merged()
                 rebased_into_up_to_date_target_branch = True
+
+    def update_title_and_description(self, *, de_wip=False, reviewers=[], tested_by=None):
+        self._merge_request.refetch_info()
+        trailers = []
+        trailers += ['Reviewed-by: ' + reviewer for reviewer in reviewers or ['']]
+        trailers += ['Tested-by: ' + (tested_by or '')]
+        new_description = trailerfilter.rework_commit_message(self._merge_request.description, trailers)
+        new_title = re.sub('^WIP: *', '', self._merge_request.title)  if de_wip else self._merge_request.title
+        return self._merge_request.update(title=new_title, description=new_description)
+
+    def de_wip(self):
+        self._merge_request.refetch_info()
+        new_title = re.sub('^WIP: *', '', self._merge_request.title)
+        return self._merge_request.update(title=new_title)
 
     def wait_for_ci_to_pass(self, source_project_id, commit_sha):
         api = self._api
@@ -300,10 +324,11 @@ def push_rebased_and_rewritten_version(
 
     branch_rebased = branch_rewritten = changes_pushed = False
     try:
-        rewritten_sha = rebased_sha = repo.rebase(
+        (rewritten_sha, _) = (rebased_sha, de_wip) = repo.rebase(
             branch=source_branch,
             new_base=target_branch,
-            source_repo_url=source_repo_url
+            source_repo_url=source_repo_url,
+            fixup=fixup,
         )
         branch_rebased = True
         if reviewers is not None:
@@ -341,7 +366,8 @@ def push_rebased_and_rewritten_version(
         raise
     else:
         target_sha = repo.get_commit_hash('origin/' + target_branch)
-        return target_sha, rebased_sha, rewritten_sha
+        assert not de_wip or fixup
+        return target_sha, rebased_sha, rewritten_sha, de_wip
     finally:
         # A failure to clean up probably means something is fucked with the git repo
         # and likely explains any previous failure, so it will better to just
@@ -362,6 +388,8 @@ _job_options = [
     'add_tested',
     'add_part_of',
     'add_reviewers',
+    'fixup',
+    'rewrite_description_on_squash',
     'reapprove',
     'embargo',
     'ci_timeout',
@@ -377,7 +405,8 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     @classmethod
     def default(
             cls, *,
-            add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
+            add_tested=False, add_reviewers=False, add_part_of=False, reapprove=False, fixup=False,
+            rewrite_description_on_squash=False,
             embargo=None, ci_timeout=None,
     ):
         embargo = embargo or IntervalUnion.empty()
@@ -386,6 +415,8 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
             add_tested=add_tested,
             add_part_of=add_part_of,
             add_reviewers=add_reviewers,
+            rewrite_description_on_squash=rewrite_description_on_squash,
+            fixup=fixup,
             reapprove=reapprove,
             embargo=embargo,
             ci_timeout=ci_timeout,

@@ -93,6 +93,16 @@ def _parse_args(args):
         help='add Reviewed-by: $approver for each approver of PR to each commit in PR',
     )
     arg(
+        '--fixup',
+        action='store_true',
+        help='automatically squash in !fixup commits (see git rebase --help) and unset WIP state',
+    )
+    arg(
+        '--rewrite-description-on-squash',
+        action='store_true',
+        help='if the squash tickbox is ticked in the MR, rewrite the description to add the trailers',
+    )
+    arg(
         '--impersonate-approvers',
         action='store_true',
         help='marge pushes effectively don\'t change approval status',
@@ -176,6 +186,8 @@ def main(args=sys.argv[1:]):
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
                 add_reviewers=options.add_reviewers,
+                fixup=options.fixup,
+                rewrite_description_on_squash=options.rewrite_description_on_squash,
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
