@@ -19,7 +19,7 @@ class Api(object):
         log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
         response = method(url, headers=headers, **command.call_args)
         log.debug('RESPONSE CODE: %s', response.status_code)
-        log.debug('RESPONSE BODY: %r', response.json())
+        log.debug('RESPONSE BODY: %r', response.content)
 
         if response.status_code == 200:
             return command.extract(response.json()) if command.extract else response.json()
