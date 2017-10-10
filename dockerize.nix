@@ -13,8 +13,9 @@ dockerTools.buildImage {
   ${dockerTools.shadowSetup}
   mkdir -p /root/.ssh
   '';
-  contents = [marge pkgs.bash pkgs.coreutils pkgs.openssh];
+  contents = [marge pkgs.bash pkgs.coreutils pkgs.openssh pkgs.glibcLocales];
   config = {
     Entrypoint = [ "/bin/marge.app" ];
+    Env = ["LANG=en_US.UTF-8" ''LOCALE_ARCHIVE=/lib/locale/locale-archive''];
   };
 }
