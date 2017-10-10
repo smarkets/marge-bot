@@ -66,6 +66,7 @@ class MergeJob(object):
         except Exception:
             log.exception('Unexpected Exception')
             merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
+            self.unassign_from_mr(merge_request)
             raise
 
     def rebase_and_accept(self, approvals):
