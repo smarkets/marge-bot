@@ -144,7 +144,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
 
 
 def _run(*args, env=None, check=False, timeout=None):
-    with subprocess.Popen(args, env=env, stdout=PIPE, stderr=PIPE) as process:
+    with subprocess.Popen([a.encode('utf-8') for a in args], env=env, stdout=PIPE, stderr=PIPE) as process:
         try:
             stdout, stderr = process.communicate(input, timeout=timeout)
         except TimeoutExpired:

@@ -178,7 +178,7 @@ def mocked_stdout(stdout):
 
 def _filter_test(s, trailer_name, trailer_values):
     script = marge.git._filter_branch_script(trailer_name, trailer_values)
-    return subprocess.check_output(['sh', '-c', script], input=s.encode('utf-8')).decode('utf-8')
+    return subprocess.check_output([b'sh', b'-c', script.encode('utf-8')], input=s.encode('utf-8')).decode('utf-8')
 
 
 def test_filter():
