@@ -17,7 +17,7 @@ class MergeJob(object):
         self._merge_request = merge_request
         self._repo = repo
         self._options = options
-        self.max_merge_waiting_time = timedelta(minutes=5)
+        self._merge_timeout = timedelta(minutes=5)
 
     @property
     def repo(self):
@@ -203,7 +203,7 @@ class MergeJob(object):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
-        while datetime.utcnow() - time_0 < self._options.max_ci_waiting_time:
+        while datetime.utcnow() - time_0 < self._options.ci_timeout:
             ci_status = Commit.fetch_by_id(source_project_id, commit_sha, api).status
             if ci_status == 'success':
                 return
@@ -227,7 +227,7 @@ class MergeJob(object):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
-        while datetime.utcnow() - time_0 < self.max_merge_waiting_time:
+        while datetime.utcnow() - time_0 < self._merge_timeout:
             merge_request.refetch_info()
 
             if merge_request.state == 'merged':
@@ -358,7 +358,7 @@ _job_options = [
     'add_reviewers',
     'reapprove',
     'embargo',
-    'max_ci_waiting_time',
+    'ci_timeout',
 ]
 
 class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
@@ -372,17 +372,17 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            embargo=None, max_ci_waiting_time=None,
+            embargo=None, ci_timeout=None,
     ):
         embargo = embargo or IntervalUnion.empty()
-        max_ci_waiting_time = max_ci_waiting_time or timedelta(minutes=15)
+        ci_timeout = ci_timeout or timedelta(minutes=15)
         return cls(
             add_tested=add_tested,
             add_part_of=add_part_of,
             add_reviewers=add_reviewers,
             reapprove=reapprove,
             embargo=embargo,
-            max_ci_waiting_time=max_ci_waiting_time,
+            ci_timeout=ci_timeout,
         )
 
 

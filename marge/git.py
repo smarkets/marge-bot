@@ -9,8 +9,6 @@ from collections import namedtuple
 
 from . import trailerfilter
 
-TIMEOUT_IN_SECS = 120
-
 # Turning off StrictHostKeyChecking is a nasty hack to approximate
 # just accepting the hostkey sight unseen the first time marge
 # connects. The proper solution would be to pass in known_hosts as
@@ -30,7 +28,7 @@ def _filter_branch_script(trailer_name, trailer_values):
     return filter_script
 
 
-class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
+class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
     def clone(self):
         self.git('clone', '--origin=origin', self.remote_url, self.local_path, from_repo=False)
 
@@ -135,7 +133,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
 
         log.info('Running %s', ' '.join(shlex.quote(w) for w in command))
         try:
-            return _run(*command, env=env, check=True, timeout=TIMEOUT_IN_SECS)
+            return _run(*command, env=env, check=True, timeout=self.timeout)
         except subprocess.CalledProcessError as err:
             log.warning('git returned %s', err.returncode)
             log.warning('stdout: %r', err.stdout)
