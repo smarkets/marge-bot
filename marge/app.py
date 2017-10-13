@@ -17,6 +17,16 @@ from . import gitlab
 from . import user as user_module
 
 
+
+def time_interval(s):
+    try:
+        quant, unit = re.match(r'\A([\d.]+) ?(h|m(?:in)?|s)?\Z', s).groups()
+        translate = {'h': 'hours', 'm': 'minutes', 'min': 'minutes', 's': 'seconds'}
+        return timedelta(**{translate[unit or 's']: float(quant)})
+    except (AttributeError, ValueError):
+        raise argparse.ArgumentTypeError('Invalid time interval (e.g. 12[s|min|h]): %s', s)
+
+
 def _parse_args(args):
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -35,7 +45,7 @@ def _parse_args(args):
         try:
             return re.compile(s)
         except re.error as err:
-            raise argparse.ArgumentTypeError('Invalid regexp: %r (%s)' % s, err.msg)
+            raise argparse.ArgumentTypeError('Invalid regexp: %r (%s)' % (s, err.msg))
 
     arg(
         '--auth-token-file',
@@ -94,10 +104,16 @@ def _parse_args(args):
         help="Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'",
     )
     arg(
-        '--max-ci-time-in-minutes',
-        type=int,
-        default=15,
-        help='How long to wait for CI to pass.',
+        '--ci-timeout',
+        type=time_interval,
+        default=time_interval('15min'),
+        help='How long to wait for CI to pass (defaut: 15min).',
+    )
+    arg(
+        '--git-timeout',
+        type=time_interval,
+        default=time_interval('120s'),
+        help='How long a single git operation can take (default 120s)'
     )
     arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
@@ -143,13 +159,14 @@ def main(args=sys.argv[1:]):
             user=user,
             ssh_key_file=ssh_key_file,
             project_regexp=options.project_regexp,
+            git_timeout=options.git_timeout,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
                 add_reviewers=options.add_reviewers,
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
-                max_ci_waiting_time=timedelta(minutes=options.max_ci_time_in_minutes),
+                ci_timeout=timedelta(seconds=options.ci_timeout),
             )
         )
 

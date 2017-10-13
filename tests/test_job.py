@@ -401,11 +401,11 @@ class TestMergeJobOptions(object):
             add_reviewers=False,
             reapprove=False,
             embargo=marge.interval.IntervalUnion.empty(),
-            max_ci_waiting_time=timedelta(minutes=15),
+            ci_timeout=timedelta(minutes=15),
         )
 
     def test_default_ci_time(self):
         three_min = timedelta(minutes=3)
-        assert MergeJobOptions.default(max_ci_waiting_time=three_min) == MergeJobOptions.default()._replace(
-            max_ci_waiting_time=three_min
+        assert MergeJobOptions.default(ci_timeout=three_min) == MergeJobOptions.default()._replace(
+            ci_timeout=three_min
         )

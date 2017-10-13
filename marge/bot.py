@@ -31,7 +31,10 @@ class Bot(object):
     def start(self):
         with TemporaryDirectory() as root_dir:
             repo_manager = store.RepoManager(
-                user=self.user, root_dir=root_dir, ssh_key_file=self._config.ssh_key_file,
+                user=self.user,
+                root_dir=root_dir,
+                ssh_key_file=self._config.ssh_key_file,
+                timeout=self._config.git_timeout,
             )
             self._run(repo_manager)
 
@@ -96,7 +99,7 @@ class Bot(object):
             time.sleep(time_to_sleep_in_secs)
 
 
-class BotConfig(namedtuple('BotConfig', 'user ssh_key_file project_regexp merge_opts')):
+class BotConfig(namedtuple('BotConfig', 'user ssh_key_file project_regexp merge_opts git_timeout')):
     pass
 
 MergeJobOptions = job.MergeJobOptions
