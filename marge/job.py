@@ -63,7 +63,7 @@ class MergeJob(object):
             log.exception('Unexpected Git error')
             merge_request.comment('Something seems broken on my local git repo; check my logs!')
             raise
-        except Exception:
+        except Exception as _ex:
             log.exception('Unexpected Exception')
             merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
             self.unassign_from_mr(merge_request)
@@ -119,11 +119,6 @@ class MergeJob(object):
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
 
-            if source_project.only_allow_merge_if_pipeline_succeeds:
-                self.wait_for_ci_to_pass(source_project.id, actual_sha)
-                log.info('CI passed!')
-                time.sleep(2)
-
             sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id
             # Make sure no-one managed to race and push to the branch in the
             # meantime, because we're about to impersonate the approvers, and
@@ -133,13 +128,18 @@ class MergeJob(object):
             # Re-approve the merge request, in case us pushing it has removed
             # approvals. Note that there is a bit of a race; effectively
             # approval can't be withdrawn after we've pushed (resetting
-            # approvals) and CI runs.
+            # approvals)
             if self.opts.reapprove:
                 # approving is not idempotent, so we need to check first that there are no approvals,
                 # otherwise we'll get a failure on trying to re-instate the previous approvals
                 current_approvals = merge_request.fetch_approvals()
                 if not current_approvals.sufficient:
                     approvals.reapprove()
+
+            if source_project.only_allow_merge_if_pipeline_succeeds:
+                self.wait_for_ci_to_pass(source_project.id, actual_sha)
+                log.info('CI passed!')
+                time.sleep(2)
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
