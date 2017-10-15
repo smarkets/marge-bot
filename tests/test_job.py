@@ -90,6 +90,11 @@ class MockLab(object):
         )
         api.add_transition(
            GET('/projects/1234/repository/branches/useless_new_feature'),
+           Ok({'commit': _commit(id=rewritten_sha, status='running')}),
+           from_state='pushed',
+        )
+        api.add_transition(
+           GET('/projects/1234/repository/branches/useless_new_feature'),
            Ok({'commit': _commit(id=rewritten_sha, status='success')}),
            from_state='passed'
         )
@@ -192,14 +197,14 @@ class TestRebaseAndAccept(object):
         api.add_transition(
            GET('/projects/1234/repository/branches/useless_new_feature'),
            Ok({'commit': _commit(id=new_branch_head_sha, status='success')}),
-           from_state='passed', to_state='passed_but_head_changed'
+           from_state='pushed', to_state='pushed_but_head_changed'
         )
         with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
             with mocklab.expected_failure("Someone pushed to branch while we were trying to merge"):
                 job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
                 job.execute()
 
-        assert api.state == 'passed_but_head_changed'
+        assert api.state == 'pushed_but_head_changed'
         assert api.notes == ["I couldn't merge this branch: Someone pushed to branch while we were trying to merge"]
 
     def test_succeeds_second_time_if_master_moved(self, time_sleep):
