@@ -110,6 +110,12 @@ def _parse_args(args):
         help='How long to wait for CI to pass (defaut: 15min).',
     )
     arg(
+        '--max-ci-time-in-minutes',
+        type=int,
+        default=None,
+        help='Deprecated; use --ci-timeout.',
+    )
+    arg(
         '--git-timeout',
         type=time_interval,
         default=time_interval('120s'),
@@ -154,6 +160,12 @@ def main(args=sys.argv[1:]):
     with _secret_auth_token_and_ssh_key(options) as (auth_token, ssh_key_file):
         api = gitlab.Api(options.gitlab_url, auth_token)
         user = user_module.User.myself(api)
+        if options.max_ci_time_in_minutes:
+            logging.warning(
+                "--max-ci-time-in-minutes is DEPRECATED, use --ci-timeout %dmin",
+                options.max_ci_time_in_minutes
+            )
+            options.ci_timeout = timedelta(minutes=options.max_ci_time_in_minutes)
 
         config = bot.BotConfig(
             user=user,
