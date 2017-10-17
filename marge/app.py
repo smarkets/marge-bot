@@ -178,7 +178,7 @@ def main(args=sys.argv[1:]):
                 add_reviewers=options.add_reviewers,
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
-                ci_timeout=timedelta(seconds=options.ci_timeout),
+                ci_timeout=options.ci_timeout,
             )
         )
 
