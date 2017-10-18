@@ -60,7 +60,7 @@ parameters:
     parameterType: "string"
   - name: "APP_IMAGE"
     description: "App image name to run"
-    value: "smarketshq/marge-bot"
+    value: "smarkets/marge-bot"
     required: true
     parameterType: "string"
   - name: "KUBE_NAMESPACE"
