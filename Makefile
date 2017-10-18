@@ -20,6 +20,6 @@ dockerize: dockerize.nix
 .PHONY: dockerhub
 docker-push:
 	docker login
-	docker tag smarketshq/marge-bot:$$(cat version) smarketshq/marge-bot:latest
-	docker push smarketshq/marge-bot:$$(cat version)
-	docker push smarketshq/marge-bot:latest
+	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
+	docker push smarkets/marge-bot:$$(cat version)
+	docker push smarkets/marge-bot:latest

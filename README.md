@@ -90,7 +90,7 @@ image we provide:
 docker run \
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
-  smarketshq/marge-bot \
+  smarkets/marge-bot \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
@@ -104,7 +104,7 @@ For completeness sake, here's how we run marge-bot at smarkets ourselves:
 docker run \
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
-  smarketshq/marge-bot \
+  smarkets/marge-bot \
   --add-tested \
   --add-reviewers \
   --impersonate-approvers \
@@ -117,7 +117,7 @@ Kubernetes templating with ktmpl:
 ```bash
 ktmpl ./deploy.yml \
 --parameter APP_NAME "marge-bot" \
---parameter APP_IMAGE "smarketshq/marge-bot" \
+--parameter APP_IMAGE "smarkets/marge-bot" \
 --parameter KUBE_NAMESPACE "marge-bot" \
 --parameter MARGE_GITLAB_URL 'http://your.gitlab.instance.com' \
 --parameter MARGE_AUTH_TOKEN "$(cat marge-bot.token)" \
