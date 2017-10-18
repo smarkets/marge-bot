@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import shlex
@@ -17,7 +18,7 @@ class TestRepo(object):
             remote_url='ssh://git@git.foo.com/some/repo.git',
             local_path='/tmp/local/path',
             ssh_key_file=None,
-            timeout=1,
+            timeout=datetime.timedelta(seconds=1),
         )
 
     def test_clone(self, mocked_run):

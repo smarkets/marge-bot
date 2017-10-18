@@ -143,7 +143,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         log.info('Running %s', ' '.join(shlex.quote(w) for w in command))
         try:
-            return _run(*command, env=env, check=True, timeout=self.timeout.total_seconds())
+            timeout_seconds = self.timeout.total_seconds() if self.timeout is not None else None
+            return _run(*command, env=env, check=True, timeout=timeout_seconds)
         except subprocess.CalledProcessError as err:
             log.warning('git returned %s', err.returncode)
             log.warning('stdout: %r', err.stdout)
