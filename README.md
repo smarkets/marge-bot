@@ -8,11 +8,12 @@ implements
 
 > automatically maintain a repository of code that always passes all the tests.
 
--- Graydon Hoare, main author of Rust
+— Graydon Hoare, main author of Rust
 
 This simple rule of thumb is still nowadays surprisingly difficult to implement
-with the state-of-the-art tools, and more so in a way that scales with team
-size.
+with the state-of-the-art tools, and more so in a way that scales with team size
+(also see our [blog
+post](https://smarketshq.com/marge-bot-for-gitlab-keeps-master-always-green-6070e9d248df)).
 
 Take, for instance, GitHub's well-known
 [pull-request workflow](https://help.github.com/categories/collaborating-with-issues-and-pull-requests).
@@ -213,6 +214,37 @@ run two instances of marge-bot passing `--add-reviewers --project-regexp
 project/with_reviewers` to the first instance and `--project-regexp
 (?!project/with_reviewers)` to the second ones. The latter regexp is a negative
 look-ahead and will match any string not starting with `project/with_reviewers`.
+
+
+## Some handy git aliases
+
+Only `git bisect run` on commits that have passed CI (requires running marge-bot with `--add-tested`):
+```
+git config --global alias.bisect-run-tested \
+ 'f() { git bisect run /bin/sh -c "if !(git log -1 --format %B | fgrep -q \"Tested-by: Marge Bot\"); then exit 125; else "$@"; fi"; }; f'
+```
+E.g. `git bisect-run-tested ./test-for-some-bug.sh`.
+
+Revert a whole MR, in a rebase based workflow (requires running marge-bot with `--add-part-of`):
+```
+git config --global alias.mr-revs '!f() { git log --grep "^Part-of.*/""$1"">" --pretty="%H"; }; f'
+git config --global alias.mr-url '!f() { git log -1 --grep "^Part-of.*/""$1"">" --pretty="%b" | grep "^Part-of.*/""$1"">"  | sed "s/.*<\\(.*\\)>/\\1/"; }; f'
+git config --global alias.revert-mr '!f() { REVS=$(git mr-revs "$1"); URL="$(git mr-url "$1")";  git revert --no-commit $REVS;  git commit -m "Revert <$URL>$(echo;echo; echo "$REVS" | xargs -I% echo "This reverts commit %.")"; }; f'
+```
+
+E.g. `git revert-mr 123`. This will create a single commit reverting all commits
+that are part of MR 123 with a a commit message that looks like this:
+
+```
+Revert <http://gitlab.example.com/mygropup/myproject/merge_requests/123>
+
+This reverts commit 86a3d35d9bc12e735efbf72f3e2fb895c0158713.
+This reverts commit e862330a6df463e36137664f316c18b5836a4df7.
+This reverts commit 0af5b70a98858c9509c895da2a673ebdb31e20b1.
+```
+
+E.g. `git revert-mr 123`.
+
 
 ## Troubleshooting
 
