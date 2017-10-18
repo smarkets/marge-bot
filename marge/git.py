@@ -124,7 +124,17 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         env = None
         if self.ssh_key_file:
             env = os.environ.copy()
-            env['GIT_SSH_COMMAND'] = " ".join([GIT_SSH_COMMAND, "-i", self.ssh_key_file])
+            # ssh's handling of identity files is infuriatingly dumb, to get it
+            # to actualy really use the IdentityFile we pass in via -i we also
+            # need to tell it to ignore ssh-agent (IdentitiesOnly=true) and not
+            # read in any identities from ~/.ssh/config etc (-F /dev/null),
+            # because they append and it tries them in order, starting with config file
+            env['GIT_SSH_COMMAND'] = " ".join([
+                GIT_SSH_COMMAND,
+                "-F", "/dev/null",
+                "-o", "IdentitiesOnly=yes",
+                "-i", self.ssh_key_file,
+            ])
 
         command = ['git']
         if from_repo:

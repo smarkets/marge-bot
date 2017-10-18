@@ -158,8 +158,8 @@ class TestRepo(object):
         repo = self.repo._replace(ssh_key_file='/foo/id_rsa')
         repo.config_user_info('bart', 'bart@gmail.com')
         assert get_calls(mocked_run) == [
-            "GIT_SSH_COMMAND='%s -i /foo/id_rsa' git -C /tmp/local/path config user.email bart@gmail.com" % GIT_SSH_COMMAND,
-            "GIT_SSH_COMMAND='%s -i /foo/id_rsa' git -C /tmp/local/path config user.name bart" % GIT_SSH_COMMAND,
+            "GIT_SSH_COMMAND='%s -F /dev/null -o IdentitiesOnly=yes -i /foo/id_rsa' git -C /tmp/local/path config user.email bart@gmail.com" % GIT_SSH_COMMAND,
+            "GIT_SSH_COMMAND='%s -F /dev/null -o IdentitiesOnly=yes -i /foo/id_rsa' git -C /tmp/local/path config user.name bart" % GIT_SSH_COMMAND,
         ]
 
 def get_calls(mocked_run):
