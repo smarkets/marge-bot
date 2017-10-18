@@ -38,6 +38,13 @@ def _commit(id, status):
         'status': status,
     }
 
+def _wipify(merge_request_info):
+    merge_request_info = merge_request_info.copy()
+    if not merge_request_info['title'].startswith('WIP: '):
+        merge_request_info['title'] = 'WIP: ' + merge_request_info['title']
+    return merge_request_info
+
+
 class MockLab(object):
     def __init__(self, gitlab_url=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
@@ -71,7 +78,6 @@ class MockLab(object):
             'target_project_id': 1234,
             'source_branch': 'useless_new_feature',
             'target_branch': 'master',
-            'work_in_progress': False,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
             'squash': False,
         }
@@ -140,6 +146,12 @@ class MockLab(object):
         self.api.state = 'pushed'
         rebased_sha = 'deadbeef'
         de_wip = False
+        return self.initial_master_sha, rebased_sha, self.rewritten_sha, de_wip
+
+    def push_rebased_de_wiped(self, *args, **kwargs):
+        self.api.state = 'pushed'
+        rebased_sha = 'deadbeef'
+        de_wip = True
         return self.initial_master_sha, rebased_sha, self.rewritten_sha, de_wip
 
     @contextlib.contextmanager
@@ -289,7 +301,7 @@ class TestRebaseAndAccept(object):
             from_state='passed', to_state='now_is_wip',
         )
         api.add_merge_request(
-            dict(mocklab.merge_request_info, work_in_progress=True),
+            _wipify(mocklab.merge_request_info),
             from_state='now_is_wip',
         )
         message = 'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
@@ -371,15 +383,30 @@ class TestRebaseAndAccept(object):
 
     def test_wont_merge_wip_stuff(self, time_sleep):
         api, mocklab = self.api, self.mocklab
-        wip_merge_request = dict(mocklab.merge_request_info, work_in_progress=True)
+        wip_merge_request = _wipify(mocklab.merge_request_info)
         api.add_merge_request(wip_merge_request, from_state='initial')
 
-        with mocklab.expected_failure("Sorry, I can't merge requests marked as Work-In-Progress!"):
-            job = self.make_job()
-            job.execute()
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+            with mocklab.expected_failure("Sorry, I can't merge requests marked as Work-In-Progress!"):
+                job = self.make_job()
+                job.execute()
 
         assert api.state == 'initial'
         assert api.notes == ["I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!"]
+
+    def test_will_de_wip_stuff_if_told_so(self, time_sleep):
+        api, mocklab = self.api, self.mocklab
+        wip_merge_request = _wipify(mocklab.merge_request_info)
+        api.add_merge_request(wip_merge_request, from_state='initial')
+
+        # FIXME(alexander): ensure this actually changes the title
+        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased_de_wiped):
+            job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_part_of=True))
+            job.execute()
+
+        assert api.state == 'merged'
+        assert not api.notes
+
 
     def test_wont_merge_branches_with_autosquash_if_tagging_and_not_rewriting_description(self, time_sleep):
         api, mocklab = self.api, self.mocklab
@@ -424,6 +451,8 @@ class TestRebaseAndAccept(object):
                 job.execute()
 
             assert api.state == 'initial'
+
+        # FIXME(alexander): ensure we change description, but not title; add de-wip version, too
 
         with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
             job = self.make_job()

@@ -84,6 +84,8 @@ class Api(gitlab.Api):
         )
 
     def add_merge_request(self, info, sudo=None, from_state=None, to_state=None):
+        info = info.copy()
+        info['work_in_progress'] = info['title'].startswith('WIP: ')
         self.add_resource('/projects/{0.project_id}/merge_requests/{0.iid}', info, sudo, from_state, to_state)
 
     def add_commit(self, project_id, info, sudo=None, from_state=None, to_state=None):
