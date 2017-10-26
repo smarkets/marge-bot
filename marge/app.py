@@ -121,6 +121,12 @@ def _parse_args(args):
         default=time_interval('120s'),
         help='How long a single git operation can take (default 120s)'
     )
+    arg(
+        '--branch-regexp',
+        type=regexp,
+        default='.*',
+        help='Only process MRs whose target branches match the given regular expression.',
+    )
     arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
     return parser.parse_args(args)
@@ -172,6 +178,7 @@ def main(args=sys.argv[1:]):
             ssh_key_file=ssh_key_file,
             project_regexp=options.project_regexp,
             git_timeout=options.git_timeout,
+            branch_regexp=options.branch_regexp,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
