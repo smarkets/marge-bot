@@ -215,6 +215,17 @@ project/with_reviewers` to the first instance and `--project-regexp
 (?!project/with_reviewers)` to the second ones. The latter regexp is a negative
 look-ahead and will match any string not starting with `project/with_reviewers`.
 
+## Restricting the list of branches marge-bot considers
+
+It is also possible to restrict the branches marge-bot watches for incoming
+merge requests. By default, marge-bot will process MRs targetted for any branch.
+You may specify a regexp that target branches must match with `--branch-regexp`.
+
+This could be useful, if for instance, you wanted to set a regular freeze
+interval on your master branches for releases. You could have one instance of
+marge-bot with `--embargo "Friday 1pm - Monday 9am" --branch-regexp master` and
+the other with `--branch-regexp (?!master)`. This would allow development to
+continue on other branches during the embargo on master.
 
 ## Some handy git aliases
 

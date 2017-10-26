@@ -75,10 +75,23 @@ class Bot(object):
                     user_id=self.user.id,
                     api=self._api
                 )
+                branch_regexp = self._config.branch_regexp
+                filtered_mrs = [mr for mr in my_merge_requests
+                                if branch_regexp.match(mr.target_branch)]
+                filtered_out = set(my_merge_requests) - set(filtered_mrs)
+                if filtered_out:
+                    log.debug(
+                        'MRs that match branch_regexp: %s',
+                        [mr.web_url for mr in filtered_mrs]
+                    )
+                    log.debug(
+                        'MRs that do not match branch_regexp: %s',
+                        [mr.web_url for mr in filtered_out]
+                    )
 
-                if my_merge_requests:
-                    log.info('Got %s requests to merge; will try to merge the oldest', len(my_merge_requests))
-                    merge_request = my_merge_requests[0]
+                if filtered_mrs:
+                    log.info('Got %s requests to merge; will try to merge the oldest', len(filtered_mrs))
+                    merge_request = filtered_mrs[0]
                     try:
                         repo = repo_manager.repo_for_project(project)
                     except git.GitError:
@@ -100,7 +113,8 @@ class Bot(object):
 
 
 
-class BotConfig(namedtuple('BotConfig', 'user ssh_key_file project_regexp merge_opts git_timeout')):
+class BotConfig(namedtuple('BotConfig',
+                           'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp')):
     pass
 
 MergeJobOptions = job.MergeJobOptions

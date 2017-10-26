@@ -133,6 +133,11 @@ def test_git_timeout():
         with main("--git-timeout '150 s'") as bot:
             assert bot.config.git_timeout == datetime.timedelta(seconds=150)
 
+def test_branch_regexp():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--branch-regexp='foo.*bar'") as bot:
+            assert bot.config.branch_regexp == re.compile('foo.*bar')
+
 
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
 # seems to seriously mess up the test run
