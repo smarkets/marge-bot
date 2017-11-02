@@ -102,6 +102,11 @@ class MockLab(object):
            from_state='pushed',
         )
         api.add_transition(
+            PUT('/projects/1234/merge_requests/54', dict(title='a title')),
+            Ok({''}),
+            from_state='pushed', to_state='pushed_and_dewipped'
+        )
+        api.add_transition(
            GET('/projects/1234/repository/branches/useless_new_feature'),
            Ok({'commit': _commit(id=rewritten_sha, status='success')}),
            from_state='passed'

@@ -116,10 +116,14 @@ class MergeRequest(gitlab.Resource):
         if description is not NIL:
             params['description'] = description
 
-        return self._api.call(PUT(
+        ans = self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
             params,
         ))
+        # FIXME(alexander)
+        self._info = dict(self._info, **params)
+        return ans
+
 
 
     def accept(self, remove_branch=False, sha=None):
