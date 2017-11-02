@@ -23,3 +23,8 @@ docker-push:
 	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
 	docker push smarkets/marge-bot:$$(cat version)
 	docker push smarkets/marge-bot:latest
+	# for backwards compatibility push to previous location
+	docker tag smarkets/marge-bot:latest smarketshq/marge-bot:latest
+	docker tag smarkets/marge-bot:latest smarketshq/marge-bot:$$(cat version)
+	docker push smarketshq/marge-bot:$$(cat version)
+	docker push smarketshq/marge-bot:latest
