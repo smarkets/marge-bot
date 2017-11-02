@@ -39,7 +39,7 @@ objects:
               args: ["--gitlab-url=$(MARGE_GITLAB_URL)",
                      "--impersonate-approvers",
                      "--add-tested",
-                     "--add-reviewed-by",
+                     "--add-reviewers",
                      "--add-part-of"]
               env:
                 - name: MARGE_AUTH_TOKEN
