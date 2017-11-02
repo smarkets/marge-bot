@@ -1,3 +1,13 @@
+  * 0.4.0:
+    - The official docker image is now on `smarkets/marge-bot` not (`smarketshq/marge-bot`).
+    - Add a --add-part-of option to tag commit messages with originating MR #48.
+    - Add a --git-timeout parameter (that takes time units); also add --ci-timeout
+      that deprecates --max-ci-time-in-minutes #58.
+    - Re-approve immediately after push #53.
+    - Always use --ssh-key-file if passed (never ssh-agent or keys from ~/.ssh) #61.
+    - Fix bad LOCALE problem in official image (hardcode utf-8 everywhere) #57.
+    - Don't blow up on logging bad json responses #51.
+    - Grammar fix #52.
   * 0.3.2: Fix support for branches with "/" in their names #50.
   * 0.3.1: Fix start-up error when running as non-admin user #49.
   * 0.3.0:
