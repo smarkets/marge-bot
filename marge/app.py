@@ -162,6 +162,8 @@ def main(args=sys.argv[1:]):
 
     if options.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("requests").setLevel(logging.WARNING)
 
     with _secret_auth_token_and_ssh_key(options) as (auth_token, ssh_key_file):
         api = gitlab.Api(options.gitlab_url, auth_token)
