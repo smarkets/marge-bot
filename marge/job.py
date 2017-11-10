@@ -203,6 +203,7 @@ class MergeJob(object):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
+        log.info('Waiting for CI to pass')
         while datetime.utcnow() - time_0 < self._options.ci_timeout:
             ci_status = Commit.fetch_by_id(source_project_id, commit_sha, api).status
             if ci_status == 'success':
@@ -217,7 +218,7 @@ class MergeJob(object):
             if ci_status not in ('pending', 'running'):
                 log.warning('Suspicious build status: %r', ci_status)
 
-            log.info('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
+            log.debug('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long')
