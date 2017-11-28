@@ -1,5 +1,4 @@
 {pkgs ? import ./pinnedNixpkgs.nix }:
-with pkgs;
 let version = builtins.replaceStrings ["\n"] [""] (builtins.readFile ./version);
     python = (import ./requirements.nix { inherit pkgs; });
     py = python.packages;
@@ -23,7 +22,7 @@ python.mkDerivation {
   meta = {
     homepage = "https://github.com/smarkets/marge-bot";
     description = "A build bot for gitlab";
-    license = with lib.licenses; [bsd3] ;
+    license = with pkgs.lib.licenses; [bsd3] ;
     maintainers =  [
       "Daniel Gorin <daniel.gorin@smarkets.com>"
       "Alexander Schmolck <alexander.schmolck@smarkets.com>"
