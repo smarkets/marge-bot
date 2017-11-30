@@ -19,7 +19,11 @@ dockerize: dockerize.nix
 
 .PHONY: docker-push
 docker-push:
-	docker login
+	if [[ -n $$DOCKER_USERNAME && -n $$DOCKER_PASSWORD ]]; then \
+	  docker login -u "$${DOCKER_USERNAME}" -p "$${DOCKER_PASSWORD}"; \
+	else \
+	  docker login; \
+	fi
 	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
 	docker push smarkets/marge-bot:$$(cat version)
 	docker push smarkets/marge-bot:latest
