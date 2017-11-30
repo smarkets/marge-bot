@@ -234,7 +234,7 @@ Tested-by: T. Estes <testes@example.com>
 
 def test_filter_fails_on_empty_commit_messages():
     with pytest.raises(Exception):
-        _filter_test('', [])
+        _filter_test('', '', [])
 
 
 def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
