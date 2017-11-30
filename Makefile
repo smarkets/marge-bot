@@ -17,7 +17,7 @@ dockerize: dockerize.nix
 	docker load --input $$(nix-build dockerize.nix)
 
 
-.PHONY: dockerhub
+.PHONY: docker-push
 docker-push:
 	docker login
 	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
