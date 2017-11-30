@@ -321,7 +321,7 @@ class TestRebaseAndAccept(object):
         assert api.state == 'rejected_by_git_hook'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-    def test_guesses_git_hook_error_on_merge_refusal(self, time_sleep):
+    def test_discovers_if_someone_closed_the_merge_request(self, time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
