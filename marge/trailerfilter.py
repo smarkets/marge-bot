@@ -16,7 +16,8 @@ stdout = sys.stdout.buffer
 stderr = sys.stderr.buffer
 
 def die(msg):
-    print(b'ERROR:', msg, file=stderr)
+    stderr.write(b'ERROR: ')
+    stderr.write(msg)
     sys.exit(1)
 
 def drop_trailing_newlines(lines):

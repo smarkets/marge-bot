@@ -180,7 +180,12 @@ def mocked_stdout(stdout):
 
 def _filter_test(s, trailer_name, trailer_values):
     script = marge.git._filter_branch_script(trailer_name, trailer_values)
-    return subprocess.check_output([b'sh', b'-c', script.encode('utf-8')], input=s.encode('utf-8')).decode('utf-8')
+    result = subprocess.check_output(
+        [b'sh', b'-c', script.encode('utf-8')],
+        input=s.encode('utf-8'),
+        stderr=subprocess.STDOUT
+    )
+    return result.decode('utf-8')
 
 
 def test_filter():
@@ -233,19 +238,23 @@ Tested-by: T. Estes <testes@example.com>
 
 
 def test_filter_fails_on_empty_commit_messages():
-    with pytest.raises(Exception):
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
         _filter_test('', '', [])
+    assert exc_info.value.output == b'ERROR: Expected a non-empty commit message'
 
 
 def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
-    with pytest.raises(Exception):
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
         _filter_test(
             'Tested-by: T. Estes <testes@example.com>',
             'Tested-by',
             ['T. Estes <testes@example.com>']
         )
-    with pytest.raises(Exception):
+    assert exc_info.value.output == b'ERROR: Your commit message seems to consist only of Trailers: Tested-by: T. Estes <testes@example.com>'
+
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
         _filter_test('', 'Tested-by', ['T. Estes <testes@example.com>'])
+    assert exc_info.value.output == b'ERROR: Expected a non-empty commit message'
 
 
 def test_filter_treats_the_first_commit_line_not_as_a_trailer_unless_it_matches_the_trailer_name_passed_in():
