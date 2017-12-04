@@ -1,3 +1,8 @@
+  * 0.4.1:
+    - Fixed bug in error handling of commit rewritting (#70 / 1438867)
+    - Add --project-regexp argument to restrict to certain target branches $65.
+    - Sleep less between merging requests while there are jobs pending #67.
+    - Less verborragic logging when --debug is used #66.
   * 0.4.0:
     - The official docker image is now on `smarkets/marge-bot` not (`smarketshq/marge-bot`).
     - Add a --add-part-of option to tag commit messages with originating MR #48.
