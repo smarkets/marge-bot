@@ -82,6 +82,34 @@ let
   python = withPackages {};
 
   generated = self: {
+    "ConfigArgParse" = python.mkDerivation {
+      name = "ConfigArgParse-0.12.0";
+      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/17/8d/4a41f11b0971017c7001f118be8003da8f7b96b010c66cd792b76658d1e1/ConfigArgParse-0.12.0.tar.gz"; sha256 = "28cd7d67669651f2a4518367838c49539457504584a139709b2b8f6c208ef339"; };
+      doCheck = commonDoCheck;
+      buildInputs = commonBuildInputs;
+      propagatedBuildInputs = [
+      self."PyYAML"
+    ];
+      meta = with pkgs.stdenv.lib; {
+        homepage = "https://github.com/bw2/ConfigArgParse";
+        license = licenses.mit;
+        description = "A drop-in replacement for argparse that allows options to also be set via config files and/or environment variables.";
+      };
+    };
+
+    "PyYAML" = python.mkDerivation {
+      name = "PyYAML-3.12";
+      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/4a/85/db5a2df477072b2902b0eb892feb37d88ac635d36245a72a6a69b23b383a/PyYAML-3.12.tar.gz"; sha256 = "592766c6303207a20efc445587778322d7f73b161bd994f227adaa341ba212ab"; };
+      doCheck = commonDoCheck;
+      buildInputs = commonBuildInputs;
+      propagatedBuildInputs = [ ];
+      meta = with pkgs.stdenv.lib; {
+        homepage = "http://pyyaml.org/wiki/PyYAML";
+        license = licenses.mit;
+        description = "YAML parser and emitter for Python";
+      };
+    };
+
     "astroid" = python.mkDerivation {
       name = "astroid-1.5.3";
       src = pkgs.fetchurl { url = "https://pypi.python.org/packages/d7/b7/112288f75293d6f12b1e41bac1e822fd0f29b0f88e2c4378cdd295b9d838/astroid-1.5.3.tar.gz"; sha256 = "492c2a2044adbf6a84a671b7522e9295ad2f6a7c781b899014308db25312dd35"; };
@@ -455,8 +483,8 @@ let
     };
 
     "ruamel.yaml" = python.mkDerivation {
-      name = "ruamel.yaml-0.15.34";
-      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/23/eb/86f27d182d0aaa5dcad885bc35fad7a1c13f94b137e39c37a3d23b4c842b/ruamel.yaml-0.15.34.tar.gz"; sha256 = "f1e29054c6e477963e302b007b6cd1d6c7a58c38d78fabe64fde9ce170d2d1fd"; };
+      name = "ruamel.yaml-0.15.35";
+      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/8f/39/77c555d68d317457a10a30f4a92ae4a315a4ee0e05e9af7c0ac5c301df10/ruamel.yaml-0.15.35.tar.gz"; sha256 = "8dc74821e4bb6b21fb1ab35964e159391d99ee44981d07d57bf96e2395f3ef75"; };
       doCheck = commonDoCheck;
       buildInputs = commonBuildInputs;
       propagatedBuildInputs = [ ];
@@ -481,8 +509,8 @@ let
     };
 
     "tzlocal" = python.mkDerivation {
-      name = "tzlocal-1.4";
-      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/db/53/1334a66eef27703f3bd14c9592f6468bc46ad4371b23bd9b7c25cece8f28/tzlocal-1.4.tar.gz"; sha256 = "05a2908f7fb1ba8843f03b2360d6ad314dbf2bce4644feb702ccd38527e13059"; };
+      name = "tzlocal-1.5.1";
+      src = pkgs.fetchurl { url = "https://pypi.python.org/packages/cb/89/e3687d3ed99bc882793f82634e9824e62499fdfdc4b1ae39e211c5b05017/tzlocal-1.5.1.tar.gz"; sha256 = "4ebeb848845ac898da6519b9b31879cf13b6626f7184c496037b818e238f2c4e"; };
       doCheck = commonDoCheck;
       buildInputs = commonBuildInputs;
       propagatedBuildInputs = [

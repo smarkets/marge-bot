@@ -3,6 +3,7 @@ astroid==1.5.3
 attrs==17.3.0
 certifi==2017.11.5
 chardet==3.0.4
+ConfigArgParse==0.12.0
 coverage==4.4.2
 dateparser==0.6.0
 humanize==0.5.1
@@ -24,10 +25,11 @@ pytest-runner==3.0
 python-dateutil==2.6.1
 pytz==2017.3
 pytzdata==2017.3.1
+PyYAML==3.12
 regex==2017.11.9
 requests==2.18.4
-ruamel.yaml==0.15.34
+ruamel.yaml==0.15.35
 six==1.11.0
-tzlocal==1.4
+tzlocal==1.5.1
 urllib3==1.22
 wrapt==1.10.11

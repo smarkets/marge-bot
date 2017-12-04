@@ -8,7 +8,7 @@ python.mkDerivation {
   name = "marge-${version}";
   src = ./.;
   buildInputs = [py.pytest py.pytest-cov py.pytest-pylint py.pytest-runner];
-  propagatedBuildInputs = [py.maya py.requests pkgs.openssh pkgs.git];
+  propagatedBuildInputs = [py.ConfigArgParse py.maya py.PyYAML py.requests pkgs.openssh pkgs.git];
   meta = {
     homepage = "https://github.com/smarkets/marge-bot";
     description = "A build bot for gitlab";
