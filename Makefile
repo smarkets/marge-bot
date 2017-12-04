@@ -19,7 +19,7 @@ dockerize: dockerize.nix
 
 .PHONY: docker-push
 docker-push:
-	if [[ -n $$DOCKER_USERNAME && -n $$DOCKER_PASSWORD ]]; then \
+	if [ -n "$$DOCKER_USERNAME" -a -n "$$DOCKER_PASSWORD" ]; then \
 	  docker login -u "$${DOCKER_USERNAME}" -p "$${DOCKER_PASSWORD}"; \
 	else \
 	  docker login; \
