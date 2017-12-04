@@ -3,6 +3,7 @@ import datetime
 import os
 import re
 import shlex
+import tempfile
 import unittest.mock as mock
 from functools import wraps
 
@@ -15,6 +16,31 @@ import marge.job as job
 
 import tests.gitlab_api_mock as gitlab_mock
 from tests.test_user import INFO as user_info
+
+
+@contextlib.contextmanager
+def config_file():
+    content = '''
+add-part-of: true
+add-reviewers: true
+add-tested: true
+auth-token: ADMIN-TOKEN
+branch-regexp: foo.*bar
+ci-timeout: 5min
+embargo: Friday 1pm - Monday 7am
+git-timeout: 150s
+gitlab-url: "http://foo.com"
+impersonate-approvers: true
+project-regexp: foo.*bar
+ssh-key: KEY
+'''
+    with tempfile.NamedTemporaryFile(mode='w', prefix='config-file-') as tmp_config_file:
+        try:
+            tmp_config_file.write(content)
+            tmp_config_file.flush()
+            yield tmp_config_file.name
+        finally:
+            tmp_config_file.close()
 
 
 @contextlib.contextmanager
@@ -144,3 +170,58 @@ def test_branch_regexp():
 def test_time_interval():
     _900s = datetime.timedelta(0, 900)
     assert [app.time_interval(x) for x in ['15min', '15m', '.25h', '900s']] == [_900s] * 4
+
+
+def test_disabled_auth_token_cli_arg():
+    with env(MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with pytest.raises(app.MargeBotCliArgError):
+            with main('--auth-token=ADMIN-TOKEN') as bot:
+                pass
+
+
+def test_disabled_ssh_key_cli_arg():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_GITLAB_URL='http://foo.com'):
+        with pytest.raises(app.MargeBotCliArgError):
+            with main('--ssh-key=KEY') as bot:
+                pass
+
+
+def test_config_file():
+    with config_file() as config_file_name:
+        with main('--config-file=%s' % config_file_name) as bot:
+            admin_user_info = dict(**user_info)
+            admin_user_info['is_admin'] = True
+            assert bot.user.info == admin_user_info
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(
+                embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
+                add_tested=True,
+                add_part_of=True,
+                add_reviewers=True,
+                reapprove=True,
+                ci_timeout=datetime.timedelta(seconds=5*60),
+            )
+            assert bot.config.project_regexp == re.compile('foo.*bar')
+            assert bot.config.git_timeout == datetime.timedelta(seconds=150)
+            assert bot.config.branch_regexp == re.compile('foo.*bar')
+
+
+def test_config_overwrites():
+    with config_file() as config_file_name:
+        with env(MARGE_CI_TIMEOUT='20min'):
+            with main('--git-timeout=100s --config-file=%s' % config_file_name) as bot:
+                admin_user_info = dict(**user_info)
+                admin_user_info['is_admin'] = True
+                assert bot.user.info == admin_user_info
+                assert bot.config.merge_opts != job.MergeJobOptions.default()
+                assert bot.config.merge_opts == job.MergeJobOptions.default(
+                    embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
+                    add_tested=True,
+                    add_part_of=True,
+                    add_reviewers=True,
+                    reapprove=True,
+                    ci_timeout=datetime.timedelta(seconds=20*60),
+                )
+                assert bot.config.project_regexp == re.compile('foo.*bar')
+                assert bot.config.git_timeout == datetime.timedelta(seconds=100)
+                assert bot.config.branch_regexp == re.compile('foo.*bar')

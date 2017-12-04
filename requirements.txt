@@ -1,4 +1,6 @@
+ConfigArgParse
 maya
+PyYAML
 requests
 
 # testing

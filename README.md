@@ -45,7 +45,82 @@ Since she is at it, she can optionally provide some other goodies like tagging
 of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 
-## Configuring and running
+## Configuring
+
+Args that start with '--' (eg. --auth-token) can also be set in a config file (specified via --config-file). The config file uses YAML syntax and must represent a YAML 'mapping' (for details, see http://learn.getgrav.org/advanced/yaml). If an arg is specified in more than one place, then commandline values override environment variables which override config file values which override defaults.
+```bash
+optional arguments:
+  -h, --help            show this help message and exit
+  --config-file CONFIG_FILE
+                        config file path   [env var: MARGE_CONFIG_FILE] (default: None)
+  --auth-token TOKEN    Your gitlab token.
+                        DISABLED because passing credentials on the command line is insecure:
+                        You can still set it via ENV variable or config file, or use "--auth-token-file" flag.
+                           [env var: MARGE_AUTH_TOKEN] (default: None)
+  --auth-token-file FILE
+                        Path to your gitlab token file.
+                           [env var: MARGE_AUTH_TOKEN_FILE] (default: None)
+  --gitlab-url URL      Your gitlab instance, e.g. "https://gitlab.example.com".
+                           [env var: MARGE_GITLAB_URL] (default: None)
+  --ssh-key KEY         The private ssh key for marge so it can clone/push.
+                        DISABLED because passing credentials on the command line is insecure:
+                        You can still set it via ENV variable or config file, or use "--ssh-key-file" flag.
+                           [env var: MARGE_SSH_KEY] (default: None)
+  --ssh-key-file FILE   Path to the private ssh key for marge so it can clone/push.
+                           [env var: MARGE_SSH_KEY_FILE] (default: None)
+  --embargo INTERVAL[,..]
+                        Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".
+                           [env var: MARGE_EMBARGO] (default: None)
+  --add-tested          Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.
+                           [env var: MARGE_ADD_TESTED] (default: False)
+  --add-part-of         Add "Part-of: <$MR_URL>" to each commit in MR.
+                           [env var: MARGE_ADD_PART_OF] (default: False)
+  --add-reviewers       Add "Reviewed-by: $approver" for each approver of MR to each commit in MR.
+                           [env var: MARGE_ADD_REVIEWERS] (default: False)
+  --impersonate-approvers
+                        Marge-bot pushes effectively don't change approval status.
+                           [env var: MARGE_IMPERSONATE_APPROVERS] (default: False)
+  --project-regexp PROJECT_REGEXP
+                        Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'.
+                           [env var: MARGE_PROJECT_REGEXP] (default: .*)
+  --ci-timeout CI_TIMEOUT
+                        How long to wait for CI to pass.
+                           [env var: MARGE_CI_TIMEOUT] (default: 15min)
+  --max-ci-time-in-minutes MAX_CI_TIME_IN_MINUTES
+                        Deprecated; use --ci-timeout.
+                           [env var: MARGE_MAX_CI_TIME_IN_MINUTES] (default: None)
+  --git-timeout GIT_TIMEOUT
+                        How long a single git operation can take.
+                           [env var: MARGE_GIT_TIMEOUT] (default: 120s)
+  --branch-regexp BRANCH_REGEXP
+                        Only process MRs whose target branches match the given regular expression.
+                           [env var: MARGE_BRANCH_REGEXP] (default: .*)
+  --debug               Debug logging (includes all HTTP requests etc).
+                           [env var: MARGE_DEBUG] (default: False)
+```
+Here is a config file example
+```yaml
+add-part-of: true
+add-reviewers: true
+add-tested: true
+# chose one way of specifying the Auth token
+#auth-token: TOKEN
+auth-token-file: token.FILE
+branch-regexp: .*
+ci-timeout: 15min
+embargo: Friday 1pm - Monday 9am
+git-timeout: 120s
+gitlab-url: "https://gitlab.example.com"
+impersonate-approvers: true
+project-regexp: .*
+# chose one way of specifying the SSH key
+#ssh-key: KEY
+ssh-key-file: token.FILE
+```
+For more information about configuring marge-bot see `--help`
+
+
+## Running
 
 First, create a user for Marge-bot on your GitLab. We'll use `marge-bot` as
 username here as well. GitLab sorts users by Name, so we recommend you pick one
@@ -95,11 +170,6 @@ docker run \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-Note that all command line arguments have an environment variable equivalent,
-so `--gitlab-url` corresponds to `MARGE_GITLAB_URL`, etc. Once running, the
-bot will continuously monitor all projects that have its user as a member and
-will pick up any changes in membership at runtime.
-
 For completeness sake, here's how we run marge-bot at smarkets ourselves:
 ```bash
 docker run \
@@ -112,8 +182,6 @@ docker run \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-See below for the meaning of the additional flags.
-
 Kubernetes templating with ktmpl:
 ```bash
 ktmpl ./deploy.yml \
@@ -125,6 +193,10 @@ ktmpl ./deploy.yml \
 --parameter MARGE_SSH_KEY "$(cat marge-bot-ssh-key)" \
 --parameter REPLICA_COUNT 1 | kubectl -n=${KUBE_NAMESPACE} apply --force -f -
 ```
+
+Once running, the bot will continuously monitor all projects that have its user as a member and
+will pick up any changes in membership at runtime.
+
 
 ## Suggested worfklow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
