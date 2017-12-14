@@ -360,6 +360,7 @@ _job_options = [
     'reapprove',
     'embargo',
     'ci_timeout',
+    'merge',
 ]
 
 class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
@@ -373,7 +374,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            embargo=None, ci_timeout=None,
+            embargo=None, ci_timeout=None, merge=False
     ):
         embargo = embargo or IntervalUnion.empty()
         ci_timeout = ci_timeout or timedelta(minutes=15)
@@ -384,6 +385,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
             reapprove=reapprove,
             embargo=embargo,
             ci_timeout=ci_timeout,
+            merge=merge,
         )
 
 
