@@ -59,6 +59,38 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
+    def merge(self, branch, new_base, source_repo_url=None):
+        """Merge `new_base` into `branch` and return the new HEAD commit id.
+
+        By default `branch` and `new_base` are assumed to reside in the same
+        repo as `self`. However, if `source_repo_url` is passed and not `None`,
+        `branch` is taken from there.
+
+        Throws a `GitError` if the merge fails. Will also try to --abort it.
+        """
+        assert source_repo_url or branch != new_base, branch
+
+        self.git('fetch', 'origin')
+        if source_repo_url:
+            # "upsert" remote 'source' and fetch it
+            try:
+                self.git('remote', 'rm', 'source')
+            except GitError:
+                pass
+            self.git('remote', 'add', 'source', source_repo_url)
+            self.git('fetch', 'source')
+            self.git('checkout', '-B', branch, 'source/' + branch, '--')
+        else:
+            self.git('checkout', '-B', branch, 'origin/' + branch, '--')
+
+        try:
+            self.git('merge', 'origin/' + new_base)
+        except GitError:
+            log.warning('merge failed, doing an --abort')
+            self.git('merge', '--abort')
+            raise
+        return self.get_commit_hash()
+
     def rebase(self, branch, new_base, source_repo_url=None):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
 
