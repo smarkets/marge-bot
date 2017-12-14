@@ -165,6 +165,13 @@ def test_branch_regexp():
             assert bot.config.branch_regexp == re.compile('foo.*bar')
 
 
+def test_merge():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--merge') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(merge=True)
+
+
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
 # seems to seriously mess up the test run
 def test_time_interval():

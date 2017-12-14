@@ -151,6 +151,15 @@ def _parse_config(args):
         help='Only process MRs whose target branches match the given regular expression.\n',
     )
     parser.add_argument(
+        '--merge',
+        action='store_true',
+        help=(
+            'Use git merge instead of git rebase\n'
+            '(enable this is you use git merge as\n'
+            'git tends to misbehave when both are used)\n'
+        ),
+    )
+    parser.add_argument(
         '--debug',
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
@@ -214,6 +223,7 @@ def main(args=sys.argv[1:]):
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
+                merge=options.merge,
             )
         )
 
