@@ -108,7 +108,7 @@ class MergeJob(object):
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
             # NB. this will be a no-op if there is nothing to rebase/rewrite
             target_sha, _rebased_sha, actual_sha = update_from_target_branch_and_push(
-                use_merge_strategy=self.opts.merge,
+                use_merge_strategy=self.opts.use_merge_strategy,
                 repo=self.repo,
                 source_branch=merge_request.source_branch,
                 target_branch=merge_request.target_branch,
@@ -336,13 +336,6 @@ def push_merged_version(
                 branch=source_branch,
                 start_commit='origin/' + target_branch,
             )
-        if tested_by is not None:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Tested-by',
-                trailer_values=tested_by,
-                branch=source_branch,
-                start_commit=source_branch + '^'
-            )
         if part_of is not None:
             rewritten_sha = repo.tag_with_trailer(
                 trailer_name='Part-of',
@@ -482,7 +475,7 @@ _job_options = [
     'reapprove',
     'embargo',
     'ci_timeout',
-    'merge',
+    'use_merge_strategy',
 ]
 
 class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
@@ -496,7 +489,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            embargo=None, ci_timeout=None, merge=False
+            embargo=None, ci_timeout=None, use_merge_strategy=False
     ):
         embargo = embargo or IntervalUnion.empty()
         ci_timeout = ci_timeout or timedelta(minutes=15)
@@ -507,7 +500,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
             reapprove=reapprove,
             embargo=embargo,
             ci_timeout=ci_timeout,
-            merge=merge,
+            use_merge_strategy=use_merge_strategy,
         )
 
 

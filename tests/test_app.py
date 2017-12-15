@@ -101,11 +101,23 @@ def test_embargo():
                embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
             )
 
+def test_use_merge_strategy():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--use-merge-strategy') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(use_merge_strategy=True)
+
 def test_add_tested():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--add-tested') as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_tested=True)
+
+def test_use_merge_strategy_and_add_tested_are_mutualy_exclusive():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with pytest.raises(SystemExit):
+            with main('--use-merge-strategy --add-tested') as bot:
+                pass
 
 def test_add_part_of():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
@@ -163,13 +175,6 @@ def test_branch_regexp():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--branch-regexp='foo.*bar'") as bot:
             assert bot.config.branch_regexp == re.compile('foo.*bar')
-
-
-def test_merge():
-    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
-        with main('--merge') as bot:
-            assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(merge=True)
 
 
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
