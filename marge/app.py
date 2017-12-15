@@ -100,7 +100,17 @@ def _parse_config(args):
         metavar='INTERVAL[,..]',
         help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".\n',
     )
-    parser.add_argument(
+    merge_group = parser.add_mutually_exclusive_group(required=False)
+    merge_group.add_argument(
+        '--use-merge-strategy',
+        action='store_true',
+        help=(
+            'Use git merge instead of git rebase\n'
+            '(enable this is you use git merge as\n'
+            'git tends to misbehave when both are used)\n'
+        ),
+    )
+    merge_group.add_argument(
         '--add-tested',
         action='store_true',
         help='Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.\n',
@@ -149,15 +159,6 @@ def _parse_config(args):
         type=regexp,
         default='.*',
         help='Only process MRs whose target branches match the given regular expression.\n',
-    )
-    parser.add_argument(
-        '--merge',
-        action='store_true',
-        help=(
-            'Use git merge instead of git rebase\n'
-            '(enable this is you use git merge as\n'
-            'git tends to misbehave when both are used)\n'
-        ),
     )
     parser.add_argument(
         '--debug',
@@ -223,7 +224,7 @@ def main(args=sys.argv[1:]):
                 reapprove=options.impersonate_approvers,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
-                merge=options.merge,
+                use_merge_strategy=options.use_merge_strategy,
             )
         )
 
