@@ -348,7 +348,7 @@ def push_merged_version(
         changes_pushed = True
     except git.GitError:
         if not branch_merged:
-            raise CannotMerge('got conflicts while rebasing, your problem now...')
+            raise CannotMerge('got conflicts while merging, your problem now...')
         if not branch_rewritten:
             raise CannotMerge('failed on filter-branch; check my logs!')
         if not changes_pushed:
