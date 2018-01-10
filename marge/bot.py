@@ -47,6 +47,8 @@ class Bot(object):
         return self._api
 
     def _run(self, repo_manager):
+        time_to_sleep_between_projects_in_secs = 1
+        min_time_to_sleep_after_iterating_all_projects_in_secs = 30
         while True:
             log.info('Finding out my current projects...')
             my_projects = Project.fetch_all_mine(self._api)
@@ -104,12 +106,15 @@ class Bot(object):
                         options=self._config.merge_opts,
                     )
                     merge_job.execute()
-                    time_to_sleep_in_secs = 5
                 else:
                     log.info('Nothing to merge at this point...')
-                    time_to_sleep_in_secs = 30
-                log.info('Sleeping for %s seconds...', time_to_sleep_in_secs)
-                time.sleep(time_to_sleep_in_secs)
+                time.sleep(time_to_sleep_between_projects_in_secs)
+            big_sleep = max(0,
+                            min_time_to_sleep_after_iterating_all_projects_in_secs -
+                            time_to_sleep_between_projects_in_secs * len(filtered_projects))
+            log.info('Sleeping for %s seconds...', big_sleep)
+            time.sleep(big_sleep)
+
 
 
 
