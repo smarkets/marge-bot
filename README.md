@@ -1,4 +1,5 @@
 [![build status](https://travis-ci.org/smarkets/marge-bot.png?branch=master)](https://travis-ci.org/smarkets/marge-bot)
+Quick travis sanity check.
 
 # Marge-bot
 
