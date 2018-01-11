@@ -1,4 +1,4 @@
-group: deprecated-2017Q2
+dist: precise
 sudo: required
 services:
 - docker
