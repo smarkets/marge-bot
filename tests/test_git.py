@@ -44,6 +44,16 @@ class TestRepo(object):
             'git -C /tmp/local/path rev-parse HEAD'
         ]
 
+    def test_merge_success(self, mocked_run):
+        self.repo.merge('feature_branch', 'master_of_the_universe')
+
+        assert get_calls(mocked_run) == [
+            'git -C /tmp/local/path fetch origin',
+            'git -C /tmp/local/path checkout -B feature_branch origin/feature_branch --',
+            'git -C /tmp/local/path merge origin/master_of_the_universe',
+            'git -C /tmp/local/path rev-parse HEAD'
+        ]
+
     def test_reviewer_tagging_success(self, mocked_run):
         self.repo.tag_with_trailer(
             trailer_name='Reviewed-by',
@@ -86,6 +96,12 @@ class TestRepo(object):
     def test_rebase_same_branch(self, mocked_run):
         with pytest.raises(AssertionError):
             self.repo.rebase('branch', 'branch')
+
+        assert get_calls(mocked_run) == []
+
+    def test_merge_same_branch(self, mocked_run):
+        with pytest.raises(AssertionError):
+            self.repo.merge('branch', 'branch')
 
         assert get_calls(mocked_run) == []
 
