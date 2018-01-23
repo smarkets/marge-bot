@@ -68,28 +68,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the merge fails. Will also try to --abort it.
         """
-        assert source_repo_url or branch != new_base, branch
-
-        self.git('fetch', 'origin')
-        if source_repo_url:
-            # "upsert" remote 'source' and fetch it
-            try:
-                self.git('remote', 'rm', 'source')
-            except GitError:
-                pass
-            self.git('remote', 'add', 'source', source_repo_url)
-            self.git('fetch', 'source')
-            self.git('checkout', '-B', branch, 'source/' + branch, '--')
-        else:
-            self.git('checkout', '-B', branch, 'origin/' + branch, '--')
-
-        try:
-            self.git('merge', 'origin/' + new_base)
-        except GitError:
-            log.warning('merge failed, doing an --abort')
-            self.git('merge', '--abort')
-            raise
-        return self.get_commit_hash()
+        return self._fuse_branch('merge', branch, new_base, source_repo_url)
 
     def rebase(self, branch, new_base, source_repo_url=None):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
@@ -100,6 +79,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the rebase fails. Will also try to --abort it.
         """
+        return self._fuse_branch('rebase', branch, new_base, source_repo_url)
+
+    def _fuse_branch(self, strategy, branch, new_base, source_repo_url=None):
         assert source_repo_url or branch != new_base, branch
 
         self.git('fetch', 'origin')
@@ -116,10 +98,10 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
         try:
-            self.git('rebase', 'origin/' + new_base)
+            self.git(strategy, 'origin/' + new_base)
         except GitError:
-            log.warning('rebase failed, doing an --abort')
-            self.git('rebase', '--abort')
+            log.warning(strategy + ' failed, doing an --abort')
+            self.git(strategy, '--abort')
             raise
         return self.get_commit_hash()
 

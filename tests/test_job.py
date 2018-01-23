@@ -134,10 +134,10 @@ class MockLab(object):
             "I'm broken on the inside, please somebody fix me... :cry:"
         )
 
-    def push_rebased(self, *args, **kwargs):
+    def push_updated(self, *args, **kwargs):
         self.api.state = 'pushed'
-        rebased_sha = 'deadbeef'
-        return self.initial_master_sha, rebased_sha, self.rewritten_sha
+        updated_sha = 'deadbeef'
+        return self.initial_master_sha, updated_sha, self.rewritten_sha
 
     @contextlib.contextmanager
     def expected_failure(self, message):
@@ -159,7 +159,7 @@ class MockLab(object):
         assert error_note in self.api.notes
 
 @patch('time.sleep')
-class TestRebaseAndAccept(object):
+class TestUpdateAndAccept(object):
     def setup_method(self, _method):
         self.mocklab = MockLab()
         self.api = self.mocklab.api
@@ -184,7 +184,7 @@ class TestRebaseAndAccept(object):
 
     def test_succeeds_first_time(self, time_sleep):
         api, mocklab = self.api, self.mocklab
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
             job.execute()
 
@@ -199,7 +199,7 @@ class TestRebaseAndAccept(object):
            Ok({'commit': _commit(id=new_branch_head_sha, status='success')}),
            from_state='pushed', to_state='pushed_but_head_changed'
         )
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure("Someone pushed to branch while we were trying to merge"):
                 job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
                 job.execute()
@@ -244,7 +244,7 @@ class TestRebaseAndAccept(object):
             api.state = 'pushed'
             yield moved_master_sha, 'deadbeef', mocklab.rewritten_sha
 
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=push_effects()):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=push_effects()):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
             job.execute()
 
@@ -266,7 +266,7 @@ class TestRebaseAndAccept(object):
             dict(mocklab.merge_request_info, state='merged'),
             from_state='someone_else_merged',
         )
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             job = self.make_job()
             job.execute()
         assert api.state == 'someone_else_merged'
@@ -288,7 +288,7 @@ class TestRebaseAndAccept(object):
             from_state='now_is_wip',
         )
         message = 'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -314,7 +314,7 @@ class TestRebaseAndAccept(object):
             'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
             'is rejecting my commits; maybe my email needs to be white-listed?'
         )
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -337,7 +337,7 @@ class TestRebaseAndAccept(object):
             from_state='oops_someone_closed_it',
         )
         message = 'Someone closed the merge request while I was attempting to merge it.'
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -356,7 +356,7 @@ class TestRebaseAndAccept(object):
             from_state='passed', to_state='rejected_for_misterious_reasons',
         )
         message = "Gitlab refused to merge this request and I don't know why!"
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -392,7 +392,7 @@ class TestRebaseAndAccept(object):
 
             assert api.state == 'initial'
 
-        with patch('marge.job.push_rebased_and_rewritten_version', side_effect=mocklab.push_rebased):
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             job = self.make_job()
             job.execute()
         assert api.state == 'merged'

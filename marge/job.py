@@ -72,9 +72,9 @@ class MergeJob(object):
     def update_merge_request_and_accept(self, approvals):
         api = self._api
         merge_request = self._merge_request
-        rebased_into_up_to_date_target_branch = False
+        updated_into_up_to_date_target_branch = False
 
-        while not rebased_into_up_to_date_target_branch:
+        while not updated_into_up_to_date_target_branch:
             if merge_request.work_in_progress:
                 raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
             if merge_request.squash and self.opts.requests_commit_tagging:
@@ -106,9 +106,8 @@ class MergeJob(object):
                 else None
             )
             source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
-            # NB. this will be a no-op if there is nothing to rebase/rewrite
-            target_sha, _rebased_sha, actual_sha = update_from_target_branch_and_push(
-                use_merge_strategy=self.opts.use_merge_strategy,
+            # NB. this will be a no-op if there is nothing to update/rewrite
+            target_sha, _updated_sha, actual_sha = update_from_target_branch_and_push(
                 repo=self.repo,
                 source_branch=merge_request.source_branch,
                 target_branch=merge_request.target_branch,
@@ -116,6 +115,7 @@ class MergeJob(object):
                 reviewers=reviewers,
                 tested_by=tested_by,
                 part_of=part_of,
+                use_merge_strategy=self.opts.use_merge_strategy,
             )
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
@@ -145,7 +145,7 @@ class MergeJob(object):
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
-                # target_branch has moved under us since we rebased, just try again
+                # target_branch has moved under us since we updated, just try again
                 if new_target_sha != target_sha:
                     log.info('Someone was naughty and by-passed marge')
                     merge_request.comment(
@@ -167,7 +167,7 @@ class MergeJob(object):
                     # someone must have hit "merge when build succeeds" and we lost the race,
                     # the branch is gone and we got a 404. Anyway, our job here is done.
                     # (see #33)
-                    rebased_into_up_to_date_target_branch = True
+                    updated_into_up_to_date_target_branch = True
                 else:
                     log.warning('For the record, merge request state is %r', merge_request.state)
                     raise
@@ -189,7 +189,7 @@ class MergeJob(object):
                     # We are not covering any observed behaviour here, but if at this
                     # point the request is merged, our job is done, so no need to complain
                     log.info('Merge request is already merged, someone was faster!')
-                    rebased_into_up_to_date_target_branch = True
+                    updated_into_up_to_date_target_branch = True
                 else:
                     raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
             except gitlab.ApiError:
@@ -197,7 +197,7 @@ class MergeJob(object):
                 raise CannotMerge('had some issue with gitlab, check my logs...')
             else:
                 self.wait_for_branch_to_be_merged()
-                rebased_into_up_to_date_target_branch = True
+                updated_into_up_to_date_target_branch = True
 
     def wait_for_ci_to_pass(self, source_project_id, commit_sha):
         api = self._api
@@ -254,34 +254,8 @@ class MergeJob(object):
         now = datetime.utcnow()
         return self.opts.embargo.covers(now)
 
+
 def update_from_target_branch_and_push(
-		*,
-		use_merge_strategy,
-        repo,
-        source_branch,
-        target_branch,
-        source_repo_url=None,
-        reviewers=None,
-        tested_by=None,
-        part_of=None,
-):
-    if use_merge_strategy:
-        strategy = push_merged_version
-    else:
-        strategy = push_rebased_and_rewritten_version
-
-    return strategy(
-        repo=repo,
-        source_branch=source_branch,
-        target_branch=target_branch,
-        source_repo_url=source_repo_url,
-        reviewers=reviewers,
-        tested_by=tested_by,
-        part_of=part_of
-    )
-
-
-def push_merged_version(
         *,
         repo,
         source_branch,
@@ -290,15 +264,17 @@ def push_merged_version(
         reviewers=None,
         tested_by=None,
         part_of=None,
+        use_merge_strategy=False,
 ):
-    """Merge `target_branch` into `source_branch`, optionally add trailers and push.
+    """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
+    The update strategy can either be rebase or merge. The default is rebase.
 
     Parameters
     ----------
     source_branch
-       The branch we want to merge to.
+       The branch we want to update.
     target_branch
-       The branch we want to merge from.
+       The branch we want to get updates from.
     source_repo_url
        The url of the repo we want to push the changes to (or `None` if it's the
        same repo for both `source_branch` and `target_branch`).
@@ -310,25 +286,28 @@ def push_merged_version(
     tested_by
        A list like ``["User Name <u.name@invalid.com>", ...]`` or `None`. ``None`` means
        existing Tested-by lines will be left alone, otherwise they will be replaced.
+       Ignored if using the merge strategy.
     part_of
        A string with likely a link to the merge request this commit is part-of, or ``None``.
-
+    use_merge_strategy
+       Updates `target_branch` using merge instead of rebase.
     Returns
     -------
-    (sha_of_target_branch, sha_after_merge, sha_after_rewrite)
+    (sha_of_target_branch, sha_after_update, sha_after_rewrite)
     """
     assert source_repo_url != repo.remote_url
     if source_repo_url is None and source_branch == target_branch:
         raise CannotMerge('source and target branch seem to coincide!')
 
-    branch_merged = branch_rewritten = changes_pushed = False
+    branch_updated = branch_rewritten = changes_pushed = False
     try:
-        rewritten_sha = merged_sha = repo.merge(
+        fuse = repo.merge if use_merge_strategy else repo.rebase
+        rewritten_sha = updated_sha = fuse(
             branch=source_branch,
             new_base=target_branch,
             source_repo_url=source_repo_url
         )
-        branch_merged = True
+        branch_updated = True
         if reviewers is not None:
             rewritten_sha = repo.tag_with_trailer(
                 trailer_name='Reviewed-by',
@@ -336,94 +315,7 @@ def push_merged_version(
                 branch=source_branch,
                 start_commit='origin/' + target_branch,
             )
-        if part_of is not None:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Part-of',
-                trailer_values=[part_of],
-                branch=source_branch,
-                start_commit='origin/' + target_branch,
-            )
-        branch_rewritten = True
-        repo.push_force(source_branch, source_repo_url)
-        changes_pushed = True
-    except git.GitError:
-        if not branch_merged:
-            raise CannotMerge('got conflicts while merging, your problem now...')
-        if not branch_rewritten:
-            raise CannotMerge('failed on filter-branch; check my logs!')
-        if not changes_pushed:
-            raise CannotMerge('failed to push merged changes, check my logs!')
-
-        raise
-    else:
-        target_sha = repo.get_commit_hash('origin/' + target_branch)
-        return target_sha, merged_sha, rewritten_sha
-    finally:
-        # A failure to clean up probably means something is fucked with the git repo
-        # and likely explains any previous failure, so it will better to just
-        # raise a GitError
-        if source_branch != 'master':
-            repo.remove_branch(source_branch)
-        else:
-            assert source_repo_url is not None
-
-
-def push_rebased_and_rewritten_version(
-        *,
-        repo,
-        source_branch,
-        target_branch,
-        source_repo_url=None,
-        reviewers=None,
-        tested_by=None,
-        part_of=None,
-):
-    """Rebase `target_branch` into `source_branch`, optionally add trailers and push.
-
-    Parameters
-    ----------
-    source_branch
-       The branch we want to rebase to.
-    target_branch
-       The branch we want to rebase from.
-    source_repo_url
-       The url of the repo we want to push the changes to (or `None` if it's the
-       same repo for both `source_branch` and `target_branch`).
-    reviewers
-       A list, possibly empty, if we should add reviewer information or `None`
-       if we should not add reviewer information. The difference between
-       ``None`` and ``[]``  (or another list) is that with ``None`` we leave existing
-       Reviewed-by: trailers in place  whereas with a list argument we replace them.
-    tested_by
-       A list like ``["User Name <u.name@invalid.com>", ...]`` or `None`. ``None`` means
-       existing Tested-by lines will be left alone, otherwise they will be replaced.
-    part_of
-       A string with likely a link to the merge request this commit is part-of, or ``None``.
-
-    Returns
-    -------
-    (sha_of_target_branch, sha_after_rebase, sha_after_rewrite)
-    """
-    assert source_repo_url != repo.remote_url
-    if source_repo_url is None and source_branch == target_branch:
-        raise CannotMerge('source and target branch seem to coincide!')
-
-    branch_rebased = branch_rewritten = changes_pushed = False
-    try:
-        rewritten_sha = rebased_sha = repo.rebase(
-            branch=source_branch,
-            new_base=target_branch,
-            source_repo_url=source_repo_url
-        )
-        branch_rebased = True
-        if reviewers is not None:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Reviewed-by',
-                trailer_values=reviewers,
-                branch=source_branch,
-                start_commit='origin/' + target_branch,
-            )
-        if tested_by is not None:
+        if tested_by is not None and not use_merge_strategy:
             rewritten_sha = repo.tag_with_trailer(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
@@ -441,17 +333,20 @@ def push_rebased_and_rewritten_version(
         repo.push_force(source_branch, source_repo_url)
         changes_pushed = True
     except git.GitError:
-        if not branch_rebased:
+        if not branch_updated:
             raise CannotMerge('got conflicts while rebasing, your problem now...')
         if not branch_rewritten:
             raise CannotMerge('failed on filter-branch; check my logs!')
         if not changes_pushed:
-            raise CannotMerge('failed to push rebased changes, check my logs!')
+            if use_merge_strategy:
+                raise CannotMerge('failed to push merged changes, check my logs!')
+            else:
+                raise CannotMerge('failed to push rebased changes, check my logs!')
 
         raise
     else:
         target_sha = repo.get_commit_hash('origin/' + target_branch)
-        return target_sha, rebased_sha, rewritten_sha
+        return target_sha, updated_sha, rewritten_sha
     finally:
         # A failure to clean up probably means something is fucked with the git repo
         # and likely explains any previous failure, so it will better to just
@@ -460,6 +355,7 @@ def push_rebased_and_rewritten_version(
             repo.remove_branch(source_branch)
         else:
             assert source_repo_url is not None
+
 
 def _get_reviewer_names_and_emails(approvals, api):
     """Return a list ['A. Prover <a.prover@example.com', ...]` for `merge_request.`"""
