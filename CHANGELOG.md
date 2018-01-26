@@ -1,3 +1,5 @@
+  * 0.5.1:
+    - Sleep even less between polling for MRs #75.
   * 0.5.0:
     - Added "default -> config file -> env var -> args" way to configure marge-bot #71
   * 0.4.1:
