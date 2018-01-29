@@ -106,8 +106,7 @@ def _parse_config(args):
         action='store_true',
         help=(
             'Use git merge instead of git rebase\n'
-            '(enable this is you use git merge as\n'
-            'git tends to misbehave when both are used)\n'
+            'Enable if you use a workflow based on merge-commits and not linear history\n'
         ),
     )
     merge_group.add_argument(
