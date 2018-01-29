@@ -59,16 +59,16 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
-    def merge(self, branch, new_base, source_repo_url=None):
-        """Merge `new_base` into `branch` and return the new HEAD commit id.
+    def merge(self, source_branch, target_branch, source_repo_url=None):
+        """Merge `target_branch` into `source_branch` and return the new HEAD commit id.
 
-        By default `branch` and `new_base` are assumed to reside in the same
+        By default `source_branch` and `target_branch` are assumed to reside in the same
         repo as `self`. However, if `source_repo_url` is passed and not `None`,
-        `branch` is taken from there.
+        `source_branch` is taken from there.
 
         Throws a `GitError` if the merge fails. Will also try to --abort it.
         """
-        return self._fuse_branch('merge', branch, new_base, source_repo_url)
+        return self._fuse_branch('merge', source_branch, target_branch, source_repo_url)
 
     def rebase(self, branch, new_base, source_repo_url=None):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
@@ -81,8 +81,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         """
         return self._fuse_branch('rebase', branch, new_base, source_repo_url)
 
-    def _fuse_branch(self, strategy, branch, new_base, source_repo_url=None):
-        assert source_repo_url or branch != new_base, branch
+    def _fuse_branch(self, strategy, branch, target_branch, source_repo_url=None):
+        assert source_repo_url or branch != target_branch, branch
 
         self.git('fetch', 'origin')
         if source_repo_url:
@@ -98,7 +98,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
         try:
-            self.git(strategy, 'origin/' + new_base)
+            self.git(strategy, 'origin/' + target_branch)
         except GitError:
             log.warning(strategy + ' failed, doing an --abort')
             self.git(strategy, '--abort')
