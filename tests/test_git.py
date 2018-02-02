@@ -38,7 +38,7 @@ class TestRepo(object):
         self.repo.rebase('feature_branch', 'master_of_the_universe')
 
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path fetch origin',
+            'git -C /tmp/local/path fetch --prune origin',
             'git -C /tmp/local/path checkout -B feature_branch origin/feature_branch --',
             'git -C /tmp/local/path rebase origin/master_of_the_universe',
             'git -C /tmp/local/path rev-parse HEAD'
@@ -48,7 +48,7 @@ class TestRepo(object):
         self.repo.merge('feature_branch', 'master_of_the_universe')
 
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path fetch origin',
+            'git -C /tmp/local/path fetch --prune origin',
             'git -C /tmp/local/path checkout -B feature_branch origin/feature_branch --',
             'git -C /tmp/local/path merge origin/master_of_the_universe',
             'git -C /tmp/local/path rev-parse HEAD'

@@ -84,7 +84,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
     def _fuse_branch(self, strategy, branch, target_branch, source_repo_url=None):
         assert source_repo_url or branch != target_branch, branch
 
-        self.git('fetch', 'origin')
+        self.git('fetch', '--prune', 'origin')
         if source_repo_url:
             # "upsert" remote 'source' and fetch it
             try:
@@ -92,7 +92,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             except GitError:
                 pass
             self.git('remote', 'add', 'source', source_repo_url)
-            self.git('fetch', 'source')
+            self.git('fetch', '--prune', 'source')
             self.git('checkout', '-B', branch, 'source/' + branch, '--')
         else:
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
