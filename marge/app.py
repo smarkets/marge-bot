@@ -105,8 +105,8 @@ def _parse_config(args):
         '--use-merge-strategy',
         action='store_true',
         help=(
-            'Use git merge instead of git rebase\n'
-            'Enable if you use a workflow based on merge-commits and not linear history\n'
+            'Use git merge instead of git rebase (EXPERIMENTAL)\n'
+            'Enable if you use a workflow based on merge-commits and not linear history.\n'
         ),
     )
     merge_group.add_argument(
