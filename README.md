@@ -71,6 +71,9 @@ optional arguments:
   --embargo INTERVAL[,..]
                         Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".
                            [env var: MARGE_EMBARGO] (default: None)
+  --use-merge-strategy  Use git merge instead of git rebase (EXPERIMENTAL)
+                        Enable if you use a workflow based on merge-commits and not linear history.
+                           [env var: MARGE_USE_MERGE_STRATEGY] (default: False)
   --add-tested          Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.
                            [env var: MARGE_ADD_TESTED] (default: False)
   --add-part-of         Add "Part-of: <$MR_URL>" to each commit in MR.
