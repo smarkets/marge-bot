@@ -7,6 +7,7 @@ function-rgx=(([a-z_][a-z0-9_]{2,80})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
 method-rgx=(([a-z_][a-z0-9_]{2,60})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
 variable-rgx=(([a-z_][a-z0-9_]{2,60})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
 attr-rgx=(([a-z_][a-z0-9_]{2,40})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
+argument-rgx=(([a-z_][a-z0-9_]{2,40})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
 
 [MESSAGE CONTROL]
 disable=bad-continuation,
