@@ -63,7 +63,11 @@ class TestRepo(object):
         )
 
         rewrite, parse = get_calls(mocked_run)
-        assert re.match('git -C /tmp/local/path filter-branch --force --msg-filter.*John Simon <john@invalid>.*origin/master_of_the_universe..feature_branch', rewrite)
+        pattern = ''.join([
+            'git -C /tmp/local/path filter-branch --force ',
+            '--msg-filter.*John Simon <john@invalid>.*origin/master_of_the_universe..feature_branch',
+        ])
+        assert re.match(pattern, rewrite)
         assert parse == 'git -C /tmp/local/path rev-parse HEAD'
 
     def test_reviewer_tagging_failure(self, mocked_run):
@@ -78,7 +82,7 @@ class TestRepo(object):
         mocked_run.side_effect = fail_on_filter_branch
 
         try:
-            sha = self.repo.tag_with_trailer(
+            self.repo.tag_with_trailer(
                 trailer_name='Reviewed-by',
                 branch='feature_branch',
                 start_commit='origin/master_of_the_universe',
@@ -168,30 +172,32 @@ class TestRepo(object):
         self.repo.get_commit_hash(rev='master')
         assert get_calls(mocked_run)[-1] == 'git -C /tmp/local/path rev-parse master'
 
-
-
-
     def test_passes_ssh_key(self, mocked_run):
         repo = self.repo._replace(ssh_key_file='/foo/id_rsa')
         repo.config_user_info('bart', 'bart@gmail.com')
+        git_ssh = "GIT_SSH_COMMAND='%s -F /dev/null -o IdentitiesOnly=yes -i /foo/id_rsa'" % (
+            GIT_SSH_COMMAND,
+        )
         assert get_calls(mocked_run) == [
-            "GIT_SSH_COMMAND='%s -F /dev/null -o IdentitiesOnly=yes -i /foo/id_rsa' git -C /tmp/local/path config user.email bart@gmail.com" % GIT_SSH_COMMAND,
-            "GIT_SSH_COMMAND='%s -F /dev/null -o IdentitiesOnly=yes -i /foo/id_rsa' git -C /tmp/local/path config user.name bart" % GIT_SSH_COMMAND,
+            '%s git -C /tmp/local/path config user.email bart@gmail.com' % git_ssh,
+            '%s git -C /tmp/local/path config user.name bart' % git_ssh,
         ]
+
 
 def get_calls(mocked_run):
     return [bashify(call) for call in mocked_run.call_args_list]
+
 
 def bashify(call):
     args, kwargs = call
     args = [shlex.quote(arg) for arg in args]
     env = kwargs.get('env') or {}
-    alt_env = [shlex.quote(k) + '=' + shlex.quote(v) for k,v in set(env.items()) - set(os.environ.items())]
+    alt_env = [shlex.quote(k) + '=' + shlex.quote(v) for k, v in set(env.items()) - set(os.environ.items())]
     return ' '.join(alt_env + args)
+
 
 def mocked_stdout(stdout):
     return subprocess.CompletedProcess(['blah', 'args'], 0, stdout, None)
-
 
 
 def _filter_test(s, trailer_name, trailer_values):
@@ -212,7 +218,7 @@ def test_filter():
 Tested-by: T. Estes <testes@example.com>
 '''
 
-    test_commit_message=r'''Fix: bug in BLah.
+    test_commit_message = r'''Fix: bug in BLah.
 
 Some stuff.
 Some More stuff (really? Yeah: really!)
@@ -266,7 +272,10 @@ def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
             'Tested-by',
             ['T. Estes <testes@example.com>']
         )
-    assert exc_info.value.output == b'ERROR: Your commit message seems to consist only of Trailers: Tested-by: T. Estes <testes@example.com>'
+    assert exc_info.value.output == b''.join([
+        b'ERROR: Your commit message seems to consist only of ',
+        b'Trailers: Tested-by: T. Estes <testes@example.com>',
+    ])
 
     with pytest.raises(subprocess.CalledProcessError) as exc_info:
         _filter_test('', 'Tested-by', ['T. Estes <testes@example.com>'])

@@ -74,6 +74,7 @@ class Api(object):
 
 def from_singleton_list(fun=None):
     fun = fun or (lambda x: x)
+
     def extractor(response_list):
         assert isinstance(response_list, list), type(response_list)
         assert len(response_list) <= 1, len(response_list)
@@ -112,6 +113,7 @@ class PUT(Command):
     def method(self):
         return requests.put
 
+
 class POST(Command):
     @property
     def method(self):
@@ -125,7 +127,6 @@ def _prepare_params(params):
         return str(val)
 
     return {key: process(val) for key, val in params.items()}
-
 
 
 class ApiError(Exception):
@@ -175,6 +176,7 @@ class Unprocessable(ApiError):
 
 class InternalServerError(ApiError):
     pass
+
 
 class UnexpectedError(ApiError):
     pass

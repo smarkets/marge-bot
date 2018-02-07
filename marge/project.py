@@ -72,6 +72,7 @@ class Project(gitlab.Resource):
         assert effective_access is not None, "GitLab failed to provide user permissions on project"
         return AccessLevel(effective_access['access_level'])
 
+
 @unique
 class AccessLevel(Enum):
     # See https://docs.gitlab.com/ce/api/access_requests.html

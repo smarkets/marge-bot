@@ -18,7 +18,7 @@ class TestProject(object):
         self.api = Mock(Api)
 
     def test_fetch_myself(self):
-        user = User.myself(api=self.api)
+        User.myself(api=self.api)
         self.api.call.assert_called_once_with(GET('/user'))
 
     def test_fetch_by_id(self):
@@ -32,7 +32,7 @@ class TestProject(object):
 
     def test_fetch_by_username_exists(self):
         api = self.api
-        api.call = Mock(return_value = INFO)
+        api.call = Mock(return_value=INFO)
 
         user = User.fetch_by_username('john_smith', api)
 

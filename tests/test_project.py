@@ -52,7 +52,7 @@ class TestProject(object):
         prj1 = INFO
         prj2 = dict(INFO, id=1235, path_with_namespace='foo/bar')
         prj3 = dict(INFO, id=1240, path_with_namespace='foo/foo')
-        api.collect_all_pages = Mock(return_value = [prj1, prj2, prj3])
+        api.collect_all_pages = Mock(return_value=[prj1, prj2, prj3])
 
         project = Project.fetch_by_path('foo/bar', api)
 
@@ -63,7 +63,7 @@ class TestProject(object):
         prj1, prj2 = INFO, dict(INFO, id=678)
 
         api = self.api
-        api.collect_all_pages = Mock(return_value = [prj1, prj2])
+        api.collect_all_pages = Mock(return_value=[prj1, prj2])
 
         result = Project.fetch_all_mine(api)
         api.collect_all_pages.assert_called_once_with(GET(
@@ -77,8 +77,8 @@ class TestProject(object):
         assert project.id == 1234
         assert project.path_with_namespace == 'cool/project'
         assert project.ssh_url_to_repo == 'ssh://blah.com/cool/project.git'
-        assert project.merge_requests_enabled == True
-        assert project.only_allow_merge_if_pipeline_succeeds == True
+        assert project.merge_requests_enabled is True
+        assert project.only_allow_merge_if_pipeline_succeeds is True
         assert project.access_level == AccessLevel.developer
 
     def test_group_access(self):

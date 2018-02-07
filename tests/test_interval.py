@@ -3,6 +3,7 @@ from datetime import time
 import maya
 from marge.interval import IntervalUnion, WeeklyInterval
 
+
 def date(spec):
     return maya.parse(spec).datetime()
 

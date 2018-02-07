@@ -16,6 +16,7 @@ from . import trailerfilter
 # in this case the threat of MiTM seems somewhat bogus.
 GIT_SSH_COMMAND = "ssh -o StrictHostKeyChecking=no "
 
+
 def _filter_branch_script(trailer_name, trailer_values):
     filter_script = 'TRAILERS={trailers} python3 {script}'.format(
         trailers=shlex.quote(
@@ -176,7 +177,7 @@ def _run(*args, env=None, check=False, timeout=None):
             raise TimeoutExpired(
                 process.args, timeout, output=stdout, stderr=stderr,
             )
-        except:
+        except Exception:
             process.kill()
             process.wait()
             raise

@@ -9,7 +9,9 @@ from .interval import IntervalUnion
 from .project import Project
 from .user import User
 
+
 class MergeJob(object):
+
     def __init__(self, *, api, user, project, merge_request, repo, options):
         self._api = api
         self._user = user
@@ -373,6 +375,7 @@ _job_options = [
     'ci_timeout',
     'use_merge_strategy',
 ]
+
 
 class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
     __slots__ = ()

@@ -15,17 +15,21 @@ stdin = sys.stdin.buffer
 stdout = sys.stdout.buffer
 stderr = sys.stderr.buffer
 
+
 def die(msg):
     stderr.write(b'ERROR: ')
     stderr.write(msg)
     sys.exit(1)
 
+
 def drop_trailing_newlines(lines):
     while lines and not lines[-1]:
         del lines[-1]
 
+
 def remove_duplicates(trailers):
     return list(collections.OrderedDict((t, None) for t in trailers).keys())
+
 
 def rework_commit_message(commit_message, trailers):
     if not commit_message:
@@ -53,6 +57,7 @@ def rework_commit_message(commit_message, trailers):
         reworked_lines += [b''] + non_empty_trailers
     reworked_lines += [b'']
     return b'\n'.join(reworked_lines)
+
 
 if __name__ == '__main__':
     TRAILERS = os.environb[b'TRAILERS'].split(b'\n') if os.environb[b'TRAILERS'] else []

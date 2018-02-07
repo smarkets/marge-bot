@@ -5,7 +5,6 @@ import re
 import shlex
 import tempfile
 import unittest.mock as mock
-from functools import wraps
 
 import pytest
 
@@ -94,6 +93,7 @@ def test_default_values():
             assert bot.config.git_timeout == datetime.timedelta(seconds=120)
             assert bot.config.merge_opts == job.MergeJobOptions.default()
 
+
 def test_embargo():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--embargo="Fri 1pm-Mon 7am"') as bot:
@@ -101,11 +101,13 @@ def test_embargo():
                embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
             )
 
+
 def test_use_merge_strategy():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--use-merge-strategy') as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(use_merge_strategy=True)
+
 
 def test_add_tested():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
@@ -113,17 +115,20 @@ def test_add_tested():
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_tested=True)
 
+
 def test_use_merge_strategy_and_add_tested_are_mutualy_exclusive():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(SystemExit):
-            with main('--use-merge-strategy --add-tested') as bot:
+            with main('--use-merge-strategy --add-tested'):
                 pass
+
 
 def test_add_part_of():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--add-part-of') as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_part_of=True)
+
 
 def test_add_reviewers():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
@@ -154,22 +159,30 @@ def test_project_regexp():
         with main("--project-regexp='foo.*bar'") as bot:
             assert bot.config.project_regexp == re.compile('foo.*bar')
 
+
 def test_ci_timeout():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--ci-timeout 5m") as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(ci_timeout=datetime.timedelta(seconds=5*60))
+            assert bot.config.merge_opts == job.MergeJobOptions.default(
+                ci_timeout=datetime.timedelta(seconds=5*60),
+            )
+
 
 def test_deprecated_max_ci_time_in_minutes():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--max-ci-time-in-minutes=5") as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(ci_timeout=datetime.timedelta(seconds=5*60))
+            assert bot.config.merge_opts == job.MergeJobOptions.default(
+                ci_timeout=datetime.timedelta(seconds=5*60),
+            )
+
 
 def test_git_timeout():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--git-timeout '150 s'") as bot:
             assert bot.config.git_timeout == datetime.timedelta(seconds=150)
+
 
 def test_branch_regexp():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
@@ -187,14 +200,14 @@ def test_time_interval():
 def test_disabled_auth_token_cli_arg():
     with env(MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(app.MargeBotCliArgError):
-            with main('--auth-token=ADMIN-TOKEN') as bot:
+            with main('--auth-token=ADMIN-TOKEN'):
                 pass
 
 
 def test_disabled_ssh_key_cli_arg():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(app.MargeBotCliArgError):
-            with main('--ssh-key=KEY') as bot:
+            with main('--ssh-key=KEY'):
                 pass
 
 

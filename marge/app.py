@@ -4,7 +4,6 @@ An auto-merger of merge requests for GitLab
 
 import contextlib
 import logging
-import os
 import re
 import sys
 import tempfile

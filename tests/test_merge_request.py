@@ -1,4 +1,4 @@
-from unittest.mock import call, Mock
+from unittest.mock import Mock
 
 from marge.gitlab import Api, GET, POST, PUT, Version
 from marge.merge_request import MergeRequest
@@ -60,14 +60,19 @@ class TestMergeRequest(object):
         assert mr.sha == 'dead4g00d'
         assert mr.source_project_id == 5678
         assert mr.target_project_id == 1234
-        assert mr.work_in_progress == False
+        assert mr.work_in_progress is False
 
         self._load({'assignee': {}})
-        assert mr.assignee_id == None
+        assert mr.assignee_id is None
 
     def test_comment(self):
         self.mr.comment('blah')
-        self.api.call.assert_called_once_with(POST('/projects/1234/merge_requests/54/notes', {'body': 'blah'}))
+        self.api.call.assert_called_once_with(
+            POST(
+                '/projects/1234/merge_requests/54/notes',
+                {'body': 'blah'},
+            ),
+        )
 
     def test_assign(self):
         self.mr.assign_to(42)

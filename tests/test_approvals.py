@@ -1,5 +1,4 @@
-from collections import OrderedDict
-from unittest.mock import ANY, call, Mock, patch
+from unittest.mock import call, Mock, patch
 
 from marge.gitlab import Api, GET, POST, Version
 from marge.approvals import Approvals
@@ -106,7 +105,6 @@ class TestApprovals(object):
             call(POST(endpoint='/projects/1/merge_requests/6/approve', args={}, extract=None), sudo=1),
             call(POST(endpoint='/projects/1/merge_requests/6/approve', args={}, extract=None), sudo=2)
         ])
-
 
     @patch('marge.user.User.fetch_by_id')
     def test_get_reviewer_names_and_emails(self, user_fetch_by_id):
