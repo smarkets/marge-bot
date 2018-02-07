@@ -1,4 +1,4 @@
-from unittest.mock import ANY, Mock
+from unittest.mock import Mock
 
 from marge.gitlab import Api, GET
 from marge.commit import Commit

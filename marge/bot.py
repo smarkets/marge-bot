@@ -116,10 +116,9 @@ class Bot(object):
             time.sleep(big_sleep)
 
 
-
-
 class BotConfig(namedtuple('BotConfig',
                            'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp')):
     pass
+
 
 MergeJobOptions = job.MergeJobOptions

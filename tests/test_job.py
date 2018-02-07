@@ -2,8 +2,6 @@ import contextlib
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
-import pytest
-
 import marge.commit
 import marge.interval
 import marge.git
@@ -11,14 +9,12 @@ import marge.gitlab
 import marge.job
 import marge.project
 import marge.user
-from marge.approvals import Approvals
 from marge.gitlab import GET, PUT
 from marge.job import MergeJobOptions
 from marge.merge_request import MergeRequest
 
 import tests.test_approvals as test_approvals
 import tests.test_commit as test_commit
-import tests.test_merge_request as test_merge_request
 import tests.test_project as test_project
 import tests.test_user as test_user
 from tests.gitlab_api_mock import Api as ApiMock, Error, Ok
@@ -28,8 +24,9 @@ class struct:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+
 def _commit(id, status):
-    return  {
+    return {
         'id': id,
         'short_id': id,
         'author_name': 'J. Bond',
@@ -37,6 +34,7 @@ def _commit(id, status):
         'message': 'Shaken, not stirred',
         'status': status,
     }
+
 
 class MockLab(object):
     def __init__(self, gitlab_url=None):
@@ -142,6 +140,7 @@ class MockLab(object):
     @contextlib.contextmanager
     def expected_failure(self, message):
         author_assigned = False
+
         def assign_to_author():
             nonlocal author_assigned
             author_assigned = True
@@ -157,6 +156,7 @@ class MockLab(object):
 
         assert author_assigned
         assert error_note in self.api.notes
+
 
 @patch('time.sleep')
 class TestUpdateAndAccept(object):
@@ -205,7 +205,9 @@ class TestUpdateAndAccept(object):
                 job.execute()
 
         assert api.state == 'pushed_but_head_changed'
-        assert api.notes == ["I couldn't merge this branch: Someone pushed to branch while we were trying to merge"]
+        assert api.notes == [
+            "I couldn't merge this branch: Someone pushed to branch while we were trying to merge",
+        ]
 
     def test_succeeds_second_time_if_master_moved(self, time_sleep):
         api, mocklab = self.api, self.mocklab
@@ -219,7 +221,11 @@ class TestUpdateAndAccept(object):
         api.add_transition(
             PUT(
                 '/projects/1234/merge_requests/54/merge',
-                dict(sha=first_rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
+                dict(
+                    sha=first_rewritten_sha,
+                    should_remove_source_branch=True,
+                    merge_when_pipeline_succeeds=True,
+                ),
             ),
             Error(marge.gitlab.NotAcceptable()),
             from_state='pushed_but_master_moved', to_state='merge_rejected',
@@ -249,7 +255,9 @@ class TestUpdateAndAccept(object):
             job.execute()
 
         assert api.state == 'merged'
-        assert api.notes == ["My job would be easier if people didn't jump the queue and push directly... *sigh*"]
+        assert api.notes == [
+            "My job would be easier if people didn't jump the queue and push directly... *sigh*",
+        ]
 
     def test_handles_races_for_merging(self, time_sleep):
         api, mocklab = self.api, self.mocklab
@@ -363,7 +371,6 @@ class TestUpdateAndAccept(object):
         assert api.state == 'rejected_for_misterious_reasons'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-
     def test_wont_merge_wip_stuff(self, time_sleep):
         api, mocklab = self.api, self.mocklab
         wip_merge_request = dict(mocklab.merge_request_info, work_in_progress=True)
@@ -374,7 +381,9 @@ class TestUpdateAndAccept(object):
             job.execute()
 
         assert api.state == 'initial'
-        assert api.notes == ["I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!"]
+        assert api.notes == [
+            "I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!",
+        ]
 
     def test_wont_merge_branches_with_autosquash_if_rewriting(self, time_sleep):
         api, mocklab = self.api, self.mocklab

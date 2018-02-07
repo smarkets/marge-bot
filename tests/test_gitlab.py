@@ -6,7 +6,7 @@ class TestVersion(object):
         assert gitlab.Version.parse('9.2.2-ee') == gitlab.Version(release=(9, 2, 2), edition='ee')
 
     def test_parse_no_edition(self):
-        assert gitlab.Version.parse('9.4.0')  == gitlab.Version(release=(9, 4, 0), edition=None)
+        assert gitlab.Version.parse('9.4.0') == gitlab.Version(release=(9, 4, 0), edition=None)
 
     def test_is_ee(self):
         assert gitlab.Version.parse('9.4.0-ee').is_ee
