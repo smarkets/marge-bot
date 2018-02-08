@@ -37,7 +37,7 @@ class MergeJob(object):
             return
 
         state = merge_request.state
-        if state not in ('opened', 'reopened'):
+        if state not in ('opened', 'reopened', 'locked'):
             if state in ('merged', 'closed'):
                 log.info('The merge request is already %s!', state)
             else:
@@ -236,7 +236,7 @@ class MergeJob(object):
                 return  # success!
             if merge_request.state == 'closed':
                 raise CannotMerge('someone closed the merge request while merging!')
-            assert merge_request.state in ('opened', 'reopened'), merge_request.state
+            assert merge_request.state in ('opened', 'reopened', 'locked'), merge_request.state
 
             log.info('Giving %s more secs for !%s to be merged...', waiting_time_in_secs, merge_request.iid)
             time.sleep(waiting_time_in_secs)
