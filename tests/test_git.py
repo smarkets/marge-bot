@@ -285,11 +285,13 @@ def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
     assert exc_info.value.output == b'ERROR: Expected a non-empty commit message'
 
 
-# pylint: disable=invalid-name
-def test_filter_treats_the_first_commit_line_not_as_a_trailer_unless_it_matches_the_trailer_name_passed_in():
+def test_filter_ignore_first_line_trailer_in_commit_message_if_not_set():
     assert _filter_test(
         'Tested-by: T. Estes <testes@example.com>',
         'Reviewed-by', [
-            'Reviewed-by: John Simon <john@invalid>',
+            'John Simon <john@invalid>',
         ],
-    ) == 'Tested-by: T. Estes <testes@example.com>'
+    ) == '''Tested-by: T. Estes <testes@example.com>
+
+Reviewed-by: John Simon <john@invalid>
+'''
