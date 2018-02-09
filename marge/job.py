@@ -1,3 +1,4 @@
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
 import logging as log
 import time
 from collections import namedtuple
