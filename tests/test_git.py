@@ -11,8 +11,10 @@ import marge.git
 from marge.git import GIT_SSH_COMMAND
 
 
+# pylint: disable=attribute-defined-outside-init
 @mock.patch('marge.git._run')
 class TestRepo(object):
+
     def setup_method(self, _method):
         self.repo = marge.git.Repo(
             remote_url='ssh://git@git.foo.com/some/repo.git',
@@ -71,7 +73,7 @@ class TestRepo(object):
         assert parse == 'git -C /tmp/local/path rev-parse HEAD'
 
     def test_reviewer_tagging_failure(self, mocked_run):
-        def fail_on_filter_branch(*args, **kwargs):
+        def fail_on_filter_branch(*args, **unused_kwargs):
             if 'filter-branch' in args:
                 raise subprocess.CalledProcessError(returncode=1, cmd='git rebase blah')
             elif 'rev-parse' in args or 'reset' in args:
@@ -116,7 +118,7 @@ class TestRepo(object):
             'git -C /tmp/local/path branch -D some_branch',
         ]
 
-    def test_remove_master_branch_fails(self, mocked_run):
+    def test_remove_master_branch_fails(self, unused_mocked_run):
         with pytest.raises(AssertionError):
             self.repo.remove_branch('master')
 
@@ -131,7 +133,7 @@ class TestRepo(object):
         ]
 
     def test_push_force_fails_on_dirty(self, mocked_run):
-        def fail_on_diff_index(*args, **kwargs):
+        def fail_on_diff_index(*args, **unused_kwargs):
             if 'diff-index' in args:
                 raise subprocess.CalledProcessError(returncode=1, cmd='git diff-index blah')
         mocked_run.side_effect = fail_on_diff_index
@@ -145,9 +147,10 @@ class TestRepo(object):
         ]
 
     def test_push_force_fails_on_untracked(self, mocked_run):
-        def fail_on_ls_files(*args, **kwargs):
+        def fail_on_ls_files(*args, **unused_kwargs):
             if 'ls-files' in args:
                 return mocked_stdout('some_file.txt\nanother_file.py')
+            return None
 
         mocked_run.side_effect = fail_on_ls_files
 
@@ -163,8 +166,8 @@ class TestRepo(object):
     def test_get_commit_hash(self, mocked_run):
         mocked_run.return_value = mocked_stdout(b'deadbeef')
 
-        hash = self.repo.get_commit_hash()
-        assert hash == 'deadbeef'
+        commit_hash = self.repo.get_commit_hash()
+        assert commit_hash == 'deadbeef'
 
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path rev-parse HEAD',
@@ -200,11 +203,11 @@ def mocked_stdout(stdout):
     return subprocess.CompletedProcess(['blah', 'args'], 0, stdout, None)
 
 
-def _filter_test(s, trailer_name, trailer_values):
-    script = marge.git._filter_branch_script(trailer_name, trailer_values)
+def _filter_test(message, trailer_name, trailer_values):
+    script = marge.git._filter_branch_script(trailer_name, trailer_values)  # pylint: disable=protected-access
     result = subprocess.check_output(
         [b'sh', b'-c', script.encode('utf-8')],
-        input=s.encode('utf-8'),
+        input=message.encode('utf-8'),
         stderr=subprocess.STDOUT
     )
     return result.decode('utf-8')
@@ -282,8 +285,11 @@ def test_filter_fails_on_commit_messages_that_are_empty_apart_from_trailers():
     assert exc_info.value.output == b'ERROR: Expected a non-empty commit message'
 
 
+# pylint: disable=invalid-name
 def test_filter_treats_the_first_commit_line_not_as_a_trailer_unless_it_matches_the_trailer_name_passed_in():
-    _filter_test(
+    assert _filter_test(
         'Tested-by: T. Estes <testes@example.com>',
-        'Reviewed-by', ['Reviewed-by: John Simon <john@invalid>']
+        'Reviewed-by', [
+            'Reviewed-by: John Simon <john@invalid>',
+        ],
     ) == 'Tested-by: T. Estes <testes@example.com>'

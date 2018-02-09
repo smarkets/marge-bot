@@ -37,7 +37,7 @@ class TestWeekly(object):
         assert WeeklyInterval.from_human('Mon@9am - Fri@5pm') == working_hours
         assert WeeklyInterval.from_human('Monday 9:00 - Friday@17:00') == working_hours
         assert WeeklyInterval.from_human('Mon@9:00-Fri@17:00') == working_hours
-        assert not WeeklyInterval.from_human('Mon@9:00-Tue@17:00') == working_hours
+        assert WeeklyInterval.from_human('Mon@9:00-Tue@17:00') != working_hours
 
 
 class TestIntervalUnion(object):

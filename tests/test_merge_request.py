@@ -22,11 +22,13 @@ INFO = {
 }
 
 
+# pylint: disable=attribute-defined-outside-init
 class TestMergeRequest(object):
+
     def setup_method(self, _method):
         self.api = Mock(Api)
         self.api.version = Mock(return_value=Version.parse('9.2.3-ee'))
-        self.mr = MergeRequest(api=self.api, info=INFO)
+        self.merge_request = MergeRequest(api=self.api, info=INFO)
 
     def test_fetch_by_iid(self):
         api = self.api
@@ -41,32 +43,30 @@ class TestMergeRequest(object):
         new_info = dict(INFO, state='closed')
         self.api.call = Mock(return_value=new_info)
 
-        self.mr.refetch_info()
+        self.merge_request.refetch_info()
         self.api.call.assert_called_once_with(GET('/projects/1234/merge_requests/54'))
-        assert self.mr.info == new_info
+        assert self.merge_request.info == new_info
 
     def test_properties(self):
-        mr = self.mr
-
-        assert mr.id == 42
-        assert mr.project_id == 1234
-        assert mr.iid == 54
-        assert mr.title == 'a title'
-        assert mr.assignee_id == 77
-        assert mr.author_id == 88
-        assert mr.state == 'opened'
-        assert mr.source_branch == 'useless_new_feature'
-        assert mr.target_branch == 'master'
-        assert mr.sha == 'dead4g00d'
-        assert mr.source_project_id == 5678
-        assert mr.target_project_id == 1234
-        assert mr.work_in_progress is False
+        assert self.merge_request.id == 42
+        assert self.merge_request.project_id == 1234
+        assert self.merge_request.iid == 54
+        assert self.merge_request.title == 'a title'
+        assert self.merge_request.assignee_id == 77
+        assert self.merge_request.author_id == 88
+        assert self.merge_request.state == 'opened'
+        assert self.merge_request.source_branch == 'useless_new_feature'
+        assert self.merge_request.target_branch == 'master'
+        assert self.merge_request.sha == 'dead4g00d'
+        assert self.merge_request.source_project_id == 5678
+        assert self.merge_request.target_project_id == 1234
+        assert self.merge_request.work_in_progress is False
 
         self._load({'assignee': {}})
-        assert mr.assignee_id is None
+        assert self.merge_request.assignee_id is None
 
     def test_comment(self):
-        self.mr.comment('blah')
+        self.merge_request.comment('blah')
         self.api.call.assert_called_once_with(
             POST(
                 '/projects/1234/merge_requests/54/notes',
@@ -75,29 +75,29 @@ class TestMergeRequest(object):
         )
 
     def test_assign(self):
-        self.mr.assign_to(42)
+        self.merge_request.assign_to(42)
         self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': 42}))
 
     def test_unassign(self):
-        self.mr.unassign()
+        self.merge_request.unassign()
         self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': None}))
 
     def test_accept(self):
         self._load(dict(INFO, sha='badc0de'))
 
-        for b in (True, False):
-            self.mr.accept(remove_branch=b)
+        for boolean in (True, False):
+            self.merge_request.accept(remove_branch=boolean)
             self.api.call.assert_called_once_with(PUT(
                 '/projects/1234/merge_requests/54/merge',
                 dict(
                     merge_when_pipeline_succeeds=True,
-                    should_remove_source_branch=b,
+                    should_remove_source_branch=boolean,
                     sha='badc0de',
                 )
             ))
             self.api.call.reset_mock()
 
-        self.mr.accept(sha='g00dc0de')
+        self.merge_request.accept(sha='g00dc0de')
         self.api.call.assert_called_once_with(PUT(
             '/projects/1234/merge_requests/54/merge',
             dict(
@@ -121,6 +121,6 @@ class TestMergeRequest(object):
     def _load(self, json):
         old_mock = self.api.call
         self.api.call = Mock(return_value=json)
-        self.mr.refetch_info()
+        self.merge_request.refetch_info()
         self.api.call.assert_called_with(GET('/projects/1234/merge_requests/54'))
         self.api.call = old_mock

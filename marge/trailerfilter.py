@@ -11,14 +11,14 @@ import os
 import re
 import sys
 
-stdin = sys.stdin.buffer
-stdout = sys.stdout.buffer
-stderr = sys.stderr.buffer
+STDIN = sys.stdin.buffer
+STDOUT = sys.stdout.buffer
+STDERR = sys.stderr.buffer
 
 
 def die(msg):
-    stderr.write(b'ERROR: ')
-    stderr.write(msg)
+    STDERR.write(b'ERROR: ')
+    STDERR.write(msg)
     sys.exit(1)
 
 
@@ -48,7 +48,7 @@ def rework_commit_message(commit_message, trailers):
     while len(reworked_lines) > 1 and re.match(br'^[A-Z][\w-]+: ', reworked_lines[-1]):
         trailers.insert(0, reworked_lines.pop())
     if not reworked_lines:
-        die(b"Your commit message seems to consist only of Trailers: " + original_commit_message)
+        die(b"Your commit message seems to consist only of Trailers: " + commit_message)
 
     drop_trailing_newlines(reworked_lines)
 
@@ -59,9 +59,13 @@ def rework_commit_message(commit_message, trailers):
     return b'\n'.join(reworked_lines)
 
 
+def main():
+    trailers = os.environb[b'TRAILERS'].split(b'\n') if os.environb[b'TRAILERS'] else []
+    assert all(b':' in trailer for trailer in trailers), trailers
+    original_commit_message = STDIN.read().strip()
+    new_commit_message = rework_commit_message(original_commit_message, trailers)
+    STDOUT.write(new_commit_message)
+
+
 if __name__ == '__main__':
-    TRAILERS = os.environb[b'TRAILERS'].split(b'\n') if os.environb[b'TRAILERS'] else []
-    assert all(b':' in trailer for trailer in TRAILERS), TRAILERS
-    original_commit_message = stdin.read().strip()
-    new_commit_message = rework_commit_message(original_commit_message, TRAILERS)
-    stdout.write(new_commit_message)
+    main()

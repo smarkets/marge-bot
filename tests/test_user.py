@@ -13,7 +13,8 @@ INFO = {
 }
 
 
-class TestProject(object):
+# pylint: disable=attribute-defined-outside-init
+class TestProjectWithUser(object):
     def setup_method(self, _method):
         self.api = Mock(Api)
 

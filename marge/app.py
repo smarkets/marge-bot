@@ -21,22 +21,22 @@ class MargeBotCliArgError(Exception):
     pass
 
 
-def time_interval(s):
+def time_interval(str_interval):
     try:
-        quant, unit = re.match(r'\A([\d.]+) ?(h|m(?:in)?|s)?\Z', s).groups()
+        quant, unit = re.match(r'\A([\d.]+) ?(h|m(?:in)?|s)?\Z', str_interval).groups()
         translate = {'h': 'hours', 'm': 'minutes', 'min': 'minutes', 's': 'seconds'}
         return timedelta(**{translate[unit or 's']: float(quant)})
     except (AttributeError, ValueError):
-        raise configargparse.ArgumentTypeError('Invalid time interval (e.g. 12[s|min|h]): %s', s)
+        raise configargparse.ArgumentTypeError('Invalid time interval (e.g. 12[s|min|h]): %s' % str_interval)
 
 
 def _parse_config(args):
 
-    def regexp(s):
+    def regexp(str_regex):
         try:
-            return re.compile(s)
+            return re.compile(str_regex)
         except re.error as err:
-            raise configargparse.ArgumentTypeError('Invalid regexp: %r (%s)' % (s, err.msg))
+            raise configargparse.ArgumentTypeError('Invalid regexp: %r (%s)' % (str_regex, err.msg))
 
     parser = configargparse.ArgParser(
         auto_env_var_prefix='MARGE_',
@@ -166,6 +166,7 @@ def _parse_config(args):
     config = parser.parse_args(args)
 
     cli_args = []
+    # pylint: disable=protected-access
     for _, (_, value) in parser._source_to_settings.get(configargparse._COMMAND_LINE_SOURCE_KEY, {}).items():
         cli_args.extend(value)
     for bad_arg in ['--auth-token', '--ssh-key']:
@@ -189,7 +190,9 @@ def _secret_auth_token_and_ssh_key(options):
                 tmp_ssh_key_file.close()
 
 
-def main(args=sys.argv[1:]):
+def main(args=None):
+    if not args:
+        args = sys.argv[1:]
     logging.basicConfig()
 
     options = _parse_config(args)

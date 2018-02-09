@@ -9,7 +9,7 @@ import unittest.mock as mock
 import pytest
 
 import marge.app as app
-import marge.bot as bot
+import marge.bot as bot_module
 import marge.interval as interval
 import marge.job as job
 
@@ -47,14 +47,14 @@ def env(**kwargs):
     original = os.environ.copy()
 
     os.environ.clear()
-    for k, v in kwargs.items():
-        os.environ[k] = v
+    for key, value in kwargs.items():
+        os.environ[key] = value
 
     yield
 
     os.environ.clear()
-    for k, v in original.items():
-        os.environ[k] = v
+    for key, value in original.items():
+        os.environ[key] = value
 
 
 @contextlib.contextmanager
@@ -67,7 +67,7 @@ def main(cmdline=''):
         api.add_user(user_info_for_token, is_current=True)
         return api
 
-    class DoNothingBot(bot.Bot):
+    class DoNothingBot(bot_module.Bot):
         instance = None
 
         def start(self):
@@ -98,7 +98,7 @@ def test_embargo():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--embargo="Fri 1pm-Mon 7am"') as bot:
             assert bot.config.merge_opts == job.MergeJobOptions.default(
-               embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
+                embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
             )
 
 

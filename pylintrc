@@ -1,20 +1,35 @@
-[MESSAGE CONTROL]
-disable=missing-docstring,invalid-name,dangerous-default-value
+[MASTER]
+persistent=no
 
+[BASIC]
+include-naming-hint=yes
+function-rgx=(([a-z_][a-z0-9_]{2,80})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
+method-rgx=(([a-z_][a-z0-9_]{2,60})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
+variable-rgx=(([a-z_][a-z0-9_]{2,60})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
+attr-rgx=(([a-z_][a-z0-9_]{2,40})|(_[a-z0-9_]*)|(__[a-z][a-z0-9_]+__))$
+
+[MESSAGE CONTROL]
+disable=bad-continuation,
+        fixme,
+        missing-docstring,
+        no-self-use,
+
+[SIMILARITIES]
+min-similarity-lines=10
 
 [TYPECHECK]
+# this can be removed when we bump to asteroid >1.6.1
+# see: https://github.com/PyCQA/astroid/pull/487/files
 ignored-classes=Popen
 
 [FORMAT]
 max-line-length=110
 
 [DESIGN]
+max-args=10
 max-attributes=15
+max-public-methods=25
 
 [REPORTS]
 output-format=parseable
-files-output=no
 reports=no
-
-[VARIABLES]
-dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy

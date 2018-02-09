@@ -101,7 +101,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         try:
             self.git(strategy, 'origin/' + target_branch)
         except GitError:
-            log.warning(strategy + ' failed, doing an --abort')
+            log.warning('%s failed, doing an --abort', strategy)
             self.git(strategy, '--abort')
             raise
         return self.get_commit_hash()
