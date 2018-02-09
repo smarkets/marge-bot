@@ -68,14 +68,13 @@ class WeeklyInterval(object):
                 to_weekday=self._from_weekday,
                 to_time=self._from_time,
             )
-        else:
-            return pat.format(
-                class_name=self.__class__.__name__,
-                from_weekday=self._from_weekday,
-                from_time=self._from_time,
-                to_weekday=self._to_weekday,
-                to_time=self._to_time,
-            )
+        return pat.format(
+            class_name=self.__class__.__name__,
+            from_weekday=self._from_weekday,
+            from_time=self._from_time,
+            to_weekday=self._to_weekday,
+            to_time=self._to_time,
+        )
 
     @classmethod
     def from_human(cls, string):

@@ -162,8 +162,8 @@ class MergeJob(object):
             except gitlab.Unauthorized:
                 log.warning('Unauthorized!')
                 raise CannotMerge('My user cannot accept merge requests!')
-            except gitlab.NotFound as e:
-                log.warning('Not Found!: %s', e)
+            except gitlab.NotFound as ex:
+                log.warning('Not Found!: %s', ex)
                 merge_request.refetch_info()
                 if merge_request.state == 'merged':
                     # someone must have hit "merge when build succeeds" and we lost the race,
@@ -173,8 +173,8 @@ class MergeJob(object):
                 else:
                     log.warning('For the record, merge request state is %r', merge_request.state)
                     raise
-            except gitlab.MethodNotAllowed as e:
-                log.warning('Not Allowed!: %s', e)
+            except gitlab.MethodNotAllowed as ex:
+                log.warning('Not Allowed!: %s', ex)
                 merge_request.refetch_info()
                 if merge_request.work_in_progress:
                     raise CannotMerge(
@@ -245,12 +245,12 @@ class MergeJob(object):
 
         raise CannotMerge('It is taking too long to see the request marked as merged!')
 
-    def unassign_from_mr(self, mr):
-        author_id = mr.author_id
+    def unassign_from_mr(self, merge_request):
+        author_id = merge_request.author_id
         if author_id != self._user.id:
-            mr.assign_to(author_id)
+            merge_request.assign_to(author_id)
         else:
-            mr.unassign()
+            merge_request.unassign()
 
     def during_merge_embargo(self):
         now = datetime.utcnow()
@@ -366,7 +366,7 @@ def _get_reviewer_names_and_emails(approvals, api):
     return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, api)) for uid in uids]
 
 
-_job_options = [
+JOB_OPTIONS = [
     'add_tested',
     'add_part_of',
     'add_reviewers',
@@ -377,7 +377,7 @@ _job_options = [
 ]
 
 
-class MergeJobOptions(namedtuple('MergeJobOptions', _job_options)):
+class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     __slots__ = ()
 
     @property

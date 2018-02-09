@@ -34,7 +34,9 @@ NONE_ACCESS = {
 }
 
 
+# pylint: disable=attribute-defined-outside-init,duplicate-code
 class TestProject(object):
+
     def setup_method(self, _method):
         self.api = Mock(Api)
 
@@ -86,4 +88,4 @@ class TestProject(object):
         bad_project = Project(api=self.api, info=dict(INFO, permissions=NONE_ACCESS))
         assert project.access_level == AccessLevel.developer
         with pytest.raises(AssertionError):
-            bad_project.access_level
+            bad_project.access_level  # pylint: disable=pointless-statement

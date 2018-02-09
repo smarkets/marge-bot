@@ -20,15 +20,10 @@ import tests.test_user as test_user
 from tests.gitlab_api_mock import Api as ApiMock, Error, Ok
 
 
-class struct:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-
-def _commit(id, status):
+def _commit(commit_id, status):
     return {
-        'id': id,
-        'short_id': id,
+        'id': commit_id,
+        'short_id': commit_id,
         'author_name': 'J. Bond',
         'author_email': 'jbond@mi6.gov.uk',
         'message': 'Shaken, not stirred',
@@ -75,26 +70,26 @@ class MockLab(object):
 
         self.initial_master_sha = '505e'
         self.rewritten_sha = rewritten_sha = 'af7a'
-        commit_after_pushing = _commit(id=rewritten_sha, status='running')
+        commit_after_pushing = _commit(commit_id=rewritten_sha, status='running')
         api.add_transition(
-           GET('/projects/1234/repository/commits/%s' % rewritten_sha),
-           Ok(commit_after_pushing),
-           from_state='pushed', to_state='passed',
+            GET('/projects/1234/repository/commits/%s' % rewritten_sha),
+            Ok(commit_after_pushing),
+            from_state='pushed', to_state='passed',
         )
         api.add_transition(
-           GET('/projects/1234/repository/commits/%s' % rewritten_sha),
-           Ok(_commit(id=rewritten_sha, status='success')),
-           from_state=['passed', 'merged'],
+            GET('/projects/1234/repository/commits/%s' % rewritten_sha),
+            Ok(_commit(commit_id=rewritten_sha, status='success')),
+            from_state=['passed', 'merged'],
         )
         api.add_transition(
-           GET('/projects/1234/repository/branches/useless_new_feature'),
-           Ok({'commit': _commit(id=rewritten_sha, status='running')}),
-           from_state='pushed',
+            GET('/projects/1234/repository/branches/useless_new_feature'),
+            Ok({'commit': _commit(commit_id=rewritten_sha, status='running')}),
+            from_state='pushed',
         )
         api.add_transition(
-           GET('/projects/1234/repository/branches/useless_new_feature'),
-           Ok({'commit': _commit(id=rewritten_sha, status='success')}),
-           from_state='passed'
+            GET('/projects/1234/repository/branches/useless_new_feature'),
+            Ok({'commit': _commit(commit_id=rewritten_sha, status='success')}),
+            from_state='passed'
         )
         api.add_transition(
             PUT(
@@ -132,7 +127,7 @@ class MockLab(object):
             "I'm broken on the inside, please somebody fix me... :cry:"
         )
 
-    def push_updated(self, *args, **kwargs):
+    def push_updated(self, *unused_args, **unused_kwargs):
         self.api.state = 'pushed'
         updated_sha = 'deadbeef'
         return self.initial_master_sha, updated_sha, self.rewritten_sha
@@ -158,8 +153,10 @@ class MockLab(object):
         assert error_note in self.api.notes
 
 
+# pylint: disable=attribute-defined-outside-init
 @patch('time.sleep')
 class TestUpdateAndAccept(object):
+
     def setup_method(self, _method):
         self.mocklab = MockLab()
         self.api = self.mocklab.api
@@ -182,7 +179,7 @@ class TestUpdateAndAccept(object):
             options=options,
         )
 
-    def test_succeeds_first_time(self, time_sleep):
+    def test_succeeds_first_time(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
@@ -191,13 +188,13 @@ class TestUpdateAndAccept(object):
         assert api.state == 'merged'
         assert api.notes == []
 
-    def test_fails_on_not_acceptable_if_master_did_not_move(self, time_sleep):
+    def test_fails_on_not_acceptable_if_master_did_not_move(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         new_branch_head_sha = '99ba110035'
         api.add_transition(
-           GET('/projects/1234/repository/branches/useless_new_feature'),
-           Ok({'commit': _commit(id=new_branch_head_sha, status='success')}),
-           from_state='pushed', to_state='pushed_but_head_changed'
+            GET('/projects/1234/repository/branches/useless_new_feature'),
+            Ok({'commit': _commit(commit_id=new_branch_head_sha, status='success')}),
+            from_state='pushed', to_state='pushed_but_head_changed'
         )
         with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
             with mocklab.expected_failure("Someone pushed to branch while we were trying to merge"):
@@ -209,14 +206,14 @@ class TestUpdateAndAccept(object):
             "I couldn't merge this branch: Someone pushed to branch while we were trying to merge",
         ]
 
-    def test_succeeds_second_time_if_master_moved(self, time_sleep):
+    def test_succeeds_second_time_if_master_moved(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         moved_master_sha = 'fafafa'
         first_rewritten_sha = '1o1'
         api.add_transition(
-           GET('/projects/1234/repository/commits/%s' % first_rewritten_sha),
-           Ok(_commit(id=first_rewritten_sha, status='success')),
-           from_state=['pushed_but_master_moved', 'merged_rejected'],
+            GET('/projects/1234/repository/commits/%s' % first_rewritten_sha),
+            Ok(_commit(commit_id=first_rewritten_sha, status='success')),
+            from_state=['pushed_but_master_moved', 'merged_rejected'],
         )
         api.add_transition(
             PUT(
@@ -231,13 +228,13 @@ class TestUpdateAndAccept(object):
             from_state='pushed_but_master_moved', to_state='merge_rejected',
         )
         api.add_transition(
-           GET('/projects/1234/repository/branches/useless_new_feature'),
-           Ok({'commit': _commit(id=first_rewritten_sha, status='success')}),
-           from_state='pushed_but_master_moved'
+            GET('/projects/1234/repository/branches/useless_new_feature'),
+            Ok({'commit': _commit(commit_id=first_rewritten_sha, status='success')}),
+            from_state='pushed_but_master_moved'
         )
         api.add_transition(
             GET('/projects/1234/repository/branches/master'),
-            Ok({'commit': _commit(id=moved_master_sha, status='success')}),
+            Ok({'commit': _commit(commit_id=moved_master_sha, status='success')}),
             from_state='merge_rejected'
         )
 
@@ -259,7 +256,7 @@ class TestUpdateAndAccept(object):
             "My job would be easier if people didn't jump the queue and push directly... *sigh*",
         ]
 
-    def test_handles_races_for_merging(self, time_sleep):
+    def test_handles_races_for_merging(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
@@ -280,7 +277,7 @@ class TestUpdateAndAccept(object):
         assert api.state == 'someone_else_merged'
         assert api.notes == []
 
-    def test_handles_request_becoming_wip_after_push(self, time_sleep):
+    def test_handles_request_becoming_wip_after_push(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
@@ -303,7 +300,7 @@ class TestUpdateAndAccept(object):
         assert api.state == 'now_is_wip'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-    def test_guesses_git_hook_error_on_merge_refusal(self, time_sleep):
+    def test_guesses_git_hook_error_on_merge_refusal(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
@@ -329,7 +326,7 @@ class TestUpdateAndAccept(object):
         assert api.state == 'rejected_by_git_hook'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-    def test_discovers_if_someone_closed_the_merge_request(self, time_sleep):
+    def test_discovers_if_someone_closed_the_merge_request(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
@@ -352,7 +349,7 @@ class TestUpdateAndAccept(object):
         assert api.state == 'oops_someone_closed_it'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-    def test_tells_explicitly_that_gitlab_refused_to_merge(self, time_sleep):
+    def test_tells_explicitly_that_gitlab_refused_to_merge(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
@@ -371,7 +368,7 @@ class TestUpdateAndAccept(object):
         assert api.state == 'rejected_for_misterious_reasons'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
-    def test_wont_merge_wip_stuff(self, time_sleep):
+    def test_wont_merge_wip_stuff(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         wip_merge_request = dict(mocklab.merge_request_info, work_in_progress=True)
         api.add_merge_request(wip_merge_request, from_state='initial')
@@ -385,7 +382,7 @@ class TestUpdateAndAccept(object):
             "I couldn't merge this branch: Sorry, I can't merge requests marked as Work-In-Progress!",
         ]
 
-    def test_wont_merge_branches_with_autosquash_if_rewriting(self, time_sleep):
+    def test_wont_merge_branches_with_autosquash_if_rewriting(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
         autosquash_merge_request = dict(mocklab.merge_request_info, squash=True)
         api.add_merge_request(autosquash_merge_request, from_state='initial')

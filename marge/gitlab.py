@@ -192,7 +192,7 @@ class Resource(object):
         return self._info
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.info['id']
 
     @property

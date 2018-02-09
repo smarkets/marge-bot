@@ -11,8 +11,10 @@ from tests.test_project import INFO as PRJ_INFO
 from tests.test_user import INFO as USER_INFO
 
 
+# pylint: disable=attribute-defined-outside-init
 @mock.patch('marge.git._run')
 class TestRepoManager(object):
+
     def setup_method(self, _method):
         user = marge.user.User(api=None, info=dict(USER_INFO, name='Peter Parker', email='pparker@bugle.com'))
         self.root_dir = tempfile.TemporaryDirectory()
@@ -23,9 +25,14 @@ class TestRepoManager(object):
     def teardown_method(self, _method):
         self.root_dir.cleanup()
 
-    def new_project(self, id, path_with_namespace):
+    def new_project(self, project_id, path_with_namespace):
         ssh_url_to_repo = 'ssh://buh.com/%s.git' % path_with_namespace
-        info = dict(PRJ_INFO, id=id, path_with_namespace=path_with_namespace, ssh_url_to_repo=ssh_url_to_repo)
+        info = dict(
+            PRJ_INFO,
+            id=project_id,
+            path_with_namespace=path_with_namespace,
+            ssh_url_to_repo=ssh_url_to_repo,
+        )
         return marge.project.Project(api=None, info=info)
 
     def test_creates_and_initializes_repo(self, git_run):

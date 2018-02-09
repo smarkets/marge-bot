@@ -56,8 +56,8 @@ class Api(gitlab.Api):
     def add_transition(self, command, response, sudo=None, from_state=None, to_state=None):
         from_states = from_state if isinstance(from_state, list) else [from_state]
 
-        for from_state in from_states:
-            show_from = '*' if from_state is None else repr(from_state)
+        for _from_state in from_states:
+            show_from = '*' if _from_state is None else repr(_from_state)
             log.info(
                 'REGISTERING %s%s from %s to %s',
                 'sudo %s ' % sudo if sudo is not None else '',
@@ -65,7 +65,7 @@ class Api(gitlab.Api):
                 show_from,
                 show_from if to_state is None else repr(to_state),
             )
-            self._transitions[_key(command, sudo, from_state)] = (response, to_state)
+            self._transitions[_key(command, sudo, _from_state)] = (response, to_state)
 
     def add_resource(self, path, info, sudo=None, from_state=None, to_state=None):
         self.add_transition(GET(path.format(attrs(info))), Ok(info), sudo, from_state, to_state)
@@ -122,7 +122,7 @@ class Error(namedtuple('Error', 'exc')):
 class List(namedtuple('List', 'prefix api')):
     def _call__(self):
         candidates = (
-            command for command, _ in self.api._transitions.keys()
+            command for command, _ in self.api._transitions.keys()  # pylint: disable=protected-access
             if isinstance(command, GET) and re.match(self.prefix, command.endpoint)
         )
 
@@ -146,6 +146,5 @@ class MockedEndpointNotFound(Exception):
     pass
 
 
-class attrs(object):
-    def __init__(self, d):
-        self.__dict__.update(d)
+def attrs(_dict):
+    return namedtuple('Attrs', _dict.keys())(*_dict.values())
