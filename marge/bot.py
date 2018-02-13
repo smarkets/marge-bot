@@ -3,6 +3,7 @@ import time
 from collections import namedtuple
 from tempfile import TemporaryDirectory
 
+from . import batch_job
 from . import git
 from . import job
 from . import merge_request as merge_request_module
@@ -118,27 +119,48 @@ class Bot(object):
         return filtered_mrs
 
     def _process_merge_requests(self, repo_manager, project, merge_requests):
-        if merge_requests:
-            log.info('Got %s requests to merge; will try to merge the oldest', len(merge_requests))
-            merge_request = merge_requests[0]
-            try:
-                repo = repo_manager.repo_for_project(project)
-            except git.GitError:
-                log.exception("Couldn't initialize repository for project!")
-                raise
+        if not merge_requests:
+            log.info('Nothing to merge at this point...')
+            return
 
-            merge_job = job.MergeJob(
-                api=self._api, user=self.user,
-                project=project, merge_request=merge_request, repo=repo,
+        try:
+            repo = repo_manager.repo_for_project(project)
+        except git.GitError:
+            log.exception("Couldn't initialize repository for project!")
+            raise
+
+        log.info('Got %s requests to merge;', len(merge_requests))
+        # FIXME: What if we have more then 1 MR but only one per target_branch?
+        if self._config.batch and len(merge_requests) > 1:
+            log.info('Will merge as many MRs as possible using BatchMergeJob')
+            batch_merge_job = batch_job.BatchMergeJob(
+                api=self._api,
+                user=self.user,
+                project=project,
+                merge_requests=merge_requests,
+                repo=repo,
                 options=self._config.merge_opts,
             )
-            merge_job.execute()
-        else:
-            log.info('Nothing to merge at this point...')
+            try:
+                batch_merge_job.execute()
+                return
+            except (batch_job.BatchMergeJobError, git.GitError) as ex:
+                log.exception('BatchMergeJob failed: %r', ex)
+        log.info('Will try to merge the oldest MR')
+        merge_request = merge_requests[0]
+        merge_job = job.MergeJob(
+            api=self._api,
+            user=self.user,
+            project=project,
+            merge_request=merge_request,
+            repo=repo,
+            options=self._config.merge_opts,
+        )
+        merge_job.execute()
 
 
 class BotConfig(namedtuple('BotConfig',
-                           'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp')):
+                           'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp batch')):
     pass
 
 

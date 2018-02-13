@@ -163,6 +163,11 @@ def _parse_config(args):
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
     )
+    parser.add_argument(
+        '--batch',
+        action='store_true',
+        help='Enable processing MRs in batches.\n',
+    )
     config = parser.parse_args(args)
 
     cli_args = []
@@ -226,7 +231,8 @@ def main(args=None):
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 use_merge_strategy=options.use_merge_strategy,
-            )
+            ),
+            batch=options.batch,
         )
 
         marge_bot = bot.Bot(api=api, config=config)

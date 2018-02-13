@@ -114,7 +114,7 @@ class TestRepo(object):
     def test_remove_branch(self, mocked_run):
         self.repo.remove_branch('some_branch')
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout master --',
+            'git -C /tmp/local/path checkout -B master --',
             'git -C /tmp/local/path branch -D some_branch',
         ]
 
