@@ -37,6 +37,25 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         self.git('config', 'user.email', user_email)
         self.git('config', 'user.name', user_name)
 
+    def fetch(self, remote_name, remote_url=None):
+        if remote_name != 'origin':
+            assert remote_url is not None
+            # upsert remote
+            try:
+                self.git('remote', 'rm', remote_name)
+            except GitError:
+                pass
+            self.git('remote', 'add', remote_name, remote_url)
+        self.git('fetch', '--prune', remote_name)
+
+    def fuse(self, strategy, branch_a, branch_b):
+        try:
+            self.git(strategy, branch_b, branch_a)
+        except GitError:
+            log.warning('%s %s on %s failed. Doing an --abort', strategy, branch_a, branch_b)
+            self.git(strategy, '--abort')
+            raise
+
     def tag_with_trailer(self, trailer_name, trailer_values, branch, start_commit):
         """Replace `trailer_name` in commit messages with `trailer_values` in `branch` from `start_commit`.
         """
@@ -85,18 +104,12 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
     def _fuse_branch(self, strategy, branch, target_branch, source_repo_url=None):
         assert source_repo_url or branch != target_branch, branch
 
-        self.git('fetch', '--prune', 'origin')
+        self.fetch('origin')
         if source_repo_url:
-            # "upsert" remote 'source' and fetch it
-            try:
-                self.git('remote', 'rm', 'source')
-            except GitError:
-                pass
-            self.git('remote', 'add', 'source', source_repo_url)
-            self.git('fetch', '--prune', 'source')
-            self.git('checkout', '-B', branch, 'source/' + branch, '--')
+            self.fetch('source', source_repo_url)
+            self.checkout_branch(branch, 'source/' + branch)
         else:
-            self.git('checkout', '-B', branch, 'origin/' + branch, '--')
+            self.checkout_branch(branch, 'origin/' + branch)
 
         try:
             self.git(strategy, 'origin/' + target_branch)
@@ -108,10 +121,17 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
     def remove_branch(self, branch):
         assert branch != 'master'
-        self.git('checkout', 'master', '--')
+        self.checkout_branch('master')
         self.git('branch', '-D', branch)
 
-    def push_force(self, branch, source_repo_url=None):
+    def create_branch(self, branch, start_point=''):
+        assert branch != 'master'
+        self.git('branch', branch, start_point, '--')
+
+    def checkout_branch(self, branch, start_point=''):
+        self.git('checkout', '-B', branch, start_point, '--')
+
+    def push(self, branch, source_repo_url=None, force=False):
         self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
@@ -125,7 +145,11 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             source = 'source'
         else:
             source = 'origin'
-        self.git('push', '--force', source, branch)
+        force_flag = '--force' if force else ''
+        self.git('push', force_flag, source, '%s:%s' % (branch, branch))
+
+    def push_force(self, branch, source_repo_url=None):
+        self.push(branch, source_repo_url, force=True)
 
     def get_commit_hash(self, rev='HEAD'):
         """Return commit hash for `rev` (default "HEAD")."""
@@ -154,7 +178,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         command = ['git']
         if from_repo:
             command.extend(['-C', self.local_path])
-        command.extend(args)
+        command.extend([arg for arg in args if str(arg)])
 
         log.info('Running %s', ' '.join(shlex.quote(w) for w in command))
         try:
