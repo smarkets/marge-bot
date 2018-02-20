@@ -114,14 +114,12 @@ class TestRepo(object):
     def test_remove_branch(self, mocked_run):
         self.repo.remove_branch('some_branch', new_current_branch='devel')
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout devel --',
             'git -C /tmp/local/path branch -D some_branch',
         ]
 
     def test_remove_branch_default(self, mocked_run):
         self.repo.remove_branch('some_branch')
         assert get_calls(mocked_run) == [
-            'git -C /tmp/local/path checkout master --',
             'git -C /tmp/local/path branch -D some_branch',
         ]
 
@@ -136,7 +134,7 @@ class TestRepo(object):
             'git -C /tmp/local/path checkout my_branch --',
             'git -C /tmp/local/path diff-index --quiet HEAD',
             'git -C /tmp/local/path ls-files --others',
-            'git -C /tmp/local/path push --force origin my_branch',
+            'git -C /tmp/local/path push --force origin my_branch:my_branch',
         ]
 
     def test_push_force_fails_on_dirty(self, mocked_run):
