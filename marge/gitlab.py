@@ -21,11 +21,11 @@ class Api(object):
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
 
-        if response.status_code == 200:
-            return command.extract(response.json()) if command.extract else response.json()
+        if response.status_code == 204:
+            return True
 
-        if response.status_code == 201:
-            return True  # Created
+        if response.status_code < 300:
+            return command.extract(response.json()) if command.extract else response.json()
 
         if response.status_code == 304:
             return False  # Not Modified
@@ -118,6 +118,12 @@ class POST(Command):
     @property
     def method(self):
         return requests.post
+
+
+class DELETE(Command):
+    @property
+    def method(self):
+        return requests.delete
 
 
 def _prepare_params(params):

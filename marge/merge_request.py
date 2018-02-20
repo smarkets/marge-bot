@@ -2,10 +2,27 @@ from . import gitlab
 from .approvals import Approvals
 
 
-GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
+GET, POST, PUT, DELETE = gitlab.GET, gitlab.POST, gitlab.PUT, gitlab.DELETE
 
 
 class MergeRequest(gitlab.Resource):
+
+    @classmethod
+    def create(cls, api, project_id, params):
+        merge_request_info = api.call(POST(
+            '/projects/{project_id}/merge_requests'.format(project_id=project_id),
+            params,
+        ))
+        merge_request = cls(api, merge_request_info)
+        return merge_request
+
+    @classmethod
+    def search(cls, api, project_id, params):
+        merge_requests = api.collect_all_pages(GET(
+            '/projects/{project_id}/merge_requests'.format(project_id=project_id),
+            params,
+        ))
+        return [cls(api, merge_request) for merge_request in merge_requests]
 
     @classmethod
     def fetch_by_iid(cls, project_id, merge_request_iid, api):
@@ -107,6 +124,11 @@ class MergeRequest(gitlab.Resource):
                 merge_when_pipeline_succeeds=True,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
             ),
+        ))
+
+    def delete(self):
+        return self._api.call(DELETE(
+            '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
         ))
 
     def assign_to(self, user_id):
