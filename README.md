@@ -105,6 +105,8 @@ optional arguments:
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
+  --experimental-batch  Enable processing MRs in batches.
+                           [env var: MARGE_EXPERIMENTAL_BATCH] (default: False)
 ```
 Here is a config file example
 ```yaml
@@ -117,6 +119,7 @@ auth-token-file: token.FILE
 branch-regexp: .*
 ci-timeout: 15min
 embargo: Friday 1pm - Monday 9am
+experimental-batch: false
 git-timeout: 120s
 gitlab-url: "https://gitlab.example.com"
 impersonate-approvers: true
@@ -280,6 +283,20 @@ prevent shipping late on a Friday, but still want to allow marking merge request
 More than one embargo period can be specified, separated by commas. Any merge
 request assigned to her during an embargo period, will be merged in only once all
 embargoes are over.
+
+
+## Batching MRs
+
+The flag --experimental-batch enables testing and merging MRs in batch.
+
+### How it works
+
+Creates a batch MR with all MRs with common target branch, runs CI,
+then merges the original MRs
+
+If CI failed, original MR/target branch changed, or for other reason batch failed,
+we fall back to merging one MR at a time
+
 
 ## Restricting the list of projects marge-bot considers
 

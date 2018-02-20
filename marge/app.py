@@ -174,6 +174,11 @@ def _parse_config(args):
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
     )
+    parser.add_argument(
+        '--experimental-batch',
+        action='store_true',
+        help='Enable processing MRs in batches.\n',
+    )
     config = parser.parse_args(args)
 
     cli_args = []
@@ -223,6 +228,9 @@ def main(args=None):
             )
             options.ci_timeout = timedelta(minutes=options.max_ci_time_in_minutes)
 
+        if options.experimental_batch:
+            logging.warning('Experimental batch enabled')
+
         config = bot.BotConfig(
             user=user,
             ssh_key_file=ssh_key_file,
@@ -238,7 +246,8 @@ def main(args=None):
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 use_merge_strategy=options.use_merge_strategy,
-            )
+            ),
+            batch=options.experimental_batch,
         )
 
         marge_bot = bot.Bot(api=api, config=config)
