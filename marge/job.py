@@ -131,11 +131,20 @@ class MergeJob(object):
                 raise CannotMerge('Someone pushed to branch while we were trying to merge')
             # Re-approve the merge request, in case us pushing it has removed
             # approvals.
-            if self.opts.reapprove:
+            sha_changed = merge_request.sha != actual_sha
+            if self.opts.reapprove and sha_changed:
                 # approving is not idempotent, so we need to check first that there are no approvals,
                 # otherwise we'll get a failure on trying to re-instate the previous approvals
-                current_approvals = merge_request.fetch_approvals()
-                if not current_approvals.sufficient:
+                def sufficient_approvals():
+                    return merge_request.fetch_approvals().sufficient
+                # Make sure we don't race by ensuring approvals have reset since the push.
+                time_0 = datetime.utcnow()
+                waiting_time_in_secs = 5
+                log.info('Checking if approvals have reset')
+                while sufficient_approvals() and datetime.utcnow() - time_0 < self._options.approval_timeout:
+                    log.debug('Approvals haven\'t reset yet, sleeping for %s secs', waiting_time_in_secs)
+                    time.sleep(waiting_time_in_secs)
+                if not sufficient_approvals():
                     approvals.reapprove()
 
             if source_project.only_allow_merge_if_pipeline_succeeds:
@@ -370,6 +379,7 @@ JOB_OPTIONS = [
     'add_part_of',
     'add_reviewers',
     'reapprove',
+    'approval_timeout',
     'embargo',
     'ci_timeout',
     'use_merge_strategy',
@@ -387,8 +397,9 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            embargo=None, ci_timeout=None, use_merge_strategy=False
+            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False
     ):
+        approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
         ci_timeout = ci_timeout or timedelta(minutes=15)
         return cls(
@@ -396,6 +407,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             add_part_of=add_part_of,
             add_reviewers=add_reviewers,
             reapprove=reapprove,
+            approval_timeout=approval_timeout,
             embargo=embargo,
             ci_timeout=ci_timeout,
             use_merge_strategy=use_merge_strategy,

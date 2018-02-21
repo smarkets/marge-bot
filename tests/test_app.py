@@ -154,6 +154,15 @@ def test_impersonate_approvers():
             assert bot.config.merge_opts == job.MergeJobOptions.default(reapprove=True)
 
 
+def test_approval_reset_timeout():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--approval-reset-timeout 1m') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(
+                approval_timeout=datetime.timedelta(seconds=60),
+            )
+
+
 def test_project_regexp():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--project-regexp='foo.*bar'") as bot:

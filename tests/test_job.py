@@ -1,6 +1,6 @@
 import contextlib
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import marge.commit
 import marge.interval
@@ -403,6 +403,18 @@ class TestUpdateAndAccept(object):
             job.execute()
         assert api.state == 'merged'
 
+    @patch('marge.job.log')
+    def test_waits_for_approvals(self, mock_log, unused_time_sleep):
+        api, mocklab = self.api, self.mocklab
+        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+            job = self.make_job(
+                marge.job.MergeJobOptions.default(approval_timeout=timedelta(seconds=5), reapprove=True))
+            job.execute()
+
+        mock_log.info.assert_any_call('Checking if approvals have reset')
+        mock_log.debug.assert_any_call('Approvals haven\'t reset yet, sleeping for %s secs', ANY)
+        assert api.state == 'merged'
+
 
 class TestMergeJobOptions(object):
     def test_default(self):
@@ -411,6 +423,7 @@ class TestMergeJobOptions(object):
             add_part_of=False,
             add_reviewers=False,
             reapprove=False,
+            approval_timeout=timedelta(seconds=0),
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
             use_merge_strategy=False,
