@@ -130,9 +130,7 @@ class MergeJob(object):
             if sha_now != actual_sha:
                 raise CannotMerge('Someone pushed to branch while we were trying to merge')
             # Re-approve the merge request, in case us pushing it has removed
-            # approvals. Note that there is a bit of a race; effectively
-            # approval can't be withdrawn after we've pushed (resetting
-            # approvals)
+            # approvals.
             if self.opts.reapprove:
                 # approving is not idempotent, so we need to check first that there are no approvals,
                 # otherwise we'll get a failure on trying to re-instate the previous approvals
