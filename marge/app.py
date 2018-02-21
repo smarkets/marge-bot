@@ -129,6 +129,17 @@ def _parse_config(args):
         help='Marge-bot pushes effectively don\'t change approval status.\n',
     )
     parser.add_argument(
+        '--approval-reset-timeout',
+        type=time_interval,
+        default='0s',
+        help=(
+            'How long to wait for approvals to reset after pushing.\n'
+            'Only useful with the "new commits remove all approvals" option in a project\'s settings.\n'
+            'This is to handle the potential race condition where approvals don\'t reset in GitLab\n'
+            'after a force push due to slow processing of the event.\n'
+        ),
+    )
+    parser.add_argument(
         '--project-regexp',
         type=regexp,
         default='.*',
@@ -223,6 +234,7 @@ def main(args=None):
                 add_part_of=options.add_part_of,
                 add_reviewers=options.add_reviewers,
                 reapprove=options.impersonate_approvers,
+                approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 use_merge_strategy=options.use_merge_strategy,
