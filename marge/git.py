@@ -1,6 +1,7 @@
 import logging as log
 import shlex
 import os
+import sys
 import subprocess
 from subprocess import PIPE, TimeoutExpired
 
@@ -168,7 +169,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
 
 def _run(*args, env=None, check=False, timeout=None):
-    with subprocess.Popen([a.encode('utf-8') for a in args], env=env, stdout=PIPE, stderr=PIPE) as process:
+    encoded_args = [a.encode('utf-8') for a in args] if sys.platform != 'win32' else args
+    with subprocess.Popen(encoded_args, env=env, stdout=PIPE, stderr=PIPE) as process:
         try:
             stdout, stderr = process.communicate(input, timeout=timeout)
         except TimeoutExpired:
