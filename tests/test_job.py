@@ -415,6 +415,20 @@ class TestUpdateAndAccept(object):
         mock_log.debug.assert_any_call('Approvals haven\'t reset yet, sleeping for %s secs', ANY)
         assert api.state == 'merged'
 
+    def test_fails_if_changes_already_exist(self, unused_time_sleep):
+        api, mocklab = self.api, self.mocklab
+        expected_message = 'these changes already exist in branch `{}`'.format(
+            mocklab.merge_request_info['target_branch'],
+        )
+        with mocklab.expected_failure(expected_message):
+            job = self.make_job()
+            job.repo.rebase.return_value = mocklab.initial_master_sha
+            job.repo.get_commit_hash.return_value = mocklab.initial_master_sha
+            job.execute()
+
+        assert api.state == 'initial'
+        assert api.notes == ["I couldn't merge this branch: {}".format(expected_message)]
+
 
 class TestMergeJobOptions(object):
     def test_default(self):
