@@ -312,12 +312,15 @@ def update_from_target_branch_and_push(
     branch_updated = branch_rewritten = changes_pushed = False
     try:
         fuse = repo.merge if use_merge_strategy else repo.rebase
+        target_sha = repo.get_commit_hash('origin/' + target_branch)
         rewritten_sha = updated_sha = fuse(
             branch=source_branch,
             new_base=target_branch,
             source_repo_url=source_repo_url
         )
         branch_updated = True
+        if updated_sha == target_sha:
+            raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
         if reviewers is not None:
             rewritten_sha = repo.tag_with_trailer(
                 trailer_name='Reviewed-by',
@@ -355,7 +358,6 @@ def update_from_target_branch_and_push(
 
         raise
     else:
-        target_sha = repo.get_commit_hash('origin/' + target_branch)
         return target_sha, updated_sha, rewritten_sha
     finally:
         # A failure to clean up probably means something is fucked with the git repo
