@@ -107,9 +107,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
-    def remove_branch(self, branch):
-        assert branch != 'master'
-        self.git('checkout', 'master', '--')
+    def remove_branch(self, branch, *, new_current_branch='master'):
+        assert branch != new_current_branch
+        self.git('checkout', new_current_branch, '--')
         self.git('branch', '-D', branch)
 
     def push_force(self, branch, source_repo_url=None):

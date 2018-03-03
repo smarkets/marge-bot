@@ -112,6 +112,13 @@ class TestRepo(object):
         assert get_calls(mocked_run) == []
 
     def test_remove_branch(self, mocked_run):
+        self.repo.remove_branch('some_branch', new_current_branch='devel')
+        assert get_calls(mocked_run) == [
+            'git -C /tmp/local/path checkout devel --',
+            'git -C /tmp/local/path branch -D some_branch',
+        ]
+
+    def test_remove_branch_default(self, mocked_run):
         self.repo.remove_branch('some_branch')
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path checkout master --',
@@ -120,7 +127,7 @@ class TestRepo(object):
 
     def test_remove_master_branch_fails(self, unused_mocked_run):
         with pytest.raises(AssertionError):
-            self.repo.remove_branch('master')
+            self.repo.remove_branch('meister', new_current_branch='meister')
 
     def test_push_force(self, mocked_run):
         mocked_run.return_value = mocked_stdout(b'')

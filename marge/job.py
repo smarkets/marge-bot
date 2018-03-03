@@ -363,8 +363,8 @@ def update_from_target_branch_and_push(
         # A failure to clean up probably means something is fucked with the git repo
         # and likely explains any previous failure, so it will better to just
         # raise a GitError
-        if source_branch != 'master':
-            repo.remove_branch(source_branch)
+        if source_branch != target_branch:
+            repo.remove_branch(source_branch, new_current_branch=target_branch)
         else:
             assert source_repo_url is not None
 
