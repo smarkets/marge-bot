@@ -4,8 +4,7 @@ import time
 from collections import namedtuple
 from datetime import datetime, timedelta
 
-from . import git, gitlab
-from .commit import Commit
+from . import git
 from .interval import IntervalUnion
 from .project import Project
 from .user import User
@@ -14,11 +13,10 @@ from .pipeline import Pipeline
 
 class MergeJob(object):
 
-    def __init__(self, *, api, user, project, merge_request, repo, options):
+    def __init__(self, *, api, user, project, repo, options):
         self._api = api
         self._user = user
         self._project = project
-        self._merge_request = merge_request
         self._repo = repo
         self._options = options
         self._merge_timeout = timedelta(minutes=5)
@@ -32,202 +30,115 @@ class MergeJob(object):
         return self._options
 
     def execute(self):
-        merge_request = self._merge_request
+        raise NotImplementedError
 
-        log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
+    def ensure_mergeable_mr(self, merge_request):
+        merge_request.refetch_info()
+        log.info('Ensuring MR !%s is mergeable', merge_request.iid)
+        log.debug('Ensuring MR %r is mergeable', merge_request)
 
-        if self._user.id != merge_request.assignee_id:
-            log.info('It is not assigned to us anymore! -- SKIPPING')
-            return
+        if merge_request.work_in_progress:
+            raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
+
+        if merge_request.squash and self._options.requests_commit_tagging:
+            raise CannotMerge(
+                "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
+            )
+
+        approvals = merge_request.fetch_approvals()
+        if not approvals.sufficient:
+            raise CannotMerge(
+                'Insufficient approvals '
+                '(have: {0.approver_usernames} missing: {0.approvals_left})'.format(approvals)
+            )
 
         state = merge_request.state
         if state not in ('opened', 'reopened', 'locked'):
             if state in ('merged', 'closed'):
-                log.info('The merge request is already %s!', state)
+                raise SkipMerge('The merge request is already {}!'.format(state))
             else:
-                log.info('The merge request is an unknown state: %r', state)
-                merge_request.comment('The merge request seems to be in a weird state: %r!', state)
-            self.unassign_from_mr(merge_request)
-            return
+                raise CannotMerge('The merge request is in an unknown state: {}'.format(state))
 
-        try:
-            if self.during_merge_embargo():
-                log.info('Merge embargo! -- SKIPPING')
-                return
+        if self.during_merge_embargo():
+            raise SkipMerge('Merge embargo!')
 
-            approvals = merge_request.fetch_approvals()
-            self.update_merge_request_and_accept(approvals)
-            log.info('Successfully merged !%s.', merge_request.info['iid'])
-        except CannotMerge as err:
-            message = "I couldn't merge this branch: %s" % err.reason
-            log.warning(message)
-            self.unassign_from_mr(merge_request)
-            merge_request.comment(message)
-        except git.GitError:
-            log.exception('Unexpected Git error')
-            merge_request.comment('Something seems broken on my local git repo; check my logs!')
-            raise
-        except Exception as _ex:
-            log.exception('Unexpected Exception')
-            merge_request.comment("I'm broken on the inside, please somebody fix me... :cry:")
-            self.unassign_from_mr(merge_request)
-            raise
+        if self._user.id != merge_request.assignee_id:
+            raise SkipMerge('It is not assigned to me anymore!')
 
-    def update_merge_request_and_accept(self, approvals):
-        api = self._api
-        merge_request = self._merge_request
-        updated_into_up_to_date_target_branch = False
+    def add_trailers(self, merge_request):
 
-        while not updated_into_up_to_date_target_branch:
-            if merge_request.work_in_progress:
-                raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
-            if merge_request.squash and self.opts.requests_commit_tagging:
-                raise CannotMerge(
-                    "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
-                )
-            approvals.refetch_info()
-            if not approvals.sufficient:
-                raise CannotMerge(
-                    'Insufficient approvals '
-                    '(have: {0.approver_usernames} missing: {0.approvals_left})'.format(approvals)
-                )
-            source_project = (
-                self._project if merge_request.source_project_id == self._project.id else
-                Project.fetch_by_id(merge_request.source_project_id, api=api)
+        log.info('Adding trailers for MR !%s', merge_request.iid)
+
+        # add Reviewed-by
+        reviewers = (
+            _get_reviewer_names_and_emails(
+                merge_request.fetch_approvals(),
+                self._api,
+            ) if self._options.add_reviewers else None
+        )
+        sha = None
+        if reviewers is not None:
+            sha = self._repo.tag_with_trailer(
+                trailer_name='Reviewed-by',
+                trailer_values=reviewers,
+                branch=merge_request.source_branch,
+                start_commit='origin/' + merge_request.target_branch,
             )
 
-            should_add_tested = self.opts.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
-            tested_by = (
-                ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
-                else None
+        # add Tested-by
+        should_add_tested = self._options.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
+        tested_by = (
+            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
+            else None
+        )
+        if tested_by is not None and not self._options.use_merge_strategy:
+            sha = self._repo.tag_with_trailer(
+                trailer_name='Tested-by',
+                trailer_values=tested_by,
+                branch=merge_request.source_branch,
+                start_commit=merge_request.source_branch + '^'
             )
-            reviewers = (
-                _get_reviewer_names_and_emails(approvals=approvals, api=api) if self.opts.add_reviewers
-                else None
-            )
-            part_of = (
-                '<{0.web_url}>'.format(merge_request) if self.opts.add_part_of
-                else None
-            )
-            source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
-            # NB. this will be a no-op if there is nothing to update/rewrite
-            target_sha, _updated_sha, actual_sha = update_from_target_branch_and_push(
-                repo=self.repo,
-                source_branch=merge_request.source_branch,
-                target_branch=merge_request.target_branch,
-                source_repo_url=source_repo_url,
-                reviewers=reviewers,
-                tested_by=tested_by,
-                part_of=part_of,
-                use_merge_strategy=self.opts.use_merge_strategy,
-            )
-            log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
-            time.sleep(5)
 
-            sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id
-            # Make sure no-one managed to race and push to the branch in the
-            # meantime, because we're about to impersonate the approvers, and
-            # we don't want to approve unreviewed commits
-            if sha_now != actual_sha:
-                raise CannotMerge('Someone pushed to branch while we were trying to merge')
-            # Re-approve the merge request, in case us pushing it has removed
-            # approvals.
-            sha_changed = merge_request.sha != actual_sha
-            if self.opts.reapprove and sha_changed:
-                # approving is not idempotent, so we need to check first that there are no approvals,
-                # otherwise we'll get a failure on trying to re-instate the previous approvals
-                def sufficient_approvals():
-                    return merge_request.fetch_approvals().sufficient
-                # Make sure we don't race by ensuring approvals have reset since the push.
-                time_0 = datetime.utcnow()
-                waiting_time_in_secs = 5
-                log.info('Checking if approvals have reset')
-                while sufficient_approvals() and datetime.utcnow() - time_0 < self._options.approval_timeout:
-                    log.debug('Approvals haven\'t reset yet, sleeping for %s secs', waiting_time_in_secs)
-                    time.sleep(waiting_time_in_secs)
-                if not sufficient_approvals():
-                    approvals.reapprove()
+        # add Part-of
+        part_of = (
+            '<{0.web_url}>'.format(merge_request) if self._options.add_part_of
+            else None
+        )
+        if part_of is not None:
+            sha = self._repo.tag_with_trailer(
+                trailer_name='Part-of',
+                trailer_values=[part_of],
+                branch=merge_request.source_branch,
+                start_commit='origin/' + merge_request.target_branch,
+            )
+        return sha
 
-            if source_project.only_allow_merge_if_pipeline_succeeds:
-                self.wait_for_ci_to_pass(source_project.id, actual_sha, merge_request.source_branch)
-                log.info('CI passed!')
-                time.sleep(2)
-            try:
-                merge_request.accept(remove_branch=True, sha=actual_sha)
-            except gitlab.NotAcceptable as err:
-                new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
-                # target_branch has moved under us since we updated, just try again
-                if new_target_sha != target_sha:
-                    log.info('Someone was naughty and by-passed marge')
-                    merge_request.comment(
-                        "My job would be easier if people didn't jump the queue and push directly... *sigh*"
-                    )
-                    continue
-                # otherwise the source branch has been pushed to or something
-                # unexpected went wrong in either case, we expect the user to
-                # explicitly re-assign to marge (after resolving potential
-                # problems)
-                raise CannotMerge('Merge request was rejected by GitLab: %r' % err.error_message)
-            except gitlab.Unauthorized:
-                log.warning('Unauthorized!')
-                raise CannotMerge('My user cannot accept merge requests!')
-            except gitlab.NotFound as ex:
-                log.warning('Not Found!: %s', ex)
-                merge_request.refetch_info()
-                if merge_request.state == 'merged':
-                    # someone must have hit "merge when build succeeds" and we lost the race,
-                    # the branch is gone and we got a 404. Anyway, our job here is done.
-                    # (see #33)
-                    updated_into_up_to_date_target_branch = True
-                else:
-                    log.warning('For the record, merge request state is %r', merge_request.state)
-                    raise
-            except gitlab.MethodNotAllowed as ex:
-                log.warning('Not Allowed!: %s', ex)
-                merge_request.refetch_info()
-                if merge_request.work_in_progress:
-                    raise CannotMerge(
-                        'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
-                    )
-                elif merge_request.state == 'reopened':
-                    raise CannotMerge(
-                        'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
-                        'is rejecting my commits; maybe my email needs to be white-listed?'
-                    )
-                elif merge_request.state == 'closed':
-                    raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
-                elif merge_request.state == 'merged':
-                    # We are not covering any observed behaviour here, but if at this
-                    # point the request is merged, our job is done, so no need to complain
-                    log.info('Merge request is already merged, someone was faster!')
-                    updated_into_up_to_date_target_branch = True
-                else:
-                    raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
-            except gitlab.ApiError:
-                log.exception('Unanticipated ApiError from Gitlab on merge attempt')
-                raise CannotMerge('had some issue with GitLab, check my logs...')
-            else:
-                self.wait_for_branch_to_be_merged()
-                updated_into_up_to_date_target_branch = True
+    def get_mr_ci_status(self, merge_request):
+        pipelines = Pipeline.pipelines_by_branch(
+            merge_request.source_project_id,
+            merge_request.source_branch,
+            self._api,
+        )
+        current_pipeline = next(iter(pipelines), None)
 
-    def wait_for_ci_to_pass(self, source_project_id, commit_sha, source_branch):
-        api = self._api
+        if current_pipeline:
+            assert current_pipeline.sha == merge_request.sha
+            ci_status = current_pipeline.status
+        else:
+            log.warning('No pipeline listed for %s on branch %s', merge_request.sha, merge_request.source_branch)
+            ci_status = None
+
+        return ci_status
+
+    def wait_for_ci_to_pass(self, merge_request):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
-        log.info('Waiting for CI to pass')
+        log.info('Waiting for CI to pass for MR !%s', merge_request.iid)
         while datetime.utcnow() - time_0 < self._options.ci_timeout:
-            pipelines = Pipeline.pipelines_by_branch(source_project_id, source_branch, api)
-            current_pipeline = next(iter(pipelines), None)
-
-            if current_pipeline:
-                assert current_pipeline.sha == commit_sha
-                ci_status = current_pipeline.status
-            else:
-                log.warning('No pipeline listed for %s on branch %s', commit_sha, source_branch)
-                ci_status = None
-
+            ci_status = self.get_mr_ci_status(merge_request)
             if ci_status == 'success':
+                log.info('CI for MR !%s passed', merge_request.iid)
                 return
 
             if ci_status == 'failed':
@@ -237,33 +148,15 @@ class MergeJob(object):
                 raise CannotMerge('Someone canceled the CI')
 
             if ci_status not in ('pending', 'running'):
-                log.warning('Suspicious build status: %r', ci_status)
+                log.warning('Suspicious CI status: %r', ci_status)
 
             log.debug('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long')
 
-    def wait_for_branch_to_be_merged(self):
-        merge_request = self._merge_request
-        time_0 = datetime.utcnow()
-        waiting_time_in_secs = 10
-
-        while datetime.utcnow() - time_0 < self._merge_timeout:
-            merge_request.refetch_info()
-
-            if merge_request.state == 'merged':
-                return  # success!
-            if merge_request.state == 'closed':
-                raise CannotMerge('someone closed the merge request while merging!')
-            assert merge_request.state in ('opened', 'reopened', 'locked'), merge_request.state
-
-            log.info('Giving %s more secs for !%s to be merged...', waiting_time_in_secs, merge_request.iid)
-            time.sleep(waiting_time_in_secs)
-
-        raise CannotMerge('It is taking too long to see the request marked as merged!')
-
     def unassign_from_mr(self, merge_request):
+        log.info('Unassigning from MR !%s', merge_request.iid)
         author_id = merge_request.author_id
         if author_id != self._user.id:
             merge_request.assign_to(author_id)
@@ -274,108 +167,114 @@ class MergeJob(object):
         now = datetime.utcnow()
         return self.opts.embargo.covers(now)
 
+    def maybe_reapprove(self, merge_request, approvals):
+        # Re-approve the merge request, in case us pushing it has removed approvals.
+        if self.opts.reapprove:
+            # approving is not idempotent, so we need to check first that there are no approvals,
+            # otherwise we'll get a failure on trying to re-instate the previous approvals
+            def sufficient_approvals():
+                return merge_request.fetch_approvals().sufficient
+            # Make sure we don't race by ensuring approvals have reset since the push
+            time_0 = datetime.utcnow()
+            waiting_time_in_secs = 5
+            log.info('Checking if approvals have reset')
+            while sufficient_approvals() and datetime.utcnow() - time_0 < self._options.approval_timeout:
+                log.debug('Approvals haven\'t reset yet, sleeping for %s secs', waiting_time_in_secs)
+                time.sleep(waiting_time_in_secs)
+            if not sufficient_approvals():
+                approvals.reapprove()
 
-def update_from_target_branch_and_push(
-        *,
-        repo,
-        source_branch,
-        target_branch,
-        source_repo_url=None,
-        reviewers=None,
-        tested_by=None,
-        part_of=None,
-        use_merge_strategy=False,
-):
-    """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
-    The update strategy can either be rebase or merge. The default is rebase.
-
-    Parameters
-    ----------
-    source_branch
-       The branch we want to update.
-    target_branch
-       The branch we want to get updates from.
-    source_repo_url
-       The url of the repo we want to push the changes to (or `None` if it's the
-       same repo for both `source_branch` and `target_branch`).
-    reviewers
-       A list, possibly empty, if we should add reviewer information or `None`
-       if we should not add reviewer information. The difference between
-       ``None`` and ``[]``  (or another list) is that with ``None`` we leave existing
-       Reviewed-by: trailers in place  whereas with a list argument we replace them.
-    tested_by
-       A list like ``["User Name <u.name@invalid.com>", ...]`` or `None`. ``None`` means
-       existing Tested-by lines will be left alone, otherwise they will be replaced.
-       Ignored if using the merge strategy.
-    part_of
-       A string with likely a link to the merge request this commit is part-of, or ``None``.
-    use_merge_strategy
-       Updates `target_branch` using merge instead of rebase.
-    Returns
-    -------
-    (sha_of_target_branch, sha_after_update, sha_after_rewrite)
-    """
-    assert source_repo_url != repo.remote_url
-    if source_repo_url is None and source_branch == target_branch:
-        raise CannotMerge('source and target branch seem to coincide!')
-
-    branch_updated = branch_rewritten = changes_pushed = False
-    try:
-        fuse = repo.merge if use_merge_strategy else repo.rebase
-        rewritten_sha = updated_sha = fuse(source_branch, target_branch, source_repo_url)
-        branch_updated = True
-        # The fuse above fetches origin again, so we are now safe to fetch
-        # the sha from the remote target branch.
-        target_sha = repo.get_commit_hash('origin/' + target_branch)
-        if updated_sha == target_sha:
-            raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
-        if reviewers is not None:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Reviewed-by',
-                trailer_values=reviewers,
-                branch=source_branch,
-                start_commit='origin/' + target_branch,
+    def fetch_source_project(self, merge_request):
+        remote = 'origin'
+        remote_url = None
+        source_project = self.get_source_project(merge_request)
+        if source_project is not self._project:
+            remote = 'source'
+            remote_url = source_project.ssh_url_to_repo
+            self._repo.fetch(
+                remote=remote,
+                remote_url=remote_url,
             )
-        if tested_by is not None and not use_merge_strategy:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Tested-by',
-                trailer_values=tested_by,
-                branch=source_branch,
-                start_commit=source_branch + '^'
-            )
-        if part_of is not None:
-            rewritten_sha = repo.tag_with_trailer(
-                trailer_name='Part-of',
-                trailer_values=[part_of],
-                branch=source_branch,
-                start_commit='origin/' + target_branch,
-            )
-        branch_rewritten = True
-        repo.push_force(source_branch, source_repo_url)
-        changes_pushed = True
-    except git.GitError:
-        if not branch_updated:
-            raise CannotMerge('got conflicts while rebasing, your problem now...')
-        if not branch_rewritten:
-            raise CannotMerge('failed on filter-branch; check my logs!')
-        if not changes_pushed:
-            if use_merge_strategy:
-                raise CannotMerge('failed to push merged changes, check my logs!')
-            else:
-                raise CannotMerge('failed to push rebased changes, check my logs!')
+        return source_project, remote_url, remote
 
-        raise
-    else:
-        return target_sha, updated_sha, rewritten_sha
-    finally:
-        # A failure to clean up probably means something is fucked with the git repo
-        # and likely explains any previous failure, so it will better to just
-        # raise a GitError
-        if source_branch != target_branch:
-            repo.checkout_branch(target_branch)
-            repo.remove_branch(source_branch, new_current_branch=target_branch)
+    def get_source_project(self, merge_request):
+        source_project = self._project
+        if merge_request.source_project_id != self._project.id:
+            source_project = Project.fetch_by_id(
+                merge_request.source_project_id,
+                api=self._api,
+            )
+        return source_project
+
+    def fuse(self, source, target, source_repo_url=None):
+        # NOTE: this leaves git switched to branch_a
+        strategy = self._repo.merge if self._options.use_merge_strategy else self._repo.rebase
+        return strategy(
+            source,
+            target,
+            source_repo_url=source_repo_url,
+        )
+
+    def update_from_target_branch_and_push(
+            self,
+            merge_request,
+            *,
+            source_repo_url=None,
+    ):
+        """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
+        The update strategy can either be rebase or merge. The default is rebase.
+
+        Returns
+        -------
+        (sha_of_target_branch, sha_after_update, sha_after_rewrite)
+        """
+        repo = self._repo
+        source_branch = merge_request.source_branch
+        target_branch = merge_request.target_branch
+        assert source_repo_url != repo.remote_url
+        if source_repo_url is None and source_branch == target_branch:
+            raise CannotMerge('source and target branch seem to coincide!')
+
+        branch_updated = branch_rewritten = changes_pushed = False
+        try:
+            updated_sha = self.fuse(
+                source_branch,
+                target_branch,
+                source_repo_url=source_repo_url,
+            )
+            branch_updated = True
+            # The fuse above fetches origin again, so we are now safe to fetch
+            # the sha from the remote target branch.
+            target_sha = repo.get_commit_hash('origin/' + target_branch)
+            if updated_sha == target_sha:
+                raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
+            rewritten_sha = self.add_trailers(merge_request) or updated_sha
+            branch_rewritten = True
+            repo.push(source_branch, source_repo_url=source_repo_url, force=True)
+            changes_pushed = True
+        except git.GitError:
+            if not branch_updated:
+                raise CannotMerge('got conflicts while rebasing, your problem now...')
+            if not branch_rewritten:
+                raise CannotMerge('failed on filter-branch; check my logs!')
+            if not changes_pushed:
+                if self.opts.use_merge_strategy:
+                    raise CannotMerge('failed to push merged changes, check my logs!')
+                else:
+                    raise CannotMerge('failed to push rebased changes, check my logs!')
+
+            raise
         else:
-            assert source_repo_url is not None
+            return target_sha, updated_sha, rewritten_sha
+        finally:
+            # A failure to clean up probably means something is fucked with the git repo
+            # and likely explains any previous failure, so it will better to just
+            # raise a GitError
+            if source_branch != 'master':
+                repo.checkout_branch('master')
+                repo.remove_branch(source_branch)
+            else:
+                assert source_repo_url is not None
 
 
 def _get_reviewer_names_and_emails(approvals, api):
@@ -433,3 +332,7 @@ class CannotMerge(Exception):
             return 'Unknown reason!'
 
         return args[0]
+
+
+class SkipMerge(CannotMerge):
+    pass

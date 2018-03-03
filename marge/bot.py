@@ -7,6 +7,7 @@ from . import batch_job
 from . import git
 from . import job
 from . import merge_request as merge_request_module
+from . import single_merge_job
 from . import store
 from .project import AccessLevel, Project
 
@@ -130,9 +131,8 @@ class Bot(object):
             raise
 
         log.info('Got %s requests to merge;', len(merge_requests))
-        # FIXME: What if we have more then 1 MR but only one per target_branch?
         if self._config.batch and len(merge_requests) > 1:
-            log.info('Will merge as many MRs as possible using BatchMergeJob')
+            log.info('Attempting to merge as many MRs as possible using BatchMergeJob...')
             batch_merge_job = batch_job.BatchMergeJob(
                 api=self._api,
                 user=self.user,
@@ -144,15 +144,13 @@ class Bot(object):
             try:
                 batch_merge_job.execute()
                 return
-            except batch_job.MergeError as ex:
-                log.exception('BatchMergeJob failed: %s', ex.log_str())
-            except batch_job.PreMergeError as ex:
-                log.warning('BatchMergeJob failed: %s', ex)
-            except git.GitError as ex:
-                log.exception('BatchMergeJob failed: %s', ex)
-        log.info('Will try to merge the oldest MR')
+            except batch_job.CannotBatch as err:
+                log.warning('BatchMergeJob aborted: %s', err)
+            except git.GitError as err:
+                log.exception('BatchMergeJob failed: %s', err)
+        log.info('Attempting to merge the oldest MR...')
         merge_request = merge_requests[0]
-        merge_job = job.MergeJob(
+        merge_job = single_merge_job.SingleMergeJob(
             api=self._api,
             user=self.user,
             project=project,

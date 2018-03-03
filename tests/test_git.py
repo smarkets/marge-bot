@@ -129,7 +129,7 @@ class TestRepo(object):
 
     def test_push_force(self, mocked_run):
         mocked_run.return_value = mocked_stdout(b'')
-        self.repo.push_force('my_branch')
+        self.repo.push('my_branch', force=True)
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path checkout my_branch --',
             'git -C /tmp/local/path diff-index --quiet HEAD',
@@ -144,7 +144,7 @@ class TestRepo(object):
         mocked_run.side_effect = fail_on_diff_index
 
         with pytest.raises(marge.git.GitError):
-            self.repo.push_force('my_branch')
+            self.repo.push('my_branch', force=True)
 
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path checkout my_branch --',
@@ -160,7 +160,7 @@ class TestRepo(object):
         mocked_run.side_effect = fail_on_ls_files
 
         with pytest.raises(marge.git.GitError):
-            self.repo.push_force('my_branch')
+            self.repo.push('my_branch', force=True)
 
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path checkout my_branch --',
