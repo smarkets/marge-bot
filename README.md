@@ -83,6 +83,11 @@ optional arguments:
   --impersonate-approvers
                         Marge-bot pushes effectively don't change approval status.
                            [env var: MARGE_IMPERSONATE_APPROVERS] (default: False)
+  --approval-reset-timeout APPROVAL_RESET_TIMEOUT
+                        How long to wait for approvals to reset after pushing.
+                        Only useful with the "new commits remove all approvals" option in a project's settings.
+                        This is to handle the potential race condition where approvals don't reset in GitLab
+                        after a force push due to slow processing of the event.
   --project-regexp PROJECT_REGEXP
                         Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'.
                            [env var: MARGE_PROJECT_REGEXP] (default: .*)
