@@ -1,3 +1,15 @@
+  * 0.6:
+    - Fix issue due to a `master` branch being assumed when removing
+      local branches #88.
+    - Better error reporting when there are no changes left
+      after rebasing #87.
+    - Add --aproval-reset-timeout option #85.
+    - Fix encoding issues under Windows #86.
+    - Support new merge-request status "locked" #79.
+    - Fixes issue where stale branches in marge's repo could
+      lead to conflicts #78.
+    - Add experimental --use-merge-strategy flag that uses merge-commits
+      instead of rebasing (#72, and also #90 for caveats).
   * 0.5.1:
     - Sleep even less between polling for MRs #75.
   * 0.5.0:
