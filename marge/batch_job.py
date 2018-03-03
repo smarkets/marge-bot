@@ -1,56 +1,22 @@
+# pylint: disable=too-many-branches,too-many-statements
 import logging as log
-import time
-from datetime import datetime
 
 from . import git
 from .commit import Commit
+from .job import MergeJob, CannotMerge
 from .merge_request import MergeRequest
-from .project import Project
-from .user import User
 
 
-MERGE_ERROR_MSG = {
-    'NOT_ASSIGNED': 'Not assigned to me.',
-    'NOT_APPROVED': 'Not fully approved.',
-    'WIP': 'Is marked as Work-In-Progress.',
-    'STATE_NOT_OK': 'Is in %s state.',
-    'SQUASH_AND_TRAILERS': 'Is marked as auto-squash but trailers are enabled.',
-    'CI_NOT_OK': 'Has unsuccessful CI status: %s.',
-    'CI_TIMEOUT': 'CI is taking too long.',
-    'CHANGED': 'The %s has changed.',
-}
-
-
-class MergeError(Exception):
-
-    def __init__(self, *, mr_iid, message_key, message):
-        assert message_key in MERGE_ERROR_MSG.keys()
-        super().__init__(message)
-        self.mr_iid = mr_iid
-        self.message_key = message_key
-
-    def log_str(self):
-        return 'MR !%s: %s' % (self.mr_iid, self)
-
-    def comment_str(self):
-        return 'Sorry, %s' % self
-
-
-class PreMergeError(Exception):
+class CannotBatch(Exception):
     pass
 
 
-class BatchMergeJob:
-
+class BatchMergeJob(MergeJob):
     BATCH_BRANCH_NAME = 'marge_bot_batch_merge_job'
 
-    def __init__(self, *, api, user, project, merge_requests, repo, options):
-        self._api = api
-        self._user = user
-        self._project = project
+    def __init__(self, *, api, user, project, repo, options, merge_requests):
+        super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_requests = merge_requests
-        self._repo = repo
-        self._options = options
 
     def remove_batch_branch(self):
         log.info('Removing local batch branch')
@@ -59,8 +25,8 @@ class BatchMergeJob:
         except git.GitError:
             pass
 
-    def delete_batch_mr(self):
-        log.info('Deleting batch MRs')
+    def close_batch_mr(self):
+        log.info('Closing batch MRs')
         params = {
             'author_id': self._user.id,
             'labels': BatchMergeJob.BATCH_BRANCH_NAME,
@@ -74,8 +40,8 @@ class BatchMergeJob:
             params=params,
         )
         for batch_mr in batch_mrs:
-            log.info('Deleting batch MR !%s', batch_mr.iid)
-            batch_mr.delete()
+            log.info('Closing batch MR !%s', batch_mr.iid)
+            batch_mr.close()
 
     def create_batch_mr(self, target_branch):
         log.info('Creating batch MR')
@@ -93,33 +59,6 @@ class BatchMergeJob:
         log.info('Batch MR !%s created', batch_mr.iid)
         return batch_mr
 
-    def during_merge_embargo(self):
-        now = datetime.utcnow()
-        return self._options.embargo.covers(now)
-
-    def unassign_from_mr(self, merge_request):
-        log.info('Unassigning from MR !%s', merge_request.iid)
-        if merge_request.author_id != self._user.id:
-            merge_request.assign_to(merge_request.author_id)
-        else:
-            merge_request.unassign()
-
-    def get_source_project(self, merge_request):
-        source_project = self._project
-        if merge_request.source_project_id != self._project.id:
-            source_project = Project.fetch_by_id(
-                merge_request.source_project_id,
-                api=self._api,
-            )
-        return source_project
-
-    def get_mr_ci_status(self, merge_request):
-        return Commit.fetch_by_id(
-            merge_request.source_project_id,
-            merge_request.sha,
-            self._api,
-        ).status
-
     def get_mrs_with_common_target_branch(self, target_branch):
         log.info('Filtering MRs with target branch %s', target_branch)
         return [
@@ -128,60 +67,12 @@ class BatchMergeJob:
         ]
 
     def ensure_mergeable_mr(self, merge_request):
-        merge_request.refetch_info()
-        log.info('Ensuring MR !%s is mergeable', merge_request.iid)
-        log.debug('Ensuring MR %r is mergeable', merge_request)
-        if self._user.id != merge_request.assignee_id:
-            msg_key = 'NOT_ASSIGNED'
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key],
-            )
-        state = merge_request.state
-        if state not in ('opened', 'reopened', 'locked'):
-            msg_key = 'STATE_NOT_OK'
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % state,
-            )
-        approvals = merge_request.fetch_approvals()
-        if not approvals.sufficient:
-            msg_key = 'NOT_APPROVED'
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key],
-            )
-        if merge_request.work_in_progress:
-            msg_key = 'WIP'
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key],
-            )
-        if merge_request.squash and self._options.requests_commit_tagging:
-            msg_key = 'SQUASH_AND_TRAILERS'
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key],
-            )
-        # FIXME: is this ok?
-        # If the MR comes from a fork
-        # and the fork doesn't have CI set up
-        # and the target project has 'only_allow_merge_if_pipeline_succeeds'
-        # Then MR can't be merged
+        super().ensure_mergeable_mr(merge_request)
+
         if self._project.only_allow_merge_if_pipeline_succeeds:
             ci_status = self.get_mr_ci_status(merge_request)
             if ci_status != 'success':
-                msg_key = 'CI_NOT_OK'
-                raise MergeError(
-                    mr_iid=merge_request.iid,
-                    message_key=msg_key,
-                    message=MERGE_ERROR_MSG[msg_key] % ci_status,
-                )
+                raise CannotMerge('This MR has not passed CI')
 
     def get_mergeable_mrs(self, merge_requests):
         log.info('Filtering mergeable MRs')
@@ -189,64 +80,17 @@ class BatchMergeJob:
         for merge_request in merge_requests:
             try:
                 self.ensure_mergeable_mr(merge_request)
-            except MergeError as ex:
-                log.warning('%s - Skipping it!', ex.log_str())
+            except CannotMerge as ex:
+                log.warning('Skipping unmergeable MR: "%s"', ex)
                 continue
             else:
                 mergeable_mrs.append(merge_request)
         return mergeable_mrs
 
-    def fetch_mr(self, merge_request):
-        # This method expects MR's source project to be different from target project
-        source_project = self.get_source_project(merge_request)
-        assert source_project is not self._project
-        self._repo.fetch(
-            remote='source',
-            remote_url=source_project.ssh_url_to_repo,
-        )
-
-    def fuse_branch_a_on_branch_b(self, branch_a, branch_b):
-        # NOTE: this leaves git switched to branch_a
-
-        strategy = 'merge' if self._options.use_merge_strategy else 'rebase'
-        log.info('%s %s on %s', strategy, branch_a, branch_b)
-        return self._repo.fuse(
-            strategy,
-            branch_a,
-            branch_b,
-        )
 
     def push_batch(self):
         log.info('Pushing batch branch')
         self._repo.push(BatchMergeJob.BATCH_BRANCH_NAME, force=True)
-
-    def wait_for_ci_to_pass(self, merge_request):
-        time_0 = datetime.utcnow()
-        waiting_time_in_secs = 10
-
-        log.info('Waiting for CI to pass for MR !%s', merge_request.iid)
-        while datetime.utcnow() - time_0 < self._options.ci_timeout:
-            ci_status = self.get_mr_ci_status(merge_request)
-            if ci_status == 'success':
-                log.info('CI for MR !%s passed', merge_request.iid)
-                return
-            if ci_status in ['failed', 'canceled']:
-                msg_key = 'CI_NOT_OK'
-                raise MergeError(
-                    mr_iid=merge_request.iid,
-                    message_key=msg_key,
-                    message=MERGE_ERROR_MSG[msg_key].format(ci_status),
-                )
-            if ci_status not in ('pending', 'running'):
-                log.warning('Suspicious CI status: %r', ci_status)
-            log.debug('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
-            time.sleep(waiting_time_in_secs)
-        msg_key = 'CI_TIMEOUT'
-        raise MergeError(
-            mr_iid=merge_request.iid,
-            message_key=msg_key,
-            message=MERGE_ERROR_MSG[msg_key],
-        )
 
     def ensure_mr_not_changed(self, merge_request):
         log.info('Ensuring MR !%s did not change', merge_request.iid)
@@ -255,220 +99,106 @@ class BatchMergeJob:
             merge_request.iid,
             self._api,
         )
-        msg_key = 'CHANGED'
-        if changed_mr.source_branch != merge_request.source_branch:
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % 'source branch',
-            )
-        if changed_mr.source_project_id != merge_request.source_project_id:
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % 'source project id',
-            )
-        if changed_mr.target_branch != merge_request.target_branch:
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % 'target branch',
-            )
-        if changed_mr.target_project_id != merge_request.target_project_id:
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % 'target project id',
-            )
-        if changed_mr.sha != merge_request.sha:
-            raise MergeError(
-                mr_iid=merge_request.iid,
-                message_key=msg_key,
-                message=MERGE_ERROR_MSG[msg_key] % 'SHA',
-            )
+        error_message = 'The {} changed whilst merging!'
+        for attr in ('source_branch', 'source_project_id', 'target_branch', 'target_project_id', 'sha'):
+            if getattr(changed_mr, attr) != getattr(merge_request, attr):
+                raise CannotMerge(error_message.format(attr.replace('_', ' ')))
 
-    def add_trailers(self, merge_request):
-
-        def _get_reviewer_names_and_emails():
-            approvals = merge_request.fetch_approvals()
-            uids = approvals.approver_ids
-            return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, self._api)) for uid in uids]
-
-        log.info('Adding trailers for MR !%s', merge_request.iid)
-
-        # add Reviewed-by
-        reviewers = (
-            _get_reviewer_names_and_emails() if self._options.add_reviewers
-            else None
-        )
-        sha = None
-        if reviewers is not None:
-            sha = self._repo.tag_with_trailer(
-                trailer_name='Reviewed-by',
-                trailer_values=reviewers,
-                branch=merge_request.source_branch,
-                start_commit='origin/' + merge_request.target_branch,
-            )
-
-        # add Tested-by
-        should_add_tested = self._options.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
-        tested_by = (
-            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
-            else None
-        )
-        if tested_by is not None and not self._options.use_merge_strategy:
-            sha = self._repo.tag_with_trailer(
-                trailer_name='Tested-by',
-                trailer_values=tested_by,
-                branch=merge_request.source_branch,
-                start_commit=merge_request.source_branch + '^'
-            )
-
-        # add Part-of
-        part_of = (
-            '<{0.web_url}>'.format(merge_request) if self._options.add_part_of
-            else None
-        )
-        if part_of is not None:
-            sha = self._repo.tag_with_trailer(
-                trailer_name='Part-of',
-                trailer_values=[part_of],
-                branch=merge_request.source_branch,
-                start_commit='origin/' + merge_request.target_branch,
-            )
-        return sha
-
-    def fuse_mr(
+    def accept_mr(
         self,
         merge_request,
         expected_remote_target_branch_sha,
+        source_repo_url=None,
     ):
         log.info('Fusing MR !%s', merge_request.iid)
+        approvals = merge_request.fetch_approvals()
+
         # Make sure latest commit in remote <target_branch> is the one we tested against
-        self._repo.fetch('origin')
-        remote_target_branch_sha = self._repo.get_commit_hash(
-            'origin/%s' % merge_request.target_branch,
-        )
-        assert remote_target_branch_sha == expected_remote_target_branch_sha
+        new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, self._api).id
+        if new_target_sha != expected_remote_target_branch_sha:
+            raise CannotBatch('Someone was naughty and by-passed marge')
 
-        # Make sure we have MR commits fetched
-        merge_request_remote = 'origin'
-        if merge_request.source_project_id != self._project.id:
-            self.fetch_mr(merge_request)
-            merge_request_remote = 'source'
+        # FIXME: we should only add tested-by for the last MR in the batch
+        target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
+            merge_request,
+            source_repo_url=source_repo_url,
+        )
 
-        # Make sure latest commit in remote <source_branch> is the one we tested against
-        remote_source_branch_sha = self._repo.get_commit_hash(
-            '%s/%s' % (merge_request_remote, merge_request.source_branch),
-        )
-        assert remote_source_branch_sha == merge_request.sha
+        sha_now = Commit.last_on_branch(
+            merge_request.source_project_id, merge_request.source_branch, self._api,
+        ).id
+        # Make sure no-one managed to race and push to the branch in the
+        # meantime, because we're about to impersonate the approvers, and
+        # we don't want to approve unreviewed commits
+        if sha_now != actual_sha:
+            raise CannotMerge('Someone pushed to branch while we were trying to merge')
 
-        # This switches git to <source_branch>
-        self._repo.checkout_branch(
-            merge_request.source_branch,
-            '%s/%s' % (merge_request_remote, merge_request.source_branch),
-        )
-        # This switches git to <source_branch>
-        sha = self.fuse_branch_a_on_branch_b(
-            merge_request.source_branch,
-            'origin/%s' % merge_request.target_branch,
-        )
-        sha = self.add_trailers(merge_request) or sha
+        # As we're not using the API to merge the MR, we don't strictly need to reapprove it. However,
+        # it's a little weird to look at the merged MR to find it has no approvals, so let's do it anyway.
+        self.maybe_reapprove(merge_request, approvals)
 
-        source_project = self.get_source_project(merge_request)
-        source_repo_url = None if source_project is self._project else source_project.ssh_url_to_repo
-        # FIXME: Should we re-approve after pushing?
-        self._repo.push(
-            merge_request.source_branch,
-            source_repo_url,
-            force=True,
-        )
         # This switches git to <target_branch>
-        self._repo.checkout_branch(
-            merge_request.target_branch,
-            'origin/%s' % merge_request.target_branch,
-        )
-        # This switches git to <target_branch>
-        # This should be a fast-forward, no actual rebase/merge should happen,
-        # and SHA shouldn't change
-        sha = self.fuse_branch_a_on_branch_b(
+        final_sha = self._repo.fast_forward(
             merge_request.target_branch,
             merge_request.source_branch,
         )
-        self._repo.push(merge_request.target_branch)
-        return sha
+
+        # Don't force push in case the remote has changed.
+        self._repo.push(merge_request.target_branch, force=False)
+
+        # At this point Gitlab should have recognised the MR as being accepted.
+        log.info('Successfully merged MR !%s', merge_request.iid)
+
+        return final_sha
 
     def execute(self):
-        if self.during_merge_embargo():
-            log.info('Merge embargo! -- SKIPPING')
-            return
-        # Let's make sure we have latest changes
-        self._repo.fetch('origin')
-        # Let's assume we have no idea where we are in local git now.
-        # Switch to master so we have a starting point and
-        # reset it to origin/master
-        self._repo.checkout_branch('master', 'origin/master')
-
         # Cleanup previous batch work
         self.remove_batch_branch()
-        self.delete_batch_mr()
+        self.close_batch_mr()
 
-        # self._merge_requests is sorted by oldest first.
-        # take it's target branch and batch all MRs with that target branch
         target_branch = self._merge_requests[0].target_branch
         merge_requests = self.get_mrs_with_common_target_branch(target_branch)
         merge_requests = self.get_mergeable_mrs(merge_requests)
-        if not merge_requests:
-            # No merge requests are ready to be merged. Let's raise an error
-            #  to do a basic job, as the rebase there might fix it.
-            raise PreMergeError('All MRs are currently unmergeable!')
+
+        if len(merge_requests) <= 1:
+            # Either no merge requests are ready to be merged, or there's only one for this target branch.
+            # Let's raise an error to do a basic job for these cases.
+            raise CannotBatch('not enough ready merge requests')
+
+        self._repo.fetch('origin')
 
         # Save the sha of remote <target_branch> so we can use it to make sure
         # the remote wasn't changed while we're testing against it
-        remote_target_branch_sha = self._repo.get_commit_hash(
-            'origin/%s' % target_branch,
-        )
+        remote_target_branch_sha = self._repo.get_commit_hash('origin/%s' % target_branch)
 
-        # create/reset local <target_branch> based on latest origin/<target_branch>
-        # This switches git to <target_branch>.
-        self._repo.checkout_branch(
-            target_branch,
-            'origin/%s' % target_branch,
-        )
-        # create batch branch based on origin/<target_branch>
-        # This switches git to <batch>.
-        self._repo.checkout_branch(
-            BatchMergeJob.BATCH_BRANCH_NAME,
-            'origin/%s' % target_branch,
-        )
+        self._repo.checkout_branch(target_branch, 'origin/%s' % target_branch)
+        self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
+
         for merge_request in merge_requests:
-            merge_request_remote = 'origin'
-            # Add remote for forked project and fetch it
-            if merge_request.source_project_id != self._project.id:
-                self.fetch_mr(merge_request)
-                merge_request_remote = 'source'
-            # Create a local <source_branch> based on MR's remote/<source_branch>
-            # This switches git to <source_branch>.
+            source_project, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
             self._repo.checkout_branch(
                 merge_request.source_branch,
                 '%s/%s' % (merge_request_remote, merge_request.source_branch),
             )
+
             # Update <source_branch> on latest <batch> branch so it contains previous MRs
-            # this will help us catch conflicts with prev MRs
-            # And makes sure we can fuse it in <batch> branch
-            # This switches git to <source_branch>
-            self.fuse_branch_a_on_branch_b(
-                branch_a=merge_request.source_branch,
-                branch_b=BatchMergeJob.BATCH_BRANCH_NAME,
+            self.fuse(
+                merge_request.source_branch,
+                BatchMergeJob.BATCH_BRANCH_NAME,
+                source_repo_url=source_repo_url,
             )
-            # update <batch> branch with MR changes
-            # This switches git back to <batch> branch
-            self.fuse_branch_a_on_branch_b(
-                branch_a=BatchMergeJob.BATCH_BRANCH_NAME,
-                branch_b=merge_request.source_branch,
+
+            # Update <batch> branch with MR changes
+            self._repo.fast_forward(
+                BatchMergeJob.BATCH_BRANCH_NAME,
+                merge_request.source_branch,
             )
-            # we don't need <source_branch> anymore
+
+            # We don't need <source_branch> anymore. Remove it now in case another
+            # merge request is using the same branch name in a different project.
+            # FIXME: is this actually needed?
             self._repo.remove_branch(merge_request.source_branch)
+
         if self._project.only_allow_merge_if_pipeline_succeeds:
             # This switches git to <batch> branch
             self.push_batch()
@@ -478,15 +208,18 @@ class BatchMergeJob:
             self.wait_for_ci_to_pass(batch_mr)
         for merge_request in merge_requests:
             try:
+                # FIXME: this should probably be part of the merge request
+                source_project, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
                 self.ensure_mr_not_changed(merge_request)
                 self.ensure_mergeable_mr(merge_request)
-                remote_target_branch_sha = self.fuse_mr(
+                remote_target_branch_sha = self.accept_mr(
                     merge_request,
                     remote_target_branch_sha,
+                    source_repo_url=source_repo_url,
                 )
-            except MergeError as ex:
-                log.warning(ex.log_str())
-                merge_request.comment(ex.comment_str())
-                if ex.message_key != 'NOT_ASSIGNED':
-                    self.unassign_from_mr(merge_request)
+            except CannotMerge as err:
+                message = "I couldn't merge this branch: %s" % err.reason
+                log.warning(message)
+                self.unassign_from_mr(merge_request)
+                merge_request.comment(message)
                 raise

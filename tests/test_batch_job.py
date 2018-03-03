@@ -39,7 +39,7 @@ def test_delete_batch_mr():
         mr_class.search.return_value = [batch_mr]
 
         batch_merge_job = get_batch_merge_job()
-        batch_merge_job.delete_batch_mr()
+        batch_merge_job.close_batch_mr()
 
         params = {
             'author_id': batch_merge_job._user.id,
@@ -318,7 +318,7 @@ def test_fuse_mr_when_target_branch_was_moved():
     batch_merge_job = get_batch_merge_job()
     merge_request = Mock()
     with pytest.raises(AssertionError):
-        batch_merge_job.fuse_mr(merge_request, 'abc')
+        batch_merge_job.accept_mr(merge_request, 'abc')
     batch_merge_job._repo.fetch.assert_called_once_with('origin')
     batch_merge_job._repo.get_commit_hash.assert_called_once_with(
         'origin/%s' % merge_request.target_branch,
@@ -336,7 +336,7 @@ def test_fuse_mr_when_source_branch_was_moved():
     batch_merge_job._repo.get_commit_hash.return_value = sha
 
     with pytest.raises(AssertionError):
-        batch_merge_job.fuse_mr(merge_request, sha)
+        batch_merge_job.accept_mr(merge_request, sha)
     batch_merge_job._repo.fetch.assert_called_once_with('origin')
     batch_merge_job._repo.get_commit_hash.assert_has_calls([
         call('origin/%s' % merge_request.target_branch),
@@ -365,7 +365,7 @@ def test_fuse_mr(
     bmj_add_trailers.return_value = new_sha
     bmj_get_source_project.return_value = batch_merge_job._project
 
-    r_sha = batch_merge_job.fuse_mr(merge_request, sha)
+    r_sha = batch_merge_job.accept_mr(merge_request, sha)
 
     batch_merge_job._repo.fetch.assert_called_once_with('origin')
     batch_merge_job._repo.get_commit_hash.assert_has_calls([

@@ -126,9 +126,10 @@ class MergeRequest(gitlab.Resource):
             ),
         ))
 
-    def delete(self):
-        return self._api.call(DELETE(
+    def close(self):
+        return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
+            {'state_event': 'close'},
         ))
 
     def assign_to(self, user_id):

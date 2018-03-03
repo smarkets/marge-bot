@@ -49,15 +49,6 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             self.git('remote', 'add', remote_name, remote_url)
         self.git('fetch', '--prune', remote_name)
 
-    def fuse(self, strategy, branch_a, branch_b):
-        try:
-            self.git(strategy, branch_b, branch_a)
-            return self.get_commit_hash()
-        except GitError:
-            log.warning('%s %s on %s failed. Doing an --abort', strategy, branch_a, branch_b)
-            self.git(strategy, '--abort')
-            raise
-
     def tag_with_trailer(self, trailer_name, trailer_values, branch, start_commit):
         """Replace `trailer_name` in commit messages with `trailer_values` in `branch` from `start_commit`.
         """
@@ -81,7 +72,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
-    def merge(self, source_branch, target_branch, source_repo_url=None):
+    def merge(self, source_branch, target_branch, *merge_args, source_repo_url=None):
         """Merge `target_branch` into `source_branch` and return the new HEAD commit id.
 
         By default `source_branch` and `target_branch` are assumed to reside in the same
@@ -90,7 +81,10 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the merge fails. Will also try to --abort it.
         """
-        return self._fuse_branch('merge', source_branch, target_branch, source_repo_url)
+        return self._fuse_branch('merge', source_branch, target_branch, *merge_args, source_repo_url=source_repo_url)
+
+    def fast_forward(self, source, target, source_repo_url=None):
+        return self.merge(source, target, '--ff', '--ff-only', source_repo_url=source_repo_url)
 
     def rebase(self, branch, new_base, source_repo_url=None):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
@@ -101,9 +95,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the rebase fails. Will also try to --abort it.
         """
-        return self._fuse_branch('rebase', branch, new_base, source_repo_url)
+        return self._fuse_branch('rebase', branch, new_base, source_repo_url=source_repo_url)
 
-    def _fuse_branch(self, strategy, branch, target_branch, source_repo_url=None):
+    def _fuse_branch(self, strategy, branch, target_branch, *fuse_args, source_repo_url=None):
         assert source_repo_url or branch != target_branch, branch
 
         self.fetch('origin')
@@ -114,7 +108,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             self.checkout_branch(branch, 'origin/' + branch)
 
         try:
-            self.git(strategy, 'origin/' + target_branch)
+            self.git(strategy, 'origin/' + target_branch, *fuse_args)
         except GitError:
             log.warning('%s failed, doing an --abort', strategy)
             self.git(strategy, '--abort')
@@ -128,7 +122,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
     def checkout_branch(self, branch, start_point=''):
         self.git('checkout', '-B', branch, start_point, '--')
 
-    def push(self, branch, source_repo_url=None, force=False):
+    def push(self, branch, *, source_repo_url=None, force=False):
         self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
@@ -144,9 +138,6 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             source = 'origin'
         force_flag = '--force' if force else ''
         self.git('push', force_flag, source, '%s:%s' % (branch, branch))
-
-    def push_force(self, branch, source_repo_url=None):
-        self.push(branch, source_repo_url, force=True)
 
     def get_commit_hash(self, rev='HEAD'):
         """Return commit hash for `rev` (default "HEAD")."""
