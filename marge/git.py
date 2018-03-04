@@ -81,7 +81,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the merge fails. Will also try to --abort it.
         """
-        return self._fuse_branch('merge', source_branch, target_branch, *merge_args, source_repo_url=source_repo_url)
+        return self._fuse_branch(
+            'merge', source_branch, target_branch, *merge_args, source_repo_url=source_repo_url,
+        )
 
     def fast_forward(self, source, target, source_repo_url=None):
         return self.merge(source, target, '--ff', '--ff-only', source_repo_url=source_repo_url)

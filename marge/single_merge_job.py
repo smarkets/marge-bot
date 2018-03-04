@@ -66,7 +66,7 @@ class SingleMergeJob(MergeJob):
             self.maybe_reapprove(merge_request, approvals)
 
             if source_project.only_allow_merge_if_pipeline_succeeds:
-                self.wait_for_ci_to_pass(merge_request)
+                self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
