@@ -8,6 +8,7 @@ import marge.git
 import marge.gitlab
 import marge.job
 import marge.project
+import marge.single_merge_job
 import marge.user
 from marge.gitlab import GET, PUT
 from marge.job import MergeJobOptions
@@ -181,7 +182,7 @@ class TestUpdateAndAccept(object):
         repo = Mock(marge.git.Repo)
         options = options or marge.job.MergeJobOptions.default()
         user = marge.user.User.myself(self.api)
-        return marge.job.MergeJob(
+        return marge.single_merge_job.SingleMergeJob(
             api=api, user=user,
             project=project, merge_request=merge_request, repo=repo,
             options=options,
@@ -189,7 +190,11 @@ class TestUpdateAndAccept(object):
 
     def test_succeeds_first_time(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
             job.execute()
 
@@ -204,7 +209,11 @@ class TestUpdateAndAccept(object):
             Ok({'commit': _commit(commit_id=new_branch_head_sha, status='success')}),
             from_state='pushed', to_state='pushed_but_head_changed'
         )
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             with mocklab.expected_failure("Someone pushed to branch while we were trying to merge"):
                 job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
                 job.execute()
@@ -255,7 +264,11 @@ class TestUpdateAndAccept(object):
             api.state = 'pushed'
             yield moved_master_sha, 'deadbeef', mocklab.rewritten_sha
 
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=push_effects()):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=push_effects(),
+        ):
             job = self.make_job(marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False))
             job.execute()
 
@@ -279,7 +292,11 @@ class TestUpdateAndAccept(object):
             dict(mocklab.merge_request_info, state='merged'),
             from_state='someone_else_merged',
         )
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             job = self.make_job()
             job.execute()
         assert api.state == 'someone_else_merged'
@@ -301,7 +318,11 @@ class TestUpdateAndAccept(object):
             from_state='now_is_wip',
         )
         message = 'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -327,7 +348,11 @@ class TestUpdateAndAccept(object):
             'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
             'is rejecting my commits; maybe my email needs to be white-listed?'
         )
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -350,7 +375,11 @@ class TestUpdateAndAccept(object):
             from_state='oops_someone_closed_it',
         )
         message = 'Someone closed the merge request while I was attempting to merge it.'
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
@@ -366,14 +395,18 @@ class TestUpdateAndAccept(object):
                 dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
             ),
             Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
-            from_state='passed', to_state='rejected_for_misterious_reasons',
+            from_state='passed', to_state='rejected_for_mysterious_reasons',
         )
         message = "Gitlab refused to merge this request and I don't know why!"
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             with mocklab.expected_failure(message):
                 job = self.make_job()
                 job.execute()
-        assert api.state == 'rejected_for_misterious_reasons'
+        assert api.state == 'rejected_for_mysterious_reasons'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
     def test_wont_merge_wip_stuff(self, unused_time_sleep):
@@ -406,7 +439,11 @@ class TestUpdateAndAccept(object):
 
             assert api.state == 'initial'
 
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             job = self.make_job()
             job.execute()
         assert api.state == 'merged'
@@ -414,7 +451,11 @@ class TestUpdateAndAccept(object):
     @patch('marge.job.log')
     def test_waits_for_approvals(self, mock_log, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
-        with patch('marge.job.update_from_target_branch_and_push', side_effect=mocklab.push_updated):
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'update_from_target_branch_and_push',
+                side_effect=mocklab.push_updated,
+        ):
             job = self.make_job(
                 marge.job.MergeJobOptions.default(approval_timeout=timedelta(seconds=5), reapprove=True))
             job.execute()

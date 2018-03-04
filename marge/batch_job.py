@@ -87,7 +87,6 @@ class BatchMergeJob(MergeJob):
                 mergeable_mrs.append(merge_request)
         return mergeable_mrs
 
-
     def push_batch(self):
         log.info('Pushing batch branch')
         self._repo.push(BatchMergeJob.BATCH_BRANCH_NAME, force=True)
@@ -119,7 +118,7 @@ class BatchMergeJob(MergeJob):
             raise CannotBatch('Someone was naughty and by-passed marge')
 
         # FIXME: we should only add tested-by for the last MR in the batch
-        target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
+        _, _, actual_sha = self.update_from_target_branch_and_push(
             merge_request,
             source_repo_url=source_repo_url,
         )
@@ -175,7 +174,7 @@ class BatchMergeJob(MergeJob):
         self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
 
         for merge_request in merge_requests:
-            source_project, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
+            _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
             self._repo.checkout_branch(
                 merge_request.source_branch,
                 '%s/%s' % (merge_request_remote, merge_request.source_branch),
@@ -209,7 +208,7 @@ class BatchMergeJob(MergeJob):
         for merge_request in merge_requests:
             try:
                 # FIXME: this should probably be part of the merge request
-                source_project, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
+                _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
                 self.ensure_mr_not_changed(merge_request)
                 self.ensure_mergeable_mr(merge_request)
                 remote_target_branch_sha = self.accept_mr(
