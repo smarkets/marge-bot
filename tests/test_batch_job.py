@@ -246,7 +246,8 @@ def test_fuse_using_rebase():
     batch_merge_job._repo.rebase.assert_called_once_with(
         branch_a,
         branch_b,
-        source_repo_url=None,
+        source_repo_url=ANY,
+        local=ANY,
     )
 
 
@@ -260,7 +261,8 @@ def test_fuse_using_merge():
     batch_merge_job._repo.merge.assert_called_once_with(
         branch_a,
         branch_b,
-        source_repo_url=None,
+        source_repo_url=ANY,
+        local=ANY,
     )
 
 

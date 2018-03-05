@@ -72,7 +72,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
             raise
         return self.get_commit_hash()
 
-    def merge(self, source_branch, target_branch, *merge_args, source_repo_url=None):
+    def merge(self, source_branch, target_branch, *merge_args, source_repo_url=None, local=False):
         """Merge `target_branch` into `source_branch` and return the new HEAD commit id.
 
         By default `source_branch` and `target_branch` are assumed to reside in the same
@@ -82,13 +82,13 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         Throws a `GitError` if the merge fails. Will also try to --abort it.
         """
         return self._fuse_branch(
-            'merge', source_branch, target_branch, *merge_args, source_repo_url=source_repo_url,
+            'merge', source_branch, target_branch, *merge_args, source_repo_url=source_repo_url, local=local,
         )
 
-    def fast_forward(self, source, target, source_repo_url=None):
-        return self.merge(source, target, '--ff', '--ff-only', source_repo_url=source_repo_url)
+    def fast_forward(self, source, target, source_repo_url=None, local=False):
+        return self.merge(source, target, '--ff', '--ff-only', source_repo_url=source_repo_url, local=local)
 
-    def rebase(self, branch, new_base, source_repo_url=None):
+    def rebase(self, branch, new_base, source_repo_url=None, local=False):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
 
         By default `branch` and `new_base` are assumed to reside in the same
@@ -97,20 +97,25 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
 
         Throws a `GitError` if the rebase fails. Will also try to --abort it.
         """
-        return self._fuse_branch('rebase', branch, new_base, source_repo_url=source_repo_url)
+        return self._fuse_branch('rebase', branch, new_base, source_repo_url=source_repo_url, local=local)
 
-    def _fuse_branch(self, strategy, branch, target_branch, *fuse_args, source_repo_url=None):
+    def _fuse_branch(self, strategy, branch, target_branch, *fuse_args, source_repo_url=None, local=False):
         assert source_repo_url or branch != target_branch, branch
 
-        self.fetch('origin')
-        if source_repo_url:
-            self.fetch('source', source_repo_url)
-            self.checkout_branch(branch, 'source/' + branch)
+        if not local:
+            self.fetch('origin')
+            target = 'origin/' + target_branch
+            if source_repo_url:
+                self.fetch('source', source_repo_url)
+                self.checkout_branch(branch, 'source/' + branch)
+            else:
+                self.checkout_branch(branch, 'origin/' + branch)
         else:
-            self.checkout_branch(branch, 'origin/' + branch)
+            self.checkout_branch(branch)
+            target = target_branch
 
         try:
-            self.git(strategy, 'origin/' + target_branch, *fuse_args)
+            self.git(strategy, target, *fuse_args)
         except GitError:
             log.warning('%s failed, doing an --abort', strategy)
             self.git(strategy, '--abort')

@@ -185,12 +185,14 @@ class BatchMergeJob(MergeJob):
                 merge_request.source_branch,
                 BatchMergeJob.BATCH_BRANCH_NAME,
                 source_repo_url=source_repo_url,
+                local=True,
             )
 
             # Update <batch> branch with MR changes
             self._repo.fast_forward(
                 BatchMergeJob.BATCH_BRANCH_NAME,
                 merge_request.source_branch,
+                local=True,
             )
 
             # We don't need <source_branch> anymore. Remove it now in case another
