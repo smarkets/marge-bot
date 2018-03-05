@@ -173,33 +173,42 @@ class BatchMergeJob(MergeJob):
         self._repo.checkout_branch(target_branch, 'origin/%s' % target_branch)
         self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
 
+        working_merge_requests = []
+
         for merge_request in merge_requests:
-            _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
-            self._repo.checkout_branch(
-                merge_request.source_branch,
-                '%s/%s' % (merge_request_remote, merge_request.source_branch),
-            )
+            try:
+                _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
+                self._repo.checkout_branch(
+                    merge_request.source_branch,
+                    '%s/%s' % (merge_request_remote, merge_request.source_branch),
+                )
 
-            # Update <source_branch> on latest <batch> branch so it contains previous MRs
-            self.fuse(
-                merge_request.source_branch,
-                BatchMergeJob.BATCH_BRANCH_NAME,
-                source_repo_url=source_repo_url,
-                local=True,
-            )
+                # Update <source_branch> on latest <batch> branch so it contains previous MRs
+                self.fuse(
+                    merge_request.source_branch,
+                    BatchMergeJob.BATCH_BRANCH_NAME,
+                    source_repo_url=source_repo_url,
+                    local=True,
+                )
 
-            # Update <batch> branch with MR changes
-            self._repo.fast_forward(
-                BatchMergeJob.BATCH_BRANCH_NAME,
-                merge_request.source_branch,
-                local=True,
-            )
+                # Update <batch> branch with MR changes
+                self._repo.fast_forward(
+                    BatchMergeJob.BATCH_BRANCH_NAME,
+                    merge_request.source_branch,
+                    local=True,
+                )
 
-            # We don't need <source_branch> anymore. Remove it now in case another
-            # merge request is using the same branch name in a different project.
-            # FIXME: is this actually needed?
-            self._repo.remove_branch(merge_request.source_branch)
-
+                # We don't need <source_branch> anymore. Remove it now in case another
+                # merge request is using the same branch name in a different project.
+                # FIXME: is this actually needed?
+                self._repo.remove_branch(merge_request.source_branch)
+            except git.GitError:
+                log.warning('Skipping MR !%s, got conflicts while rebasing', merge_request.iid)
+                continue
+            else:
+                working_merge_requests.append(merge_request)
+        if len(working_merge_requests) <= 1:
+            raise CannotBatch('not enough ready merge requests')
         if self._project.only_allow_merge_if_pipeline_succeeds:
             # This switches git to <batch> branch
             self.push_batch()
@@ -207,7 +216,7 @@ class BatchMergeJob(MergeJob):
                 target_branch=target_branch,
             )
             self.wait_for_ci_to_pass(batch_mr)
-        for merge_request in merge_requests:
+        for merge_request in working_merge_requests:
             try:
                 # FIXME: this should probably be part of the merge request
                 _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
