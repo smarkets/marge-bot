@@ -211,13 +211,14 @@ class MergeJob(object):
             )
         return source_project
 
-    def fuse(self, source, target, source_repo_url=None):
+    def fuse(self, source, target, source_repo_url=None, local=False):
         # NOTE: this leaves git switched to branch_a
         strategy = self._repo.merge if self._options.use_merge_strategy else self._repo.rebase
         return strategy(
             source,
             target,
             source_repo_url=source_repo_url,
+            local=local,
         )
 
     def update_from_target_branch_and_push(
