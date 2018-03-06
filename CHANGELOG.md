@@ -3,7 +3,7 @@
       local branches #88.
     - Better error reporting when there are no changes left
       after rebasing #87.
-    - Add --aproval-reset-timeout option #85.
+    - Add --approval-reset-timeout option #85.
     - Fix encoding issues under Windows #86.
     - Support new merge-request status "locked" #79.
     - Fixes issue where stale branches in marge's repo could
