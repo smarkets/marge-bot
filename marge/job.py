@@ -150,7 +150,7 @@ class MergeJob(object):
                 raise CannotMerge('CI failed!')
 
             if ci_status == 'canceled':
-                raise CannotMerge('Someone canceled the CI')
+                raise CannotMerge('Someone canceled the CI.')
 
             if ci_status not in ('pending', 'running'):
                 log.warning('Suspicious CI status: %r', ci_status)
@@ -158,7 +158,7 @@ class MergeJob(object):
             log.debug('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
             time.sleep(waiting_time_in_secs)
 
-        raise CannotMerge('CI is taking too long')
+        raise CannotMerge('CI is taking too long.')
 
     def unassign_from_mr(self, merge_request):
         log.info('Unassigning from MR !%s', merge_request.iid)
