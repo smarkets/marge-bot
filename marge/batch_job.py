@@ -1,10 +1,12 @@
 # pylint: disable=too-many-branches,too-many-statements
 import logging as log
+from time import sleep
 
 from . import git
 from .commit import Commit
 from .job import MergeJob, CannotMerge
 from .merge_request import MergeRequest
+from .pipeline import Pipeline
 
 
 class CannotBatch(Exception):
@@ -145,8 +147,19 @@ class BatchMergeJob(MergeJob):
         # Don't force push in case the remote has changed.
         self._repo.push(merge_request.target_branch, force=False)
 
+        sleep(2)
+
         # At this point Gitlab should have recognised the MR as being accepted.
         log.info('Successfully merged MR !%s', merge_request.iid)
+
+        pipelines = Pipeline.pipelines_by_branch(
+            api=self._api,
+            project_id=merge_request.source_project_id,
+            branch=merge_request.source_branch,
+            status='running',
+        )
+        for pipeline in pipelines:
+            pipeline.cancel()
 
         return final_sha
 
