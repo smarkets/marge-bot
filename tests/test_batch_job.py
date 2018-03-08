@@ -3,7 +3,7 @@ from unittest.mock import ANY, call, Mock, patch
 
 import pytest
 
-from marge.batch_job import BatchMergeJob
+from marge.batch_job import BatchMergeJob, CannotBatch
 from marge.job import CannotMerge, SkipMerge, MergeJobOptions
 
 
@@ -230,10 +230,10 @@ def test_ensure_mergeable_mr_ci_not_ok(bmj_get_mr_ci_status):
         squash=False,
     )
     merge_request.fetch_approvals.return_value.sufficient = True
-    with pytest.raises(CannotMerge) as exc_info:
+    with pytest.raises(CannotBatch) as exc_info:
         batch_merge_job.ensure_mergeable_mr(merge_request)
 
-    assert exc_info.value.reason == 'This MR has not passed CI'
+    assert str(exc_info.value) == 'This MR has not passed CI.'
 
 
 def test_fuse_using_rebase():
