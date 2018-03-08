@@ -74,17 +74,17 @@ parameters:
     required: true
     parameterType: "int"
   - name: "MARGE_GITLAB_URL"
-    description: "Marge gitlab url"
+    description: "Marge GitLab url"
     value: "http://your.gitlab.instance.com"
     required: true
     parameterType: "string"
   - name: "MARGE_AUTH_TOKEN"
-    description: "Marge gitlab auth token"
+    description: "Marge GitLab auth token"
     value: 0
     required: true
     parameterType: "base64"
   - name: "MARGE_SSH_KEY"
-    description: "Marge gitlab rsa key"
+    description: "Marge GitLab rsa key"
     value: 0
     required: true
     parameterType: "base64"

@@ -204,7 +204,7 @@ class MergeJob(object):
                     raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from Gitlab on merge attempt')
-                raise CannotMerge('had some issue with gitlab, check my logs...')
+                raise CannotMerge('had some issue with GitLab, check my logs...')
             else:
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True

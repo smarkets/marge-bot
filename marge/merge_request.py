@@ -94,7 +94,7 @@ class MergeRequest(gitlab.Resource):
         if self._api.version().release >= (9, 2, 2):
             notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
         else:
-            # gitlab botched the v4 api before 9.2.2
+            # GitLab botched the v4 api before 9.2.2
             notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
 
         return self._api.call(POST(notes_url, {'body': message}))
@@ -119,7 +119,7 @@ class MergeRequest(gitlab.Resource):
         return self.assign_to(None)
 
     def fetch_approvals(self):
-        # 'id' needed for for gitlab 9.2.2 hack (see Approvals.refetch_info())
+        # 'id' needed for for GitLab 9.2.2 hack (see Approvals.refetch_info())
         info = {'id': self.id, 'iid': self.iid, 'project_id': self.project_id}
         approvals = Approvals(self.api, info)
         approvals.refetch_info()

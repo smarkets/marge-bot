@@ -11,7 +11,7 @@ python.mkDerivation {
   propagatedBuildInputs = [py.ConfigArgParse py.maya py.PyYAML py.requests pkgs.openssh pkgs.git];
   meta = {
     homepage = "https://github.com/smarkets/marge-bot";
-    description = "A build bot for gitlab";
+    description = "A build bot for GitLab";
     license = with pkgs.lib.licenses; [bsd3] ;
     maintainers =  [
       "Daniel Gorin <daniel.gorin@smarkets.com>"
