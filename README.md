@@ -53,14 +53,14 @@ optional arguments:
   -h, --help            show this help message and exit
   --config-file CONFIG_FILE
                         config file path   [env var: MARGE_CONFIG_FILE] (default: None)
-  --auth-token TOKEN    Your gitlab token.
+  --auth-token TOKEN    Your GitLab token.
                         DISABLED because passing credentials on the command line is insecure:
                         You can still set it via ENV variable or config file, or use "--auth-token-file" flag.
                            [env var: MARGE_AUTH_TOKEN] (default: None)
   --auth-token-file FILE
-                        Path to your gitlab token file.
+                        Path to your GitLab token file.
                            [env var: MARGE_AUTH_TOKEN_FILE] (default: None)
-  --gitlab-url URL      Your gitlab instance, e.g. "https://gitlab.example.com".
+  --gitlab-url URL      Your GitLab instance, e.g. "https://gitlab.example.com".
                            [env var: MARGE_GITLAB_URL] (default: None)
   --ssh-key KEY         The private ssh key for marge so it can clone/push.
                         DISABLED because passing credentials on the command line is insecure:

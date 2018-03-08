@@ -58,7 +58,7 @@ def _parse_config(args):
         type=str,
         metavar='TOKEN',
         help=(
-            'Your gitlab token.\n'
+            'Your GitLab token.\n'
             'DISABLED because passing credentials on the command line is insecure:\n'
             'You can still set it via ENV variable or config file, or use "--auth-token-file" flag.\n'
         ),
@@ -67,14 +67,14 @@ def _parse_config(args):
         '--auth-token-file',
         type=configargparse.FileType('rt'),
         metavar='FILE',
-        help='Path to your gitlab token file.\n',
+        help='Path to your GitLab token file.\n',
     )
     parser.add_argument(
         '--gitlab-url',
         type=str,
         required=True,
         metavar='URL',
-        help='Your gitlab instance, e.g. "https://gitlab.example.com".\n',
+        help='Your GitLab instance, e.g. "https://gitlab.example.com".\n',
     )
     ssh_key_group = parser.add_mutually_exclusive_group(required=True)
     ssh_key_group.add_argument(

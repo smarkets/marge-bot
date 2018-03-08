@@ -11,7 +11,7 @@ class Approvals(gitlab.Resource):
         if gitlab_version.release >= (9, 2, 2):
             approver_url = '/projects/{0.project_id}/merge_requests/{0.iid}/approvals'.format(self)
         else:
-            # gitlab botched the v4 api before 9.2.3
+            # GitLab botched the v4 api before 9.2.3
             approver_url = '/projects/{0.project_id}/merge_requests/{0.id}/approvals'.format(self)
 
         if gitlab_version.is_ee:
@@ -48,13 +48,13 @@ class Approvals(gitlab.Resource):
         """Impersonates the approvers and re-approves the merge_request as them.
 
         The idea is that we want to get the approvers, push the rebased branch
-        (which may invalidate approvals, depending on gitlab settings) and then
+        (which may invalidate approvals, depending on GitLab settings) and then
         restore the approval status.
         """
         if self._api.version().release >= (9, 2, 2):
             approve_url = '/projects/{0.project_id}/merge_requests/{0.iid}/approve'.format(self)
         else:
-            # gitlab botched the v4 api before 9.2.3
+            # GitLab botched the v4 api before 9.2.3
             approve_url = '/projects/{0.project_id}/merge_requests/{0.id}/approve'.format(self)
 
         for uid in self.approver_ids:
