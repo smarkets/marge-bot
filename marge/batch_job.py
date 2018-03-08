@@ -4,7 +4,7 @@ from time import sleep
 
 from . import git
 from .commit import Commit
-from .job import MergeJob, CannotMerge
+from .job import MergeJob, CannotMerge, SkipMerge
 from .merge_request import MergeRequest
 from .pipeline import Pipeline
 
@@ -74,7 +74,7 @@ class BatchMergeJob(MergeJob):
         if self._project.only_allow_merge_if_pipeline_succeeds:
             ci_status = self.get_mr_ci_status(merge_request)
             if ci_status != 'success':
-                raise CannotMerge('This MR has not passed CI')
+                raise CannotBatch('This MR has not passed CI.')
 
     def get_mergeable_mrs(self, merge_requests):
         log.info('Filtering mergeable MRs')
@@ -82,9 +82,12 @@ class BatchMergeJob(MergeJob):
         for merge_request in merge_requests:
             try:
                 self.ensure_mergeable_mr(merge_request)
+            except (CannotBatch, SkipMerge) as ex:
+                log.warning('Skipping unbatchable MR: "%s"', ex)
             except CannotMerge as ex:
                 log.warning('Skipping unmergeable MR: "%s"', ex)
-                continue
+                self.unassign_from_mr(merge_request)
+                merge_request.comment("I couldn't merge this branch: {}".format(ex))
             else:
                 mergeable_mrs.append(merge_request)
         return mergeable_mrs
@@ -240,7 +243,7 @@ class BatchMergeJob(MergeJob):
                             error=err.reason,
                         ),
                     )
-                raise
+                raise CannotBatch(err.reason) from err
         for merge_request in working_merge_requests:
             try:
                 # FIXME: this should probably be part of the merge request
@@ -252,9 +255,17 @@ class BatchMergeJob(MergeJob):
                     remote_target_branch_sha,
                     source_repo_url=source_repo_url,
                 )
+            except CannotBatch as err:
+                merge_request.comment(
+                    "I couldn't merge this branch: {error} I will retry later...".format(
+                        error=str(err),
+                    ),
+                )
+                raise
+            except SkipMerge:
+                # Raise here to avoid being caught below - we don't want to be unassigned.
+                raise
             except CannotMerge as err:
-                message = "I couldn't merge this branch: %s" % err.reason
-                log.warning(message)
                 self.unassign_from_mr(merge_request)
-                merge_request.comment(message)
+                merge_request.comment("I couldn't merge this branch: %s" % err.reason)
                 raise

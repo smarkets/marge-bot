@@ -146,6 +146,9 @@ class Bot(object):
                 return
             except batch_job.CannotBatch as err:
                 log.warning('BatchMergeJob aborted: %s', err)
+            except batch_job.CannotMerge as err:
+                log.warning('BatchMergeJob failed: %s', err)
+                return
             except git.GitError as err:
                 log.exception('BatchMergeJob failed: %s', err)
         log.info('Attempting to merge the oldest MR...')
