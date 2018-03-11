@@ -1,4 +1,7 @@
-  * 0.6:
+  * 0.6.1:
+    - Fix when target SHA is retrieved #92.
+    - Replace word "gitlab" with "GitLab" #93.
+  * 0.6.0:
     - Fix issue due to a `master` branch being assumed when removing
       local branches #88.
     - Better error reporting when there are no changes left
