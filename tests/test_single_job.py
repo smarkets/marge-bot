@@ -11,7 +11,6 @@ import marge.project
 import marge.single_merge_job
 import marge.user
 from marge.gitlab import GET, PUT
-from marge.job import MergeJobOptions
 from marge.merge_request import MergeRequest
 
 import tests.test_approvals as test_approvals
@@ -477,23 +476,3 @@ class TestUpdateAndAccept(object):
 
         assert api.state == 'initial'
         assert api.notes == ["I couldn't merge this branch: {}".format(expected_message)]
-
-
-class TestMergeJobOptions(object):
-    def test_default(self):
-        assert MergeJobOptions.default() == MergeJobOptions(
-            add_tested=False,
-            add_part_of=False,
-            add_reviewers=False,
-            reapprove=False,
-            approval_timeout=timedelta(seconds=0),
-            embargo=marge.interval.IntervalUnion.empty(),
-            ci_timeout=timedelta(minutes=15),
-            use_merge_strategy=False,
-        )
-
-    def test_default_ci_time(self):
-        three_min = timedelta(minutes=3)
-        assert MergeJobOptions.default(ci_timeout=three_min) == MergeJobOptions.default()._replace(
-            ci_timeout=three_min
-        )

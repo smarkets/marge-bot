@@ -4,7 +4,7 @@ from unittest.mock import ANY, call, Mock, patch
 import pytest
 
 from marge.batch_job import BatchMergeJob, CannotBatch
-from marge.job import CannotMerge, SkipMerge, MergeJobOptions
+from marge.job import CannotMerge, MergeJobOptions
 
 
 def get_batch_merge_job(**batch_merge_kwargs):
@@ -75,61 +75,6 @@ def test_create_batch_mr():
         assert r_batch_mr is batch_mr
 
 
-def test_unassign_from_mr():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock()
-
-    # when we are not the author
-    batch_merge_job.unassign_from_mr(merge_request)
-    merge_request.assign_to.assert_called_once_with(merge_request.author_id)
-
-    # when we are the author
-    merge_request.author_id = batch_merge_job._user.id
-    batch_merge_job.unassign_from_mr(merge_request)
-    merge_request.unassign.assert_called_once()
-
-
-@pytest.mark.skip('Move to abstract job')
-def test_get_source_project_when_is_target_project():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock()
-    merge_request.source_project_id = batch_merge_job._project.id
-    r_source_project = batch_merge_job.get_source_project(merge_request)
-    assert r_source_project is batch_merge_job._project
-
-
-@pytest.mark.skip('Move to abstract job')
-def test_get_source_project_when_is_fork():
-    with patch('marge.batch_job.Project') as project_class:
-        batch_merge_job = get_batch_merge_job()
-        merge_request = Mock()
-        r_source_project = batch_merge_job.get_source_project(merge_request)
-
-        project_class.fetch_by_id.assert_called_once_with(
-            merge_request.source_project_id,
-            api=batch_merge_job._api,
-        )
-        assert r_source_project is not batch_merge_job._project
-        assert r_source_project is project_class.fetch_by_id.return_value
-
-
-@pytest.mark.skip('Move to abstract job')
-def test_get_mr_ci_status():
-    with patch('marge.batch_job.Commit') as commit_class:
-        commit_class.fetch_by_id.return_value = Mock(status='success')
-        batch_merge_job = get_batch_merge_job()
-        merge_request = Mock()
-
-        r_ci_status = batch_merge_job.get_mr_ci_status(merge_request)
-
-        commit_class.fetch_by_id.assert_called_once_with(
-            merge_request.source_project_id,
-            merge_request.sha,
-            batch_merge_job._api,
-        )
-        assert r_ci_status == 'success'
-
-
 def test_get_mrs_with_common_target_branch():
     master_mrs = [
         Mock(target_branch='master'),
@@ -144,78 +89,6 @@ def test_get_mrs_with_common_target_branch():
     )
     r_maser_mrs = batch_merge_job.get_mrs_with_common_target_branch('master')
     assert r_maser_mrs == master_mrs
-
-
-def test_ensure_mergeable_mr_not_assigned():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock(
-        state='opened',
-        work_in_progress=False,
-        squash=False,
-    )
-    with pytest.raises(SkipMerge) as exc_info:
-        batch_merge_job.ensure_mergeable_mr(merge_request)
-    assert exc_info.value.reason == 'It is not assigned to me anymore!'
-
-
-def test_ensure_mergeable_mr_state_not_ok():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock(
-        assignee_id=batch_merge_job._user.id,
-        state='merged',
-        work_in_progress=False,
-        squash=False,
-    )
-    with pytest.raises(CannotMerge) as exc_info:
-        batch_merge_job.ensure_mergeable_mr(merge_request)
-    assert exc_info.value.reason == 'The merge request is already merged!'
-
-
-def test_ensure_mergeable_mr_not_approved():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock(
-        assignee_id=batch_merge_job._user.id,
-        state='opened',
-        work_in_progress=False,
-        squash=False,
-    )
-    merge_request.fetch_approvals.return_value.sufficient = False
-    with pytest.raises(CannotMerge) as exc_info:
-        batch_merge_job.ensure_mergeable_mr(merge_request)
-
-    merge_request.fetch_approvals.assert_called_once()
-    assert 'Insufficient approvals' in str(exc_info.value)
-
-
-def test_ensure_mergeable_mr_wip():
-    batch_merge_job = get_batch_merge_job()
-    merge_request = Mock(
-        assignee_id=batch_merge_job._user.id,
-        state='opened',
-        work_in_progress=True,
-    )
-    merge_request.fetch_approvals.return_value.sufficient = True
-    with pytest.raises(CannotMerge) as exc_info:
-        batch_merge_job.ensure_mergeable_mr(merge_request)
-
-    assert exc_info.value.reason == "Sorry, I can't merge requests marked as Work-In-Progress!"
-
-
-def test_ensure_mergeable_mr_squash_and_trailers():
-    batch_merge_job = get_batch_merge_job(options=MergeJobOptions.default(add_reviewers=True))
-    merge_request = Mock(
-        assignee_id=batch_merge_job._user.id,
-        state='opened',
-        work_in_progress=False,
-        squash=True,
-    )
-    merge_request.fetch_approvals.return_value.sufficient = True
-    with pytest.raises(CannotMerge) as exc_info:
-        batch_merge_job.ensure_mergeable_mr(merge_request)
-
-    assert (
-        exc_info.value.reason == "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
-    )
 
 
 @patch.object(BatchMergeJob, 'get_mr_ci_status')
@@ -234,36 +107,6 @@ def test_ensure_mergeable_mr_ci_not_ok(bmj_get_mr_ci_status):
         batch_merge_job.ensure_mergeable_mr(merge_request)
 
     assert str(exc_info.value) == 'This MR has not passed CI.'
-
-
-def test_fuse_using_rebase():
-    batch_merge_job = get_batch_merge_job(options=MergeJobOptions.default(use_merge_strategy=False))
-    branch_a = 'A'
-    branch_b = 'B'
-
-    batch_merge_job.fuse(branch_a, branch_b)
-
-    batch_merge_job._repo.rebase.assert_called_once_with(
-        branch_a,
-        branch_b,
-        source_repo_url=ANY,
-        local=ANY,
-    )
-
-
-def test_fuse_using_merge():
-    batch_merge_job = get_batch_merge_job(options=MergeJobOptions.default(use_merge_strategy=True))
-    branch_a = 'A'
-    branch_b = 'B'
-
-    batch_merge_job.fuse(branch_a, branch_b)
-
-    batch_merge_job._repo.merge.assert_called_once_with(
-        branch_a,
-        branch_b,
-        source_repo_url=ANY,
-        local=ANY,
-    )
 
 
 def test_push_batch():
