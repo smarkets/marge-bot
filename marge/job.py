@@ -9,6 +9,7 @@ from .commit import Commit
 from .interval import IntervalUnion
 from .project import Project
 from .user import User
+from .pipeline import Pipeline
 
 
 class MergeJob(object):
@@ -148,7 +149,7 @@ class MergeJob(object):
                     approvals.reapprove()
 
             if source_project.only_allow_merge_if_pipeline_succeeds:
-                self.wait_for_ci_to_pass(source_project.id, actual_sha)
+                self.wait_for_ci_to_pass(source_project.id, actual_sha, merge_request.source_branch)
                 log.info('CI passed!')
                 time.sleep(2)
             try:
@@ -209,14 +210,23 @@ class MergeJob(object):
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
 
-    def wait_for_ci_to_pass(self, source_project_id, commit_sha):
+    def wait_for_ci_to_pass(self, source_project_id, commit_sha, source_branch):
         api = self._api
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
         log.info('Waiting for CI to pass')
         while datetime.utcnow() - time_0 < self._options.ci_timeout:
-            ci_status = Commit.fetch_by_id(source_project_id, commit_sha, api).status
+            pipelines = Pipeline.pipelines_by_branch(source_project_id, source_branch, api)
+            current_pipeline = next(iter(pipelines), None)
+
+            if current_pipeline:
+                assert current_pipeline.sha == commit_sha
+                ci_status = current_pipeline.status
+            else:
+                log.warning('No pipeline listed for %s on branch %s', commit_sha, source_branch)
+                ci_status = None
+
             if ci_status == 'success':
                 return
 

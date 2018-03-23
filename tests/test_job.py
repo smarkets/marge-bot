@@ -31,6 +31,15 @@ def _commit(commit_id, status):
     }
 
 
+def _pipeline(sha1, status):
+    return {
+        'id': 47,
+        'status': status,
+        'ref': 'useless_new_feature',
+        'sha': sha1,
+    }
+
+
 class MockLab(object):
     def __init__(self, gitlab_url=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
@@ -70,15 +79,14 @@ class MockLab(object):
 
         self.initial_master_sha = '505e'
         self.rewritten_sha = rewritten_sha = 'af7a'
-        commit_after_pushing = _commit(commit_id=rewritten_sha, status='running')
-        api.add_transition(
-            GET('/projects/1234/repository/commits/%s' % rewritten_sha),
-            Ok(commit_after_pushing),
+        api.add_pipelines(
+            self.project_info['id'],
+            _pipeline(sha1=rewritten_sha, status='running'),
             from_state='pushed', to_state='passed',
         )
-        api.add_transition(
-            GET('/projects/1234/repository/commits/%s' % rewritten_sha),
-            Ok(_commit(commit_id=rewritten_sha, status='success')),
+        api.add_pipelines(
+            self.project_info['id'],
+            _pipeline(sha1=rewritten_sha, status='success'),
             from_state=['passed', 'merged'],
         )
         api.add_transition(
@@ -210,9 +218,9 @@ class TestUpdateAndAccept(object):
         api, mocklab = self.api, self.mocklab
         moved_master_sha = 'fafafa'
         first_rewritten_sha = '1o1'
-        api.add_transition(
-            GET('/projects/1234/repository/commits/%s' % first_rewritten_sha),
-            Ok(_commit(commit_id=first_rewritten_sha, status='success')),
+        api.add_pipelines(
+            mocklab.project_info['id'],
+            _pipeline(sha1=first_rewritten_sha, status='success'),
             from_state=['pushed_but_master_moved', 'merged_rejected'],
         )
         api.add_transition(
