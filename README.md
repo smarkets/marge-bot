@@ -105,8 +105,8 @@ optional arguments:
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
-  --experimental-batch  Enable processing MRs in batches.
-                           [env var: MARGE_EXPERIMENTAL_BATCH] (default: False)
+  --batch               Enable processing MRs in batches.
+                           [env var: MARGE_BATCH] (default: False)
 ```
 Here is a config file example
 ```yaml
@@ -119,7 +119,7 @@ auth-token-file: token.FILE
 branch-regexp: .*
 ci-timeout: 15min
 embargo: Friday 1pm - Monday 9am
-experimental-batch: false
+batch: false
 git-timeout: 120s
 gitlab-url: "https://gitlab.example.com"
 impersonate-approvers: true
@@ -287,7 +287,7 @@ embargoes are over.
 
 ## Batching MRs
 
-The flag --experimental-batch enables testing and merging MRs in batch.
+The flag --batch enables testing and merging MRs in batch.
 
 ### How it works
 

@@ -99,8 +99,8 @@ def _parse_config(args):
         metavar='INTERVAL[,..]',
         help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".\n',
     )
-    merge_group = parser.add_mutually_exclusive_group(required=False)
-    merge_group.add_argument(
+    experimental_group = parser.add_mutually_exclusive_group(required=False)
+    experimental_group.add_argument(
         '--use-merge-strategy',
         action='store_true',
         help=(
@@ -108,10 +108,15 @@ def _parse_config(args):
             'Enable if you use a workflow based on merge-commits and not linear history.\n'
         ),
     )
-    merge_group.add_argument(
+    experimental_group.add_argument(
         '--add-tested',
         action='store_true',
         help='Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.\n',
+    )
+    experimental_group.add_argument(
+        '--batch',
+        action='store_true',
+        help='Enable processing MRs in batches (EXPERIMENTAL)\n',
     )
     parser.add_argument(
         '--add-part-of',
@@ -174,11 +179,6 @@ def _parse_config(args):
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
     )
-    parser.add_argument(
-        '--experimental-batch',
-        action='store_true',
-        help='Enable processing MRs in batches.\n',
-    )
     config = parser.parse_args(args)
 
     cli_args = []
@@ -228,8 +228,8 @@ def main(args=None):
             )
             options.ci_timeout = timedelta(minutes=options.max_ci_time_in_minutes)
 
-        if options.experimental_batch:
-            logging.warning('Experimental batch enabled')
+        if options.batch:
+            logging.warning('Experimental batch mode enabled')
 
         config = bot.BotConfig(
             user=user,
@@ -247,7 +247,7 @@ def main(args=None):
                 ci_timeout=options.ci_timeout,
                 use_merge_strategy=options.use_merge_strategy,
             ),
-            batch=options.experimental_batch,
+            batch=options.batch,
         )
 
         marge_bot = bot.Bot(api=api, config=config)
