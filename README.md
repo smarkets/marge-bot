@@ -285,18 +285,64 @@ request assigned to her during an embargo period, will be merged in only once al
 embargoes are over.
 
 
-## Batching MRs
+## Batching Merge Requests
 
-The flag --batch enables testing and merging MRs in batch.
+The flag --batch enables testing and merging merge requests in batches. This can
+significantly speed up the rate at which marge-bot processes jobs - not just
+because merge requests can be tested together, but because marge-bot will ensure
+the whole set of merge requests is mergeable first. This includes, for example,
+checking if a merge request is marked as WIP, or does not have enough approvals.
+Essentially, users get faster feedback if there is an issue.
+
+This is currently an experimental feature.
 
 ### How it works
 
-Creates a batch MR with all MRs with common target branch, runs CI,
-then merges the original MRs
+If marge-bot finds multiple merge requests to deal with, she attempts to create
+a batch job. She filters the merge requests such that they have all have a
+common target branch, and eliminates those that have not yet passed CI (a
+heuristic to help guarantee the batch will pass CI later).
 
-If CI failed, original MR/target branch changed, or for other reason batch failed,
-we fall back to merging one MR at a time
+Once the merge requests have been gathered, a batch branch is created using the
+commits from each merge request in sequence. Any merge request that cannot be
+merged to this branch (e.g. due to a rebase conflict) is filtered out. A new
+merge request is then created for this branch, and tested in CI.
 
+If CI passes, the original merge requests will be merged one by one.
+
+If the batch job fails for any reason, we fall back to merging the first merge
+request, before attempting a new batch job.
+
+### Limitations
+
+* Batch mode is incompatible with the tested-by trailer, as trailers are only
+  added to the original merge requests. This means the tested-by trailer would
+  be added to each merge request's last commit, as opposed to the last commit of
+  the last merge request in the batch, which is the only that should be
+  considered tested.
+* As trailers are added to the original merge requests only, their branches
+  would need to be pushed to in order to reflect this change. This would trigger
+  CI in each of the branches again that would have to be passed before merging,
+  which effectively defeats the point of batching. To workaround this, the
+  current implementation merges to the target branch through git, instead of the
+  GitLab API. GitLab will detect the merge request as having been merged, and
+  update the merge request status accordingly, regardless of whether it has
+  passed CI. This does still mean the triggered CI jobs will be running even
+  though the merge requests are merged. marge-bot will attempt to cancel these
+  pipelines, although this doesn't work too effectively if external CI is used.
+* There is what can be considered to be a flaw in this implementation that could
+  potentially result in a non-green master; consider the following situation:
+  
+  1. A batch merge request is created, and passes CI.
+  2. Several merge requests are then merged to master, but one could fail
+     (perhaps due to someone pushing directly to master in between).
+  3. At this point, marge-bot will abort the batch job, resulting in a subset of
+     the batch merge requests having been merged.
+
+  We've guaranteed that individually, each of these merge requests pass CI, and
+  together with some extra merge requests they also pass CI, but this does not
+  guarantee that the subset will. However, this would only happen in a rather
+  convoluted situation that can be considered to be very rare.
 
 ## Restricting the list of projects marge-bot considers
 
