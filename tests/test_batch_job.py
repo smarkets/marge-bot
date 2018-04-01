@@ -1,21 +1,39 @@
 # pylint: disable=protected-access
-from unittest.mock import ANY, call, Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
+import marge.git
+import marge.project
+import marge.user
 from marge.batch_job import BatchMergeJob, CannotBatch
+from marge.gitlab import GET
 from marge.job import CannotMerge, MergeJobOptions
+from marge.merge_request import MergeRequest
+from tests.gitlab_api_mock import MockLab, Ok, commit
 
 
+# pylint: disable=attribute-defined-outside-init
 class TestBatchJob(object):
+    def setup_method(self, _method):
+        self.mocklab = MockLab()
+        self.api = self.mocklab.api
+
     def get_batch_merge_job(self, **batch_merge_kwargs):
+        api, mocklab = self.api, self.mocklab
+
+        project_id = mocklab.project_info['id']
+        merge_request_iid = mocklab.merge_request_info['iid']
+
+        merge_request = MergeRequest.fetch_by_iid(project_id, merge_request_iid, api)
+
         params = {
-            'api': Mock(),
-            'user': Mock(),
-            'project': Mock(),
-            'merge_requests': Mock(),
-            'repo': Mock(),
+            'api': api,
+            'user': marge.user.User.myself(self.api),
+            'project': marge.project.Project.fetch_by_id(project_id, api),
+            'repo': Mock(marge.git.Repo),
             'options': MergeJobOptions.default(),
+            'merge_requests': [merge_request]
         }
         params.update(batch_merge_kwargs)
         return BatchMergeJob(**params)
@@ -90,7 +108,6 @@ class TestBatchJob(object):
     @patch.object(BatchMergeJob, 'get_mr_ci_status')
     def test_ensure_mergeable_mr_ci_not_ok(self, bmj_get_mr_ci_status):
         batch_merge_job = self.get_batch_merge_job()
-        batch_merge_job._project.only_allow_merge_if_pipeline_succeeds = True
         bmj_get_mr_ci_status.return_value = 'failed'
         merge_request = Mock(
             assignee_id=batch_merge_job._user.id,
@@ -128,96 +145,28 @@ class TestBatchJob(object):
                 batch_merge_job._api,
             )
 
-    @pytest.mark.skip('Needs API')
     def test_fuse_mr_when_target_branch_was_moved(self):
         batch_merge_job = self.get_batch_merge_job()
         merge_request = Mock(target_branch='master')
-        with pytest.raises(AssertionError):
+        with pytest.raises(CannotBatch) as exc_info:
             batch_merge_job.accept_mr(merge_request, 'abc')
-        batch_merge_job._repo.fetch.assert_called_once_with('origin')
-        batch_merge_job._repo.get_commit_hash.assert_called_once_with(
-            'origin/%s' % merge_request.target_branch,
-        )
+        assert str(exc_info.value) == 'Someone was naughty and by-passed marge'
 
-    @pytest.mark.skip('Needs API')
     def test_fuse_mr_when_source_branch_was_moved(self):
+        api, mocklab = self.api, self.mocklab
         batch_merge_job = self.get_batch_merge_job()
-        batch_merge_job._repo.reset_mock()
-        merge_request = Mock(source_project_id=batch_merge_job._project.id, target_branch='master')
-
-        sha = 'abc'
-        # this will return 'abc' for both target and source branch
-        # target is expected 'abc', but merge_request.sha is a mock so would not match
-        batch_merge_job._repo.get_commit_hash.return_value = sha
-
-        with pytest.raises(AssertionError):
-            batch_merge_job.accept_mr(merge_request, sha)
-        batch_merge_job._repo.fetch.assert_called_once_with('origin')
-        batch_merge_job._repo.get_commit_hash.assert_has_calls([
-            call('origin/%s' % merge_request.target_branch),
-            call('origin/%s' % merge_request.source_branch),
-        ])
-
-    @patch.object(BatchMergeJob, 'fuse')
-    @patch.object(BatchMergeJob, 'add_trailers')
-    @patch.object(BatchMergeJob, 'get_source_project')
-    @pytest.mark.skip('Needs API')
-    def test_fuse_mr(
-        self,
-        bmj_get_source_project,
-        bmj_add_trailers,
-        bmj_fuse,
-    ):
-        sha = 'abc'
-        new_sha = 'abcd'
-        batch_merge_job = self.get_batch_merge_job()
-        batch_merge_job._repo.reset_mock()
-        batch_merge_job._repo.get_commit_hash.return_value = sha
         merge_request = Mock(
-            sha=sha,
             source_project_id=batch_merge_job._project.id,
             target_branch='master',
+            source_branch=self.mocklab.merge_request_info['source_branch'],
         )
-        bmj_fuse.return_value = new_sha
-        bmj_add_trailers.return_value = new_sha
-        bmj_get_source_project.return_value = batch_merge_job._project
 
-        r_sha = batch_merge_job.accept_mr(merge_request, sha)
+        api.add_transition(
+            GET('/projects/1234/repository/branches/useless_new_feature'),
+            Ok({'commit': commit(commit_id='abc', status='running')}),
+        )
 
-        batch_merge_job._repo.fetch.assert_called_once_with('origin')
-        batch_merge_job._repo.get_commit_hash.assert_has_calls([
-            call('origin/%s' % merge_request.target_branch),
-            call('origin/%s' % merge_request.source_branch),
-        ])
+        with pytest.raises(CannotMerge) as exc_info:
+            batch_merge_job.accept_mr(merge_request, mocklab.initial_master_sha)
 
-        batch_merge_job._repo.checkout_branch.assert_has_calls([
-            call(
-                merge_request.source_branch,
-                'origin/%s' % merge_request.source_branch,
-            ),
-            call(
-                merge_request.target_branch,
-                'origin/%s' % merge_request.target_branch,
-            ),
-        ])
-        bmj_fuse.assert_has_calls([
-            call(
-                merge_request.source_branch,
-                'origin/%s' % merge_request.target_branch,
-            ),
-            call(
-                merge_request.target_branch,
-                merge_request.source_branch,
-            ),
-        ])
-        bmj_add_trailers.assert_called_once_with(merge_request)
-        bmj_get_source_project.assert_called_once_with(merge_request)
-        batch_merge_job._repo.push.assert_has_calls([
-            call(
-                merge_request.source_branch,
-                None,
-                force=True,
-            ),
-            call(merge_request.target_branch),
-        ])
-        assert r_sha == new_sha
+        assert str(exc_info.value) == 'Someone pushed to branch while we were trying to merge'
