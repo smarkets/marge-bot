@@ -181,7 +181,7 @@ docker run \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-For completeness sake, here's how we run marge-bot at smarkets ourselves:
+For completeness sake, here's how we run marge-bot at Smarkets ourselves:
 ```bash
 docker run \
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
@@ -209,7 +209,7 @@ Once running, the bot will continuously monitor all projects that have its user 
 will pick up any changes in membership at runtime.
 
 
-## Suggested worfklow
+## Suggested workflow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
 
 2. Both review the code and after all issues they raise are resolved by Alice,
@@ -232,7 +232,7 @@ two [standardized git commit trailers](https://www.kernel.org/doc/html/v4.11/pro
 the name of the `marge-bot` user in GitLab).
 
 If you pass `--add-reviewers` and the list of approvers is non-empty and you
-have enough approvers to meet the required approver count, Marge will add a the
+have enough approvers to meet the required approver count, Marge will add the
 following header to each commit message and each reviewer as it rebases the
 target branch into your PR branch:
 
@@ -361,7 +361,7 @@ look-ahead and will match any string not starting with `project/with_reviewers`.
 ## Restricting the list of branches marge-bot considers
 
 It is also possible to restrict the branches marge-bot watches for incoming
-merge requests. By default, marge-bot will process MRs targetted for any branch.
+merge requests. By default, marge-bot will process MRs targeted for any branch.
 You may specify a regexp that target branches must match with `--branch-regexp`.
 
 This could be useful, if for instance, you wanted to set a regular freeze
@@ -387,7 +387,7 @@ git config --global alias.revert-mr '!f() { REVS=$(git mr-revs "$1"); URL="$(git
 ```
 
 E.g. `git revert-mr 123`. This will create a single commit reverting all commits
-that are part of MR 123 with a a commit message that looks like this:
+that are part of MR 123 with a commit message that looks like this:
 
 ```
 Revert <http://gitlab.example.com/mygropup/myproject/merge_requests/123>
