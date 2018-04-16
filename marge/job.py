@@ -322,11 +322,7 @@ def update_from_target_branch_and_push(
     branch_updated = branch_rewritten = changes_pushed = False
     try:
         fuse = repo.merge if use_merge_strategy else repo.rebase
-        rewritten_sha = updated_sha = fuse(
-            branch=source_branch,
-            new_base=target_branch,
-            source_repo_url=source_repo_url
-        )
+        rewritten_sha = updated_sha = fuse(source_branch, target_branch, source_repo_url)
         branch_updated = True
         # The fuse above fetches origin again, so we are now safe to fetch
         # the sha from the remote target branch.
