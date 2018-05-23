@@ -1,7 +1,7 @@
 from . import gitlab
 
 
-GET = gitlab.GET
+GET, POST = gitlab.GET, gitlab.POST
 
 
 class Pipeline(gitlab.Resource):
@@ -26,3 +26,24 @@ class Pipeline(gitlab.Resource):
     @property
     def status(self):
         return self.info['status']
+
+    @property
+    def id(self):
+        return self.info['id']
+
+    def get_jobs(self, project_id):
+        jobs_info = self._api.call(GET(
+            '/projects/{project_id}/pipelines/{pipeline_id}/jobs'.format(project_id=project_id, pipeline_id=self.id)
+        ))
+
+        return jobs_info
+
+    def create(self, project_id, branch):
+        try:
+            new_pipeline = self._api.call(POST(
+                '/projects/{project_id}/pipeline'.format(project_id=project_id), {'ref': branch}
+            ))
+        except:
+            new_pipeline = None
+
+        return new_pipeline
