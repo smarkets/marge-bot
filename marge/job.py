@@ -284,7 +284,7 @@ def update_from_target_branch_and_push(
         reviewers=None,
         tested_by=None,
         part_of=None,
-        use_merge_strategy=False,
+        use_merge_strategy=False
 ):
     """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
     The update strategy can either be rebase or merge. The default is rebase.
