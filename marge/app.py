@@ -7,6 +7,7 @@ import logging
 import re
 import sys
 import tempfile
+import time
 from datetime import timedelta
 
 import configargparse
@@ -241,5 +242,11 @@ def main(args=None):
             )
         )
 
-        marge_bot = bot.Bot(api=api, config=config)
-        marge_bot.start()
+        while True:
+            try:
+                marge_bot = bot.Bot(api=api, config=config)
+                marge_bot.start()
+            except Exception as e:
+                logging.warning('Got exception "%r". Restarting the bot in 10s...' % e)
+                time.sleep(10)
+                pass
