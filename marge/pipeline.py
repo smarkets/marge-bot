@@ -33,7 +33,9 @@ class Pipeline(gitlab.Resource):
 
     def get_jobs(self, project_id):
         jobs_info = self._api.call(GET(
-            '/projects/{project_id}/pipelines/{pipeline_id}/jobs'.format(project_id=project_id, pipeline_id=self.id)
+            '/projects/{project_id}/pipelines/{pipeline_id}/jobs'.format(
+                project_id=project_id, pipeline_id=self.id
+            )
         ))
 
         return jobs_info
@@ -43,7 +45,7 @@ class Pipeline(gitlab.Resource):
             new_pipeline = self._api.call(POST(
                 '/projects/{project_id}/pipeline'.format(project_id=project_id), {'ref': branch}
             ))
-        except:
+        except gitlab.ApiError:
             new_pipeline = None
 
         return new_pipeline

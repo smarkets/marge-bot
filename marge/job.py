@@ -1,6 +1,7 @@
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 import logging as log
 import time
+import re
 from collections import namedtuple
 from datetime import datetime, timedelta
 
@@ -236,7 +237,9 @@ class MergeJob(object):
                     else:
                         raise CannotMerge(message)
             else:
-                message = 'No pipeline listed for {sha} on branch {branch}.'.format(sha=commit_sha, branch=source_branch)
+                message = 'No pipeline listed for {sha} on branch {branch}.'.format(
+                    sha=commit_sha, branch=source_branch
+                )
                 log.warning(message)
                 if create_pipeline:
                     trigger = True
@@ -255,7 +258,8 @@ class MergeJob(object):
             if trigger:
                 if merge_request.triggered(self._user.id):
                     raise CannotMerge(
-                        '{message}\n\nI don\'t know what else I can do. You may need to manually trigger the pipeline or rename the branch.'.format(
+                        '{message}\n\nI don\'t know what else I can do. ' +
+                        'You may need to manually trigger the pipeline or rename the branch.'.format(
                             message=message
                         )
                     )
@@ -269,7 +273,9 @@ class MergeJob(object):
                     )
                     ci_status = None
                 else:
-                    raise CannotMerge('{message}\n\nI couldn\'t create a new pipeline.'.format(message=message))
+                    raise CannotMerge(
+                        '{message}\n\nI couldn\'t create a new pipeline.'.format(message=message)
+                    )
 
             if ci_status == 'success':
                 return
@@ -454,7 +460,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False,
-            job_regexp='', create_pipeline=False
+            job_regexp=re.compile('.*'), create_pipeline=False
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
