@@ -228,7 +228,6 @@ class MergeJob(object):
             if current_pipeline:
                 try:
                     assert current_pipeline.sha == commit_sha
-                    ci_status = current_pipeline.status
                 except AssertionError:
                     message = 'The latest pipeline does not match this commit.'
                     if create_pipeline:
@@ -236,6 +235,16 @@ class MergeJob(object):
                         trigger = True
                     else:
                         raise CannotMerge(message)
+                else:
+                    ci_status = current_pipeline.status
+                    jobs = current_pipeline.get_jobs(source_project_id)
+                    if not any(self.opts.job_regexp.match(j['name']) for j in jobs):
+                        if create_pipeline:
+                            message = 'CI doesn\'t contain the required jobs.'
+                            log.warning(message)
+                            trigger = True
+                        else:
+                            raise CannotMerge('CI doesn\'t contain the required jobs.')
             else:
                 message = 'No pipeline listed for {sha} on branch {branch}.'.format(
                     sha=commit_sha, branch=source_branch
@@ -246,29 +255,21 @@ class MergeJob(object):
                 else:
                     ci_status = None
 
-            jobs = current_pipeline.get_jobs(source_project_id)
-            if not any(self.opts.job_regexp.match(j['name']) for j in jobs):
-                if create_pipeline:
-                    message = 'CI doesn\'t contain the required jobs.'
-                    log.warning(message)
-                    trigger = True
-                else:
-                    raise CannotMerge('CI doesn\'t contain the required jobs.')
-
             if trigger:
                 if merge_request.triggered(self._user.id):
                     raise CannotMerge(
-                        '{message}\n\nI don\'t know what else I can do. ' +
-                        'You may need to manually trigger the pipeline or rename the branch.'.format(
+                        ('{message}\n\nI don\'t know what else I can do. ' +
+                         'You may need to manually trigger the pipeline or rename the branch.').format(
                             message=message
                         )
                     )
-                new_pipeline = current_pipeline.create(source_project_id, merge_request.source_branch)
+                new_pipeline = Pipeline.create(source_project_id, merge_request.source_branch, api)
                 if new_pipeline:
-                    log.warning('New pipeline created')
+                    log.info('New pipeline created')
                     merge_request.comment(
-                        '{message}\n\nI created a new pipeline for {sha}.'.format(
-                            message=message, sha=merge_request.sha
+                        ('{message}\n\nI created a new pipeline for {sha}: ' +
+                         '[#{pipeline_id}](/../pipelines/{pipeline_id}).').format(
+                            message=message, sha=merge_request.sha, pipeline_id=new_pipeline.id
                         )
                     )
                     ci_status = None
