@@ -83,7 +83,7 @@ class Api(gitlab.Api):
         self.state = initial_state
         self.notes = []
 
-    def call(self, command, sudo=None):
+    def call(self, command, sudo=None, response_json=None):
         log.info(
             'CALL: %s%s @ %s',
             'sudo %s ' % sudo if sudo is not None else '',
@@ -134,8 +134,11 @@ class Api(gitlab.Api):
             )
             self._transitions[_key(command, sudo, _from_state)] = (response, to_state)
 
-    def add_resource(self, path, info, sudo=None, from_state=None, to_state=None):
-        self.add_transition(GET(path.format(attrs(info))), Ok(info), sudo, from_state, to_state)
+    def add_resource(self, path, info, sudo=None, from_state=None, to_state=None, result=None):
+        if result is None:
+            self.add_transition(GET(path.format(attrs(info))), Ok(info), sudo, from_state, to_state)
+        else:
+            self.add_transition(GET(path.format(attrs(info))), Ok(result), sudo, from_state, to_state)
 
     def add_user(self, info, is_current=False, sudo=None, from_state=None, to_state=None):
         self.add_resource('/users/{0.id}', info, sudo, from_state, to_state)
@@ -170,6 +173,8 @@ class Api(gitlab.Api):
             Ok([info]),
             sudo, from_state, to_state,
         )
+        path = '/projects/%s/pipelines/{0.id}/jobs' % project_id
+        self.add_resource(path, info, sudo, None, None, result=info['jobs'])
 
     def expected_note(self, merge_request, note, sudo=None, from_state=None, to_state=None):
         self.add_transition(

@@ -1,6 +1,7 @@
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 import logging as log
 import time
+import re
 from collections import namedtuple
 from datetime import datetime, timedelta
 
@@ -122,14 +123,60 @@ class MergeJob(object):
             self._api,
         )
         current_pipeline = next(iter(pipelines), None)
+        create_pipeline = self.opts.create_pipeline
+
+        trigger = False
 
         if current_pipeline and current_pipeline.sha == commit_sha:
             ci_status = current_pipeline.status
+            jobs = current_pipeline.get_jobs()
+            if not any(self.opts.job_regexp.match(j['name']) for j in jobs):
+                if create_pipeline:
+                    message = 'CI doesn\'t contain the required jobs.'
+                    log.warning(message)
+                    trigger = True
+                else:
+                    raise CannotMerge('CI doesn\'t contain the required jobs.')
         else:
-            log.warning('No pipeline listed for %s on branch %s', commit_sha, merge_request.source_branch)
+            message = 'No pipeline listed for {sha} on branch {branch}.'.format(
+                sha=commit_sha, branch=merge_request.source_branch
+            )
+            log.warning(message)
+            ci_status = None
+            if create_pipeline:
+                trigger = True
+
+        if trigger:
+            self.trigger_pipeline(merge_request, message)
             ci_status = None
 
         return ci_status
+
+    def trigger_pipeline(self, merge_request, message=''):
+        if merge_request.triggered(self._user.id):
+            raise CannotMerge(
+                ('{message}\n\nI don\'t know what else I can do. ' +
+                 'You may need to manually trigger the pipeline or rename the branch.').format(
+                    message=message
+                )
+            )
+        new_pipeline = Pipeline.create(
+            merge_request.source_project_id,
+            merge_request.source_branch,
+            self._api,
+        )
+        if new_pipeline:
+            log.info('New pipeline created')
+            merge_request.comment(
+                ('{message}\n\nI created a new pipeline for {sha}: ' +
+                 '[#{pipeline_id}](/../pipelines/{pipeline_id}).').format(
+                    message=message, sha=merge_request.sha, pipeline_id=new_pipeline.id
+                )
+            )
+        else:
+            raise CannotMerge(
+                '{message}\n\nI couldn\'t create a new pipeline.'.format(message=message)
+            )
 
     def wait_for_ci_to_pass(self, merge_request, commit_sha=None):
         time_0 = datetime.utcnow()
@@ -238,7 +285,7 @@ class MergeJob(object):
         target_branch = merge_request.target_branch
         assert source_repo_url != repo.remote_url
         if source_repo_url is None and source_branch == target_branch:
-            raise CannotMerge('source and target branch seem to coincide!')
+            raise CannotMerge('Source and target branch seem to coincide!')
 
         branch_updated = branch_rewritten = changes_pushed = False
         try:
@@ -252,21 +299,21 @@ class MergeJob(object):
             # the sha from the remote target branch.
             target_sha = repo.get_commit_hash('origin/' + target_branch)
             if updated_sha == target_sha:
-                raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
+                raise CannotMerge('These changes already exist in branch `{}`.'.format(target_branch))
             rewritten_sha = self.add_trailers(merge_request) or updated_sha
             branch_rewritten = True
             repo.push(source_branch, source_repo_url=source_repo_url, force=True)
             changes_pushed = True
         except git.GitError:
             if not branch_updated:
-                raise CannotMerge('got conflicts while rebasing, your problem now...')
+                raise CannotMerge('Got conflicts while rebasing, your problem now...')
             if not branch_rewritten:
-                raise CannotMerge('failed on filter-branch; check my logs!')
+                raise CannotMerge('Failed on filter-branch; check my logs!')
             if not changes_pushed:
                 if self.opts.use_merge_strategy:
-                    raise CannotMerge('failed to push merged changes, check my logs!')
+                    raise CannotMerge('Failed to push merged changes, check my logs!')
                 else:
-                    raise CannotMerge('failed to push rebased changes, check my logs!')
+                    raise CannotMerge('Failed to push rebased changes, check my logs!')
 
             raise
         else:
@@ -298,6 +345,8 @@ JOB_OPTIONS = [
     'embargo',
     'ci_timeout',
     'use_merge_strategy',
+    'job_regexp',
+    'create_pipeline',
 ]
 
 
@@ -312,7 +361,8 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False
+            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False,
+            job_regexp=re.compile('.*'), create_pipeline=False
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -326,6 +376,8 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             embargo=embargo,
             ci_timeout=ci_timeout,
             use_merge_strategy=use_merge_strategy,
+            job_regexp=job_regexp,
+            create_pipeline=create_pipeline,
         )
 
 

@@ -32,6 +32,7 @@ def _pipeline(sha1, status):
         'status': status,
         'ref': 'useless_new_feature',
         'sha': sha1,
+        'jobs': [{'name': 'job1'}, {'name': 'job2'}],
     }
 
 
@@ -325,7 +326,7 @@ class TestUpdateAndAccept(object):
             Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
             from_state='passed', to_state='rejected_for_mysterious_reasons',
         )
-        message = "Gitlab refused to merge this request and I don't know why!"
+        message = "GitLab refused to merge this request and I don't know why!"
         with mocklab.branch_update(), mocklab.expected_failure(message):
             job = self.make_job()
             job.execute()
@@ -381,7 +382,7 @@ class TestUpdateAndAccept(object):
 
     def test_fails_if_changes_already_exist(self, unused_time_sleep):
         api, mocklab = self.api, self.mocklab
-        expected_message = 'these changes already exist in branch `{}`'.format(
+        expected_message = 'These changes already exist in branch `{}`.'.format(
             mocklab.merge_request_info['target_branch'],
         )
         with mocklab.expected_failure(expected_message):

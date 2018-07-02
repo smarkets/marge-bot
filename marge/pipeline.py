@@ -31,6 +31,18 @@ class Pipeline(gitlab.Resource):
 
         return [cls(api, pipeline_info, project_id) for pipeline_info in pipelines_info]
 
+    @classmethod
+    def create(cls, project_id, ref, api):
+        try:
+            pipeline_info = {}
+            api.call(POST(
+                '/projects/{project_id}/pipeline'.format(project_id=project_id), {'ref': ref}),
+                response_json=pipeline_info
+            )
+            return cls(api, pipeline_info, project_id)
+        except gitlab.ApiError:
+            return None
+
     @property
     def project_id(self):
         return self.info['project_id']
@@ -55,3 +67,10 @@ class Pipeline(gitlab.Resource):
         return self._api.call(POST(
             '/projects/{0.project_id}/pipelines/{0.id}/cancel'.format(self),
         ))
+
+    def get_jobs(self):
+        jobs_info = self._api.call(GET(
+            '/projects/{0.project_id}/pipelines/{0.id}/jobs'.format(self),
+        ))
+
+        return jobs_info

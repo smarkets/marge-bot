@@ -118,10 +118,10 @@ class SingleMergeJob(MergeJob):
                     log.info('Merge request is already merged, someone was faster!')
                     updated_into_up_to_date_target_branch = True
                 else:
-                    raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
+                    raise CannotMerge("GitLab refused to merge this request and I don't know why!")
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
-                raise CannotMerge('had some issue with GitLab, check my logs...')
+                raise CannotMerge('Had some issue with GitLab, check my logs...')
             else:
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
@@ -137,7 +137,7 @@ class SingleMergeJob(MergeJob):
             if merge_request.state == 'merged':
                 return  # success!
             if merge_request.state == 'closed':
-                raise CannotMerge('someone closed the merge request while merging!')
+                raise CannotMerge('Someone closed the merge request while merging!')
             assert merge_request.state in ('opened', 'reopened', 'locked'), merge_request.state
 
             log.info('Giving %s more secs for !%s to be merged...', waiting_time_in_secs, merge_request.iid)

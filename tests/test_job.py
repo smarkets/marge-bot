@@ -1,4 +1,5 @@
 # pylint: disable=protected-access
+import re
 from datetime import timedelta
 from unittest.mock import ANY, Mock, patch
 
@@ -42,7 +43,9 @@ class TestJob(object):
 
     def test_get_mr_ci_status(self):
         with patch('marge.job.Pipeline') as pipeline_class:
-            pipeline_class.pipelines_by_branch.return_value = [Mock(sha='abc', status='success')]
+            pipeline = Mock(sha='abc', status='success')
+            pipeline_class.pipelines_by_branch.return_value = [pipeline]
+            pipeline.get_jobs.return_value = [{'name': 'job1'}]
             merge_job = self.get_merge_job()
             merge_request = Mock(sha='abc')
 
@@ -176,6 +179,8 @@ class TestMergeJobOptions(object):
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
             use_merge_strategy=False,
+            job_regexp=re.compile('.*'),
+            create_pipeline=False,
         )
 
     def test_default_ci_time(self):
