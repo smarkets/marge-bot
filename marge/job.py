@@ -255,7 +255,9 @@ class MergeJob(object):
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
             rewritten_sha = self.add_trailers(merge_request) or updated_sha
             branch_rewritten = True
-            repo.push(source_branch, source_repo_url=source_repo_url, force=True)
+            source_sha = repo.get_commit_hash('source/' + source_branch)
+            if rewritten_sha != source_sha:
+                repo.push(source_branch, source_repo_url=source_repo_url, force=True)
             changes_pushed = True
         except git.GitError:
             if not branch_updated:
