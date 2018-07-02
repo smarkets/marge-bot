@@ -116,15 +116,26 @@ class MergeRequest(gitlab.Resource):
 
         return self._api.call(POST(notes_url, {'body': message}))
 
-    def accept(self, remove_branch=False, sha=None):
-        return self._api.call(PUT(
-            '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
-            dict(
-                should_remove_source_branch=remove_branch,
-                merge_when_pipeline_succeeds=True,
-                sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
-            ),
-        ))
+    def accept(self, remove_branch=False, sha=None, trust_pipeline=True, project=None):
+        reset = False
+        if not trust_pipeline:
+            # Temporarily remove flag, because we want to merge based on another pipeline
+            if project.only_allow_merge_if_pipeline_succeeds:
+                reset = True
+                project.set_only_allow_merge_if_pipeline_succeeds(False, self._api)
+        try:
+            result = self._api.call(PUT(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
+                dict(
+                    should_remove_source_branch=remove_branch,
+                    merge_when_pipeline_succeeds=trust_pipeline,
+                    sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
+                ),
+            ))
+        finally:
+            if reset:
+                project.set_only_allow_merge_if_pipeline_succeeds(True, self._api)
+        return result
 
     def close(self):
         return self._api.call(PUT(

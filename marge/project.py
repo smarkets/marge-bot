@@ -1,11 +1,12 @@
 import logging as log
 from enum import Enum, unique
 from functools import partial
+from requests.utils import quote
 
 from . import gitlab
 
 
-GET = gitlab.GET
+GET, PUT, POST, DELETE = gitlab.GET, gitlab.PUT, gitlab.POST, gitlab.DELETE
 
 
 class Project(gitlab.Resource):
@@ -71,6 +72,34 @@ class Project(gitlab.Resource):
         effective_access = permissions['project_access'] or permissions['group_access']
         assert effective_access is not None, "GitLab failed to provide user permissions on project"
         return AccessLevel(effective_access['access_level'])
+
+    def set_only_allow_merge_if_pipeline_succeeds(self, value, api):
+        return api.call(PUT(
+            '/projects/%s' % self.info['id'],
+            {'only_allow_merge_if_pipeline_succeeds': value}
+        ))
+
+    def protect_branch(self, branch, api):
+        return api.call(POST(
+            '/projects/%s/protected_branches' % self.info['id'],
+            {'name': branch}
+        ))
+
+    def unprotect_branch(self, branch, api):
+        return api.call(DELETE('/projects/{project_id}/protected_branches/{name}'.format(
+            project_id=self.info['id'], name=quote(branch, safe='')
+        )))
+
+    def create_branch(self, branch, sha, api):
+        return api.call(POST(
+            '/projects/%s/repository/branches' % self.info['id'],
+            {'branch': branch, 'ref': sha}
+        ))
+
+    def delete_branch(self, branch, api):
+        return api.call(DELETE('/projects/{project_id}/repository/branches/{name}'.format(
+            project_id=self.info['id'], name=quote(branch, safe='')
+        )))
 
 
 @unique

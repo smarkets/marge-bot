@@ -176,6 +176,7 @@ class TestMergeJobOptions(object):
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
             use_merge_strategy=False,
+            temp_branch='',
         )
 
     def test_default_ci_time(self):

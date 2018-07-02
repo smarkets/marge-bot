@@ -65,14 +65,18 @@ class SingleMergeJob(MergeJob):
 
             self.maybe_reapprove(merge_request, approvals)
 
-            if source_project.only_allow_merge_if_pipeline_succeeds:
+            trust = True
+            if self._project.only_allow_merge_if_pipeline_succeeds:
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
+                if self.opts.temp_branch and source_project is not self._project:
+                    trust = False
 
             self.ensure_mergeable_mr(merge_request)
 
             try:
-                merge_request.accept(remove_branch=True, sha=actual_sha)
+                merge_request.accept(remove_branch=True, sha=actual_sha, trust_pipeline=trust,
+                                     project=self._project)
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we updated, just try again
@@ -126,6 +130,8 @@ class SingleMergeJob(MergeJob):
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
                 raise CannotMerge('had some issue with GitLab, check my logs...')
             else:
+                # temp_branch can be removed before because it was only used for CI, not for merging
+                self.delete_temp_branch(source_project.id)
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
 
