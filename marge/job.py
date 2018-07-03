@@ -168,7 +168,7 @@ class MergeJob(object):
         if new_pipeline:
             log.info('New pipeline created')
             merge_request.comment(
-                ('{message}\n\nI created a new pipeline for {sha}: ' +
+                ('{message}\n\nI created a new pipeline for [{sha:.8s}](/../commit/{sha}): ' +
                  '[#{pipeline_id}](/../pipelines/{pipeline_id}).').format(
                     message=message, sha=merge_request.sha, pipeline_id=new_pipeline.id
                 )
