@@ -156,6 +156,6 @@ class MergeRequest(gitlab.Resource):
             notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
 
         comments = self._api.collect_all_pages(GET(notes_url))
-        message = 'I created a new pipeline for {sha}'.format(sha=self.sha)
+        message = 'I created a new pipeline for [{sha:.8s}]'.format(sha=self.sha)
         my_comments = [c['body'] for c in comments if c['author']['id'] == user_id]
         return any(message in c for c in my_comments)
