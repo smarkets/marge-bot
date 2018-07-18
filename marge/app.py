@@ -104,19 +104,21 @@ def _parse_config(args):
         '--use-merge-strategy',
         action='store_true',
         help=(
-            'Use git merge instead of git rebase (EXPERIMENTAL)\n'
-            'Enable if you use a workflow based on merge-commits and not linear history.\n'
+            'Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)\n'
+            'If you need to use a strict no-rebase workflow (in most cases\n'
+            'you don\'t want this, even if you configured gitlab to use merge requests\n'
+            'to use merge commits on the *target* branch (the default).)'
         ),
     )
-    experimental_group.add_argument(
+    parser.add_argument(
         '--add-tested',
         action='store_true',
         help='Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.\n',
     )
-    experimental_group.add_argument(
+    parser.add_argument(
         '--batch',
         action='store_true',
-        help='Enable processing MRs in batches (EXPERIMENTAL)\n',
+        help='Enable processing MRs in batches\n',
     )
     parser.add_argument(
         '--add-part-of',
@@ -180,6 +182,11 @@ def _parse_config(args):
         help='Debug logging (includes all HTTP requests etc).\n',
     )
     config = parser.parse_args(args)
+
+    if config.use_merge_strategy and config.batch:
+        raise MargeBotCliArgError('--use-merge-strategy and --batch are currently mutually exclusive')
+    if config.use_merge_strategy and config.add_tested:
+        raise MargeBotCliArgError('--use-merge-strategy and --add-tested are currently mutually exclusive')
 
     cli_args = []
     # pylint: disable=protected-access

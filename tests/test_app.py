@@ -118,7 +118,7 @@ def test_add_tested():
 
 def test_use_merge_strategy_and_add_tested_are_mutualy_exclusive():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
-        with pytest.raises(SystemExit):
+        with pytest.raises(app.MargeBotCliArgError):
             with main('--use-merge-strategy --add-tested'):
                 pass
 
