@@ -68,6 +68,9 @@ class SingleMergeJob(MergeJob):
             if source_project.only_allow_merge_if_pipeline_succeeds:
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
+
+            self.ensure_mergeable_mr(merge_request)
+
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
