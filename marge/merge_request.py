@@ -1,3 +1,4 @@
+import logging as log
 from . import gitlab
 from .approvals import Approvals
 
@@ -38,6 +39,7 @@ class MergeRequest(gitlab.Resource):
                 {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
             ))
         except gitlab.InternalServerError:
+            log.warning('Internal server error from GitLab! Ignoring...')
             all_merge_request_infos = []
         my_merge_request_infos = [
             mri for mri in all_merge_request_infos
