@@ -47,7 +47,13 @@ of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 ## Configuring
 
-Args that start with '--' (eg. --auth-token) can also be set in a config file (specified via --config-file). The config file uses YAML syntax and must represent a YAML 'mapping' (for details, see http://learn.getgrav.org/advanced/yaml). If an arg is specified in more than one place, then commandline values override environment variables which override config file values which override defaults.
+Args that start with '--' (eg. --auth-token) can also be set in a config file
+(specified via --config-file). The config file uses YAML syntax and must
+represent a YAML 'mapping' (for details, see
+http://learn.getgrav.org/advanced/yaml). If an arg is specified in more than one
+place, then commandline values override environment variables which override
+config file values which override defaults.
+
 ```bash
 optional arguments:
   -h, --help            show this help message and exit
@@ -140,17 +146,30 @@ code strips trailing whitespace in the name, so it won't show up elsewhere).
 Then add `marge-bot` to your projects as `Developer` or `Master`, the latter
 being required if she will merge to protected branches.
 
-For certain features, namely, `--impersonate-approvers`, and
-`--add-reviewers`, you will need to grant `marge-bot` admin privileges as
-well. In the latter, so that she can query the email of the reviewers to include
-it in the commit.
+For certain features, namely, `--impersonate-approvers`, and `--add-reviewers`,
+you will need to grant `marge-bot` admin privileges as well. In the latter, so
+that she can query the email of the reviewers to include it in the commit. Note
+that if you're trying to run marge-bot against a GitLab instance you don't have
+yourself admin access to (e.g. https://www.gitlab.com), you won't be able to use
+features that require admin for marge-bot.
 
-Second, you need an authentication token for the `marge-bot` user. If she was
-made an admin to handle approver impersonation and/or adding a reviewed-by
-field, then you will need to use the **PRIVATE TOKEN** found in her `Profile
-Settings`. Otherwise, you can just use a personal access token that can be
-generated from `Profile Settings -> Access Tokens`. Make sure it has `api` and
-`read_user` scopes. Put the token in a file, e.g. `marge-bot.token`.
+Second, you need an authentication token for the `marge-bot` user. You will need
+to select the `api` and `read_user` scopes in all cases.
+
+If marge-bot was made an admin to handle approver impersonation and/or adding a
+reviewed-by field, then you will also need to add **`sudo`** scope under
+`Impersonation Tokens` in the User Settings. Assuming your GitLab install is
+install is `https://your-gitlab.example.com` the link will be at
+`https://your-gitlab.example.com/admin/users/marge-bot/impersonation_tokens`).
+
+On older GitLab installs, to be able to use impersonation features if marge-bot
+was made an admin, use the **PRIVATE TOKEN** found in marge-bot's `Profile
+Settings`; otherwise just use a personal token (you will need to impersonate the
+marge-bot user via the admin UI to get the private token, it should then be at
+`http://my-gitlab.example.com/profile/personal_access_tokens` reachable via
+`Profile Settings -> Acess Tokens`).
+
+Once you have the token, put it in a file, e.g. `marge-bot.token`.
 
 Finally, create a new ssh key-pair, e.g like so
 
@@ -158,42 +177,57 @@ Finally, create a new ssh key-pair, e.g like so
 ssh-keygen -t ed25519 -C marge-bot@invalid -f marge-bot-ssh-key -P ''
 ```
 
-Add the public key (`marge-bot-ssh-key.pub`) to the user's `SSH Keys` in Gitlab
+Add the public key (`marge-bot-ssh-key.pub`) to the user's `SSH Keys` in GitLab
 and keep the private one handy.
 
-The bot can then be started from the command line as follows (using the minimal settings):
-```bash
-marge.app --auth-token-file marge-bot.token \
-          --gitlab-url 'http://your.gitlab.instance.com' \
-          --ssh-key-file marge-bot-ssh-key
-```
+### Running marge-bot in docker (what we do)
 
-Alternatively, you can also pass the auth token as the environment variable
-`MARGE_AUTH_TOKEN` and the **CONTENTS** of the ssh-key-file as the environment
-variable `MARGE_SSH_KEY`. This is very useful for running the official docker
-image we provide:
+Assuming you have already got docker installed, the quickest and most minimal
+way to run marge is like so (*but see note about passing secrets on the
+commandline below*):
 
 ```bash
-docker run \
+docker run --restart=on-failure \ # restart if marge crashes because GitLab is flaky
   -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
   -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
   smarkets/marge-bot \
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-For completeness sake, here's how we run marge-bot at Smarkets ourselves:
-```bash
-docker run \
-  -e MARGE_AUTH_TOKEN="$(cat marge-bot.token)" \
-  -e MARGE_SSH_KEY="$(cat marge-bot-ssh-key)" \
-  smarkets/marge-bot \
-  --add-tested \
-  --add-reviewers \
-  --impersonate-approvers \
-  --gitlab-url='http://your.gitlab.instance.com'
+Note that other users on the machine can see the secrets in `ps`, because
+although they are env vars *inside* docker, we used a commandline switch to set
+them for docker run.
+
+To avoid that you have several options. You can just use a yaml file and mount
+that into the container, for example this is how we actually run marge-bot at
+Smarkets ourselves:
+
+```yaml
+# marge-bot-config.yml
+add-part-of: true
+add-reviewers: true
+add-tested: true
+impersonate-approvers: true
+gitlab-url: "https://git.corp.smarkets.com"
+project-regexp: "smarkets/smarkets$"
+auth-token: "WoNtTelly0u"
+ssh-key: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    [...]
+    -----END OPENSSH PRIVATE KEY-----
 ```
 
-Kubernetes templating with ktmpl:
+```bash
+docker run --restart=on-failure \
+  smarkets/marge-bot \
+  -v "$(pwd)":/configuration
+  --config-file=/configuration/marge-bot-config.yaml
+```
+
+### Running marge-bot in kubernetes
+It's also possible to run marge in kubernetes, e.g. here's how you use a ktmpl
+template:
+
 ```bash
 ktmpl ./deploy.yml \
 --parameter APP_NAME "marge-bot" \
@@ -208,6 +242,32 @@ ktmpl ./deploy.yml \
 Once running, the bot will continuously monitor all projects that have its user as a member and
 will pick up any changes in membership at runtime.
 
+### Running marge-bot as a plain python app
+
+#### Installing marge-bot with nix
+
+Alternatively, if you prefer not to use docker, you can also directly run marge.
+If you use [https://nixos.org/nix/](nix) do `nix-env --install -f default.nix`.
+
+The nix install should be fully reproducible on any version of linux (and also
+work on OS X, although this is not something we properly test). If you don't
+want to use docker we recommend you give nix a try.
+
+#### Installing marge-bot the old-fashioned way
+
+Finally, although this is our least preferred alternative, you can always do
+`python3 setup.py install` (note that you will need python3.6).
+
+Afterwards, the minimal way to run marge is as follows.
+
+```bash
+marge.app --auth-token-file marge-bot.token \
+          --gitlab-url 'http://your.gitlab.instance.com' \
+          --ssh-key-file marge-bot-ssh-key
+```
+
+However, we suggest you use a systemd unit file or some other mechanism to
+automatically restart marge-bot in case of intermittent GitLab problems.
 
 ## Suggested workflow
 1. Alice creates a new merge request and assigns Bob and Charlie as reviewers
@@ -262,7 +322,7 @@ commits introduced by a single Merge Request when using a fast-forward/rebase
 based merge workflow.
 
 ## Impersonating approvers
-If you want a full audit trail, you will configure Gitlab
+If you want a full audit trail, you will configure GitLab
 [require approvals](https://docs.gitlab.com/ee/user/project/merge_requests/merge_request_approvals.html#approvals-required)
 for PRs and also turn on
 [reset approvals on push](https://docs.gitlab.com/ee/user/project/merge_requests/merge_request_approvals.html#reset-approvals-on-push).
@@ -292,9 +352,9 @@ significantly speed up the rate at which marge-bot processes jobs - not just
 because merge requests can be tested together, but because marge-bot will ensure
 the whole set of merge requests is mergeable first. This includes, for example,
 checking if a merge request is marked as WIP, or does not have enough approvals.
-Essentially, users get faster feedback if there is an issue.
-
-This is currently an experimental feature.
+Essentially, users get faster feedback if there is an issue. Note that you
+probably won't need this unless you have tens of merge requests a day (or
+extremely slow CI).
 
 ### How it works
 
@@ -315,11 +375,15 @@ request, before attempting a new batch job.
 
 ### Limitations
 
-* Batch mode is incompatible with the tested-by trailer, as trailers are only
-  added to the original merge requests. This means the tested-by trailer would
-  be added to each merge request's last commit, as opposed to the last commit of
-  the last merge request in the batch, which is the only that should be
-  considered tested.
+* Currently we still add the tested-by trailer for each merge request's final
+  commit in the batch, but it would probably be more correct to add the trailer
+  only to the last commit in the whole batch request (since that's the only one
+  we know passed for sure in that combination). We might change this in the
+  future or make it configurable, but note that there's still a much stronger
+  chance all intermittent final commits also passed then when just testing on
+  each source branch, because we know the final linearization of all commits
+  passes in that all MRs passed individually on their branches.
+
 * As trailers are added to the original merge requests only, their branches
   would need to be pushed to in order to reflect this change. This would trigger
   CI in each of the branches again that would have to be passed before merging,
@@ -330,9 +394,10 @@ request, before attempting a new batch job.
   passed CI. This does still mean the triggered CI jobs will be running even
   though the merge requests are merged. marge-bot will attempt to cancel these
   pipelines, although this doesn't work too effectively if external CI is used.
+
 * There is what can be considered to be a flaw in this implementation that could
   potentially result in a non-green master; consider the following situation:
-  
+
   1. A batch merge request is created, and passes CI.
   2. Several merge requests are then merged to master, but one could fail
      (perhaps due to someone pushing directly to master in between).
