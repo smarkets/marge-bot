@@ -27,10 +27,14 @@ class Project(gitlab.Resource):
 
     @classmethod
     def fetch_all_mine(cls, api):
-        projects_info = api.collect_all_pages(GET(
-            '/projects',
-            {'membership': True, 'with_merge_requests_enabled': True},
-        ))
+        try:
+            projects_info = api.collect_all_pages(GET(
+                '/projects',
+                {'membership': True, 'with_merge_requests_enabled': True},
+            ))
+        except gitlab.InternalServerError:
+            log.warning('Internal server error from GitLab! Ignoring...')
+            projects_info = []
 
         def project_seems_ok(project_info):
             # A bug in at least GitLab 9.3.5 would make GitLab not report permissions after

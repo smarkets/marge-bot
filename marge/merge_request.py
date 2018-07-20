@@ -1,3 +1,4 @@
+import logging as log
 from . import gitlab
 from .approvals import Approvals
 
@@ -32,10 +33,14 @@ class MergeRequest(gitlab.Resource):
 
     @classmethod
     def fetch_all_open_for_user(cls, project_id, user_id, api):
-        all_merge_request_infos = api.collect_all_pages(GET(
-            '/projects/{project_id}/merge_requests'.format(project_id=project_id),
-            {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
-        ))
+        try:
+            all_merge_request_infos = api.collect_all_pages(GET(
+                '/projects/{project_id}/merge_requests'.format(project_id=project_id),
+                {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
+            ))
+        except gitlab.InternalServerError:
+            log.warning('Internal server error from GitLab! Ignoring...')
+            all_merge_request_infos = []
         my_merge_request_infos = [
             mri for mri in all_merge_request_infos
             if (mri['assignee'] or {}).get('id') == user_id
