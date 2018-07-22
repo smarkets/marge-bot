@@ -1,3 +1,8 @@
+  * 0.7.0:
+    - Feature: add `--batch` to better support repos with many daily MRs and slow-ish CI (#84, #116)
+    - Fix: fix fuse() call when using experimental --use-merge-strategy to update source branch #102
+    - Fix: Get latest CI status of a commit filtered by branch #96 (thanks to benjamb)
+    - Enhancement: Check MR is mergeable before accepting MR #117 
   * 0.6.1:
     - Fix when target SHA is retrieved #92.
     - Replace word "gitlab" with "GitLab" #93.
