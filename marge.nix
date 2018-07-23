@@ -14,8 +14,8 @@ python.mkDerivation {
     description = "A build bot for GitLab";
     license = with pkgs.lib.licenses; [bsd3] ;
     maintainers =  [
-      "Daniel Gorin <daniel.gorin@smarkets.com>"
       "Alexander Schmolck <alexander.schmolck@smarkets.com>"
+      "Jaime Lennox <jaime.lennox@smarkets.com>"
     ];
     platforms = pkgs.lib.platforms.linux ++ pkgs.lib.platforms.darwin;
   };
