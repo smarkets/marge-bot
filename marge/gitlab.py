@@ -6,9 +6,10 @@ import requests
 
 
 class Api(object):
-    def __init__(self, gitlab_url, auth_token):
+    def __init__(self, gitlab_url, auth_token, insecure_gitlab=False):
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
+        self._insecure_gitlab = not insecure_gitlab
 
     def call(self, command, sudo=None):
         method = command.method
@@ -17,7 +18,7 @@ class Api(object):
         if sudo:
             headers['SUDO'] = '%d' % sudo
         log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
-        response = method(url, headers=headers, **command.call_args)
+        response = method(url, headers=headers, verify=self._insecure_gitlab, **command.call_args)
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
 

@@ -76,6 +76,11 @@ def _parse_config(args):
         metavar='URL',
         help='Your GitLab instance, e.g. "https://gitlab.example.com".\n',
     )
+    parser.add_argument(
+        '--insecure-gitlab',
+        action="store_true",
+        help='Allow connection to giblab to use unverified https connection.\n',
+    )
     ssh_key_group = parser.add_mutually_exclusive_group(required=True)
     ssh_key_group.add_argument(
         '--ssh-key',
@@ -226,7 +231,7 @@ def main(args=None):
         logging.getLogger("requests").setLevel(logging.WARNING)
 
     with _secret_auth_token_and_ssh_key(options) as (auth_token, ssh_key_file):
-        api = gitlab.Api(options.gitlab_url, auth_token)
+        api = gitlab.Api(options.gitlab_url, auth_token, options.insecure_gitlab)
         user = user_module.User.myself(api)
         if options.max_ci_time_in_minutes:
             logging.warning(
