@@ -76,8 +76,8 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
 
 
 class Api(gitlab.Api):
-    def __init__(self, gitlab_url, auth_token, initial_state):
-        super(Api, self).__init__(gitlab_url, auth_token)
+    def __init__(self, gitlab_url, auth_token, insecure_gitlab, initial_state):
+        super(Api, self).__init__(gitlab_url, auth_token, insecure_gitlab)
 
         self._transitions = {}
         self.state = initial_state
