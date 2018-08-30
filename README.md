@@ -219,8 +219,8 @@ ssh-key: |
 
 ```bash
 docker run --restart=on-failure \
+  -v "$(pwd)":/configuration \
   smarkets/marge-bot \
-  -v "$(pwd)":/configuration
   --config-file=/configuration/marge-bot-config.yaml
 ```
 
