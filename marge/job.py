@@ -196,7 +196,7 @@ class MergeJob(object):
             remote = 'source'
             remote_url = source_project.ssh_url_to_repo
             self._repo.fetch(
-                remote=remote,
+                remote_name=remote,
                 remote_url=remote_url,
             )
         return source_project, remote_url, remote
