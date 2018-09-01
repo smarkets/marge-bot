@@ -145,6 +145,10 @@ class MergeJob(object):
                 log.info('CI for MR !%s passed', merge_request.iid)
                 return
 
+            if ci_status == 'skipped':
+                log.info('CI for MR !%s skipped', merge_request.iid)
+                return
+
             if ci_status == 'failed':
                 raise CannotMerge('CI failed!')
 
