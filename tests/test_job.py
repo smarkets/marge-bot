@@ -1,20 +1,28 @@
 # pylint: disable=protected-access
 from datetime import timedelta
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import ANY, Mock, patch, create_autospec
 
 import pytest
 
-import marge.interval
 from marge.job import CannotMerge, MergeJob, MergeJobOptions, SkipMerge
+import marge.interval
+import marge.git
+import marge.gitlab
+import marge.merge_request
+import marge.project
+import marge.user
 
 
 class TestJob(object):
+    def _mock_merge_request(self, **options):
+        return create_autospec(marge.merge_request.MergeRequest, spec_set=True, **options)
+
     def get_merge_job(self, **merge_kwargs):
         params = {
-            'api': Mock(),
-            'user': Mock(),
-            'project': Mock(),
-            'repo': Mock(),
+            'api': create_autospec(marge.gitlab.Api, spec_set=True),
+            'user': create_autospec(marge.user.User, spec_set=True),
+            'project': create_autospec(marge.project.Project, spec_set=True),
+            'repo': create_autospec(marge.git.Repo, spec_set=True),
             'options': MergeJobOptions.default(),
         }
         params.update(merge_kwargs)
@@ -22,7 +30,7 @@ class TestJob(object):
 
     def test_get_source_project_when_is_target_project(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock()
+        merge_request = self._mock_merge_request()
         merge_request.source_project_id = merge_job._project.id
         r_source_project = merge_job.get_source_project(merge_request)
         assert r_source_project is merge_job._project
@@ -30,7 +38,7 @@ class TestJob(object):
     def test_get_source_project_when_is_fork(self):
         with patch('marge.job.Project') as project_class:
             merge_job = self.get_merge_job()
-            merge_request = Mock()
+            merge_request = self._mock_merge_request()
             r_source_project = merge_job.get_source_project(merge_request)
 
             project_class.fetch_by_id.assert_called_once_with(
@@ -41,10 +49,12 @@ class TestJob(object):
             assert r_source_project is project_class.fetch_by_id.return_value
 
     def test_get_mr_ci_status(self):
-        with patch('marge.job.Pipeline') as pipeline_class:
-            pipeline_class.pipelines_by_branch.return_value = [Mock(sha='abc', status='success')]
+        with patch('marge.job.Pipeline', autospec=True) as pipeline_class:
+            pipeline_class.pipelines_by_branch.return_value = [
+                Mock(spec=pipeline_class, sha='abc', status='success'),
+            ]
             merge_job = self.get_merge_job()
-            merge_request = Mock(sha='abc')
+            merge_request = self._mock_merge_request(sha='abc')
 
             r_ci_status = merge_job.get_mr_ci_status(merge_request)
 
@@ -57,7 +67,7 @@ class TestJob(object):
 
     def test_ensure_mergeable_mr_not_assigned(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             state='opened',
             work_in_progress=False,
             squash=False,
@@ -68,7 +78,7 @@ class TestJob(object):
 
     def test_ensure_mergeable_mr_state_not_ok(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             assignee_id=merge_job._user.id,
             state='merged',
             work_in_progress=False,
@@ -80,7 +90,7 @@ class TestJob(object):
 
     def test_ensure_mergeable_mr_not_approved(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             assignee_id=merge_job._user.id,
             state='opened',
             work_in_progress=False,
@@ -95,7 +105,7 @@ class TestJob(object):
 
     def test_ensure_mergeable_mr_wip(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             assignee_id=merge_job._user.id,
             state='opened',
             work_in_progress=True,
@@ -108,7 +118,7 @@ class TestJob(object):
 
     def test_ensure_mergeable_mr_squash_and_trailers(self):
         merge_job = self.get_merge_job(options=MergeJobOptions.default(add_reviewers=True))
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             assignee_id=merge_job._user.id,
             state='opened',
             work_in_progress=False,
@@ -125,7 +135,7 @@ class TestJob(object):
 
     def test_unassign_from_mr(self):
         merge_job = self.get_merge_job()
-        merge_request = Mock()
+        merge_request = self._mock_merge_request()
 
         # when we are not the author
         merge_job.unassign_from_mr(merge_request)

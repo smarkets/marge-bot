@@ -1,5 +1,5 @@
 # pylint: disable=protected-access
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import ANY, patch, create_autospec
 
 import pytest
 
@@ -13,15 +13,23 @@ from marge.merge_request import MergeRequest
 from tests.gitlab_api_mock import MockLab, Ok, commit
 
 
-# pylint: disable=attribute-defined-outside-init
 class TestBatchJob(object):
-    def setup_method(self, _method):
-        self.mocklab = MockLab()
-        self.api = self.mocklab.api
+    @pytest.fixture(params=[True, False])
+    def fork(self, request):
+        return request.param
 
-    def get_batch_merge_job(self, **batch_merge_kwargs):
-        api, mocklab = self.api, self.mocklab
+    @pytest.fixture()
+    def mocklab(self, fork):
+        return MockLab(fork=fork)
 
+    @pytest.fixture()
+    def api(self, mocklab):
+        return mocklab.api
+
+    def _mock_merge_request(self, **options):
+        return create_autospec(marge.merge_request.MergeRequest, spec_set=True, **options)
+
+    def get_batch_merge_job(self, api, mocklab, **batch_merge_kwargs):
         project_id = mocklab.project_info['id']
         merge_request_iid = mocklab.merge_request_info['iid']
 
@@ -29,29 +37,29 @@ class TestBatchJob(object):
 
         params = {
             'api': api,
-            'user': marge.user.User.myself(self.api),
+            'user': marge.user.User.myself(api),
             'project': marge.project.Project.fetch_by_id(project_id, api),
-            'repo': Mock(marge.git.Repo),
+            'repo': create_autospec(marge.git.Repo, spec_set=True),
             'options': MergeJobOptions.default(),
             'merge_requests': [merge_request]
         }
         params.update(batch_merge_kwargs)
         return BatchMergeJob(**params)
 
-    def test_remove_batch_branch(self):
-        repo = Mock()
-        batch_merge_job = self.get_batch_merge_job(repo=repo)
+    def test_remove_batch_branch(self, api, mocklab):
+        repo = create_autospec(marge.git.Repo, spec_set=True)
+        batch_merge_job = self.get_batch_merge_job(api, mocklab, repo=repo)
         batch_merge_job.remove_batch_branch()
         repo.remove_branch.assert_called_once_with(
             BatchMergeJob.BATCH_BRANCH_NAME,
         )
 
-    def test_close_batch_mr(self):
+    def test_close_batch_mr(self, api, mocklab):
         with patch('marge.batch_job.MergeRequest') as mr_class:
-            batch_mr = Mock()
+            batch_mr = self._mock_merge_request()
             mr_class.search.return_value = [batch_mr]
 
-            batch_merge_job = self.get_batch_merge_job()
+            batch_merge_job = self.get_batch_merge_job(api, mocklab)
             batch_merge_job.close_batch_mr()
 
             params = {
@@ -68,12 +76,12 @@ class TestBatchJob(object):
             )
             batch_mr.close.assert_called_once()
 
-    def test_create_batch_mr(self):
+    def test_create_batch_mr(self, api, mocklab):
         with patch('marge.batch_job.MergeRequest') as mr_class:
-            batch_mr = Mock()
+            batch_mr = self._mock_merge_request()
             mr_class.create.return_value = batch_mr
 
-            batch_merge_job = self.get_batch_merge_job()
+            batch_merge_job = self.get_batch_merge_job(api, mocklab)
             target_branch = 'master'
             r_batch_mr = batch_merge_job.create_batch_mr(target_branch)
 
@@ -90,26 +98,27 @@ class TestBatchJob(object):
             )
             assert r_batch_mr is batch_mr
 
-    def test_get_mrs_with_common_target_branch(self):
+    def test_get_mrs_with_common_target_branch(self, api, mocklab):
         master_mrs = [
-            Mock(target_branch='master'),
-            Mock(target_branch='master'),
+            self._mock_merge_request(target_branch='master'),
+            self._mock_merge_request(target_branch='master'),
         ]
         non_master_mrs = [
-            Mock(target_branch='non_master'),
-            Mock(target_branch='non_master'),
+            self._mock_merge_request(target_branch='non_master'),
+            self._mock_merge_request(target_branch='non_master'),
         ]
         batch_merge_job = self.get_batch_merge_job(
+            api, mocklab,
             merge_requests=non_master_mrs + master_mrs,
         )
         r_maser_mrs = batch_merge_job.get_mrs_with_common_target_branch('master')
         assert r_maser_mrs == master_mrs
 
     @patch.object(BatchMergeJob, 'get_mr_ci_status')
-    def test_ensure_mergeable_mr_ci_not_ok(self, bmj_get_mr_ci_status):
-        batch_merge_job = self.get_batch_merge_job()
+    def test_ensure_mergeable_mr_ci_not_ok(self, bmj_get_mr_ci_status, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
         bmj_get_mr_ci_status.return_value = 'failed'
-        merge_request = Mock(
+        merge_request = self._mock_merge_request(
             assignee_id=batch_merge_job._user.id,
             state='opened',
             work_in_progress=False,
@@ -121,19 +130,19 @@ class TestBatchJob(object):
 
         assert str(exc_info.value) == 'This MR has not passed CI.'
 
-    def test_push_batch(self):
-        batch_merge_job = self.get_batch_merge_job()
+    def test_push_batch(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
         batch_merge_job.push_batch()
         batch_merge_job._repo.push.assert_called_once_with(
             BatchMergeJob.BATCH_BRANCH_NAME,
             force=True,
         )
 
-    def test_ensure_mr_not_changed(self):
+    def test_ensure_mr_not_changed(self, api, mocklab):
         with patch('marge.batch_job.MergeRequest') as mr_class:
-            batch_merge_job = self.get_batch_merge_job()
-            merge_request = Mock()
-            changed_merge_request = Mock()
+            batch_merge_job = self.get_batch_merge_job(api, mocklab)
+            merge_request = self._mock_merge_request()
+            changed_merge_request = self._mock_merge_request()
             mr_class.fetch_by_iid.return_value = changed_merge_request
 
             with pytest.raises(CannotMerge):
@@ -145,24 +154,27 @@ class TestBatchJob(object):
                 batch_merge_job._api,
             )
 
-    def test_fuse_mr_when_target_branch_was_moved(self):
-        batch_merge_job = self.get_batch_merge_job()
-        merge_request = Mock(target_branch='master')
+    def test_fuse_mr_when_target_branch_was_moved(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request(target_branch='master')
         with pytest.raises(CannotBatch) as exc_info:
             batch_merge_job.accept_mr(merge_request, 'abc')
         assert str(exc_info.value) == 'Someone was naughty and by-passed marge'
 
-    def test_fuse_mr_when_source_branch_was_moved(self):
-        api, mocklab = self.api, self.mocklab
-        batch_merge_job = self.get_batch_merge_job()
-        merge_request = Mock(
-            source_project_id=batch_merge_job._project.id,
+    def test_fuse_mr_when_source_branch_was_moved(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request(
+            source_project_id=mocklab.merge_request_info['source_project_id'],
             target_branch='master',
-            source_branch=self.mocklab.merge_request_info['source_branch'],
+            source_branch=mocklab.merge_request_info['source_branch'],
         )
 
         api.add_transition(
-            GET('/projects/1234/repository/branches/useless_new_feature'),
+            GET(
+                '/projects/{project_iid}/repository/branches/useless_new_feature'.format(
+                    project_iid=mocklab.merge_request_info['source_project_id'],
+                ),
+            ),
             Ok({'commit': commit(commit_id='abc', status='running')}),
         )
 
