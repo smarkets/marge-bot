@@ -70,7 +70,7 @@ class SingleJobMockLab(MockLab):
                 dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
             ),
             Ok({}),
-            from_state='passed', to_state='merged',
+            from_state=['passed', 'skipped'], to_state='merged',
         )
         api.add_merge_request(dict(self.merge_request_info, state='merged'), from_state='merged')
         api.add_transition(
@@ -182,6 +182,75 @@ class TestUpdateAndAccept(object):
 
         assert api.state == 'merged'
         assert api.notes == []
+
+    def test_succeeds_if_skipped(self, api, mocklab):
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='running'),
+            from_state='pushed', to_state='skipped',
+        )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='skipped'),
+            from_state=['skipped', 'merged'],
+        )
+
+        with mocklab.branch_update():
+            job = self.make_job(
+                api,
+                mocklab,
+                options=marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False),
+            )
+            job.execute()
+
+        assert api.state == 'merged'
+        assert api.notes == []
+
+    def test_fails_if_ci_fails(self, api, mocklab):
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='running'),
+            from_state='pushed', to_state='failed',
+        )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='failed'),
+            from_state=['failed'],
+        )
+
+        with mocklab.branch_update():
+            with mocklab.expected_failure("CI failed!"):
+                job = self.make_job(
+                    api,
+                    mocklab,
+                    options=marge.job.MergeJobOptions.default(),
+                )
+                job.execute()
+
+                assert api.state == 'failed'
+
+    def test_fails_if_ci_canceled(self, api, mocklab):
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='running'),
+            from_state='pushed', to_state='canceled',
+        )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(sha1=mocklab.rewritten_sha, status='canceled'),
+            from_state=['canceled'],
+        )
+
+        with mocklab.branch_update():
+            with mocklab.expected_failure("Someone canceled the CI."):
+                job = self.make_job(
+                    api,
+                    mocklab,
+                    options=marge.job.MergeJobOptions.default(),
+                )
+                job.execute()
+
+                assert api.state == 'canceled'
 
     def test_fails_on_not_acceptable_if_master_did_not_move(
             self, api, mocklab, test_params
