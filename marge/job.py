@@ -5,6 +5,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 
 from . import git
+from .branch import Branch
 from .interval import IntervalUnion
 from .project import Project
 from .user import User
@@ -258,7 +259,7 @@ class MergeJob(object):
             if updated_sha == target_sha:
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
             rewritten_sha = self.add_trailers(merge_request) or updated_sha
-            branch_rewritten = True
+            branch_rewritten = rewritten_sha != updated_sha
             repo.push(source_branch, source_repo_url=source_repo_url, force=True)
             changes_pushed = True
         except git.GitError:
@@ -267,6 +268,12 @@ class MergeJob(object):
             if not branch_rewritten:
                 raise CannotMerge('failed on filter-branch; check my logs!')
             if not changes_pushed:
+                if (
+                    branch_rewritten and Branch.fetch_by_name(
+                        merge_request.source_project_id, merge_request.source_branch, self._api,
+                    ).protected
+                ):
+                    raise CannotMerge('Sorry, I can\'t push rewritten changes to protected branches!')
                 if self.opts.use_merge_strategy:
                     raise CannotMerge('failed to push merged changes, check my logs!')
                 else:

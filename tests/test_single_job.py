@@ -29,6 +29,13 @@ def _commit(commit_id, status):
     }
 
 
+def _branch(name, protected=False):
+    return {
+        'name': name,
+        'protected': protected,
+    }
+
+
 def _pipeline(sha1, status):
     return {
         'id': 47,
@@ -278,6 +285,29 @@ class TestUpdateAndAccept(object):
         assert api.notes == [
             "I couldn't merge this branch: Someone pushed to branch while we were trying to merge",
         ]
+
+    def test_fails_if_branch_is_protected(
+            self, api, mocklab, test_params
+    ):
+        api.add_transition(
+            GET(
+                '/projects/{source_project_id}/repository/branches/useless_new_feature'.format(
+                    source_project_id=test_params.source_project_id,
+                ),
+            ),
+            Ok(_branch('useless_new_feature', protected=True)),
+            from_state='initial', to_state='protected'
+        )
+        with mocklab.expected_failure("Sorry, I can't push rewritten changes to protected branches!"):
+            job = self.make_job(
+                api,
+                mocklab,
+                options=marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False),
+            )
+            job.repo.push.side_effect = marge.git.GitError()
+            job.execute()
+
+        assert api.state == 'protected'
 
     def test_succeeds_second_time_if_master_moved(self, api, mocklab, test_params):
         moved_master_sha = 'fafafa'
