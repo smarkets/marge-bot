@@ -24,7 +24,7 @@ def commit(commit_id, status):
 
 
 class MockLab(object):  # pylint: disable=too-few-public-methods
-    def __init__(self, gitlab_url=None, fork=False):
+    def __init__(self, gitlab_url=None, fork=False, merge_request_options=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
         self.api = api = Api(gitlab_url=gitlab_url, auth_token='no-token', initial_state='initial')
 
@@ -60,6 +60,8 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
             'work_in_progress': False,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
         }
+        if merge_request_options is not None:
+            self.merge_request_info.update(merge_request_options)
         if fork:
             self.merge_request_info.update({'iid': 55, 'source_project_id': '4321'})
         api.add_merge_request(self.merge_request_info)
@@ -74,7 +76,11 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
         )
         api.add_approvals(self.approvals_info)
         api.add_transition(
-            GET('/projects/1234/repository/branches/master'),
+            GET(
+                '/projects/1234/repository/branches/{target}'.format(
+                    target=self.merge_request_info['target_branch'],
+                ),
+            ),
             Ok({'commit': {'id': self.initial_master_sha}}),
         )
 
