@@ -289,8 +289,6 @@ class MergeJob(object):
             if source_branch != 'master':
                 repo.checkout_branch('master')
                 repo.remove_branch(source_branch)
-            else:
-                assert source_repo_url is not None
 
 
 def _get_reviewer_names_and_emails(approvals, api):

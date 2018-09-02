@@ -1,6 +1,7 @@
 import contextlib
 from collections import namedtuple
 from datetime import timedelta
+from functools import partial
 from unittest.mock import ANY, patch, create_autospec
 
 import pytest
@@ -36,38 +37,46 @@ def _branch(name, protected=False):
     }
 
 
-def _pipeline(sha1, status):
+def _pipeline(sha1, status, ref='useless_new_feature'):
     return {
         'id': 47,
         'status': status,
-        'ref': 'useless_new_feature',
+        'ref': ref,
         'sha': sha1,
     }
 
 
 class SingleJobMockLab(MockLab):
-    def __init__(self, gitlab_url=None, fork=False):
-        super().__init__(gitlab_url, fork=fork)
+    def __init__(self, gitlab_url=None, fork=False, merge_request_options=None):
+        super().__init__(gitlab_url, fork=fork, merge_request_options=merge_request_options)
         api = self.api
         self.rewritten_sha = rewritten_sha = 'af7a'
         api.add_pipelines(
             self.merge_request_info['source_project_id'],
-            _pipeline(sha1=rewritten_sha, status='running'),
+            _pipeline(sha1=rewritten_sha, status='running', ref=self.merge_request_info['source_branch']),
             from_state='pushed', to_state='passed',
         )
         api.add_pipelines(
             self.merge_request_info['source_project_id'],
-            _pipeline(sha1=rewritten_sha, status='success'),
+            _pipeline(sha1=rewritten_sha, status='success', ref=self.merge_request_info['source_branch']),
             from_state=['passed', 'merged'],
         )
         source_project_id = self.merge_request_info['source_project_id']
         api.add_transition(
-            GET('/projects/{}/repository/branches/useless_new_feature'.format(source_project_id)),
+            GET(
+                '/projects/{}/repository/branches/{}'.format(
+                    source_project_id, self.merge_request_info['source_branch'],
+                ),
+            ),
             Ok({'commit': _commit(commit_id=rewritten_sha, status='running')}),
             from_state='pushed',
         )
         api.add_transition(
-            GET('/projects/{}/repository/branches/useless_new_feature'.format(source_project_id)),
+            GET(
+                '/projects/{}/repository/branches/{}'.format(
+                    source_project_id, self.merge_request_info['source_branch'],
+                ),
+            ),
             Ok({'commit': _commit(commit_id=rewritten_sha, status='success')}),
             from_state='passed'
         )
@@ -81,7 +90,7 @@ class SingleJobMockLab(MockLab):
         )
         api.add_merge_request(dict(self.merge_request_info, state='merged'), from_state='merged')
         api.add_transition(
-            GET('/projects/1234/repository/branches/master'),
+            GET('/projects/1234/repository/branches/{}'.format(self.merge_request_info['target_branch'])),
             Ok({'commit': {'id': self.rewritten_sha}}),
             from_state='merged'
         )
@@ -155,8 +164,11 @@ class TestUpdateAndAccept(object):
 
     @pytest.fixture()
     def mocklab(self, test_params):
-        print('fork: %s' % test_params.fork)
         return SingleJobMockLab(fork=test_params.fork)
+
+    @pytest.fixture()
+    def mocklab_factory(self, test_params):
+        return partial(SingleJobMockLab, fork=test_params.fork)
 
     @pytest.fixture()
     def api(self, mocklab):
@@ -190,6 +202,32 @@ class TestUpdateAndAccept(object):
         assert api.state == 'merged'
         assert api.notes == []
 
+    def test_succeeds_with_updated_branch(self, api, mocklab):
+        api.add_transition(
+            GET(
+                '/projects/1234/repository/branches/{source}'.format(
+                    source=mocklab.merge_request_info['source_branch'],
+                ),
+            ),
+            Ok({'commit': {'id': mocklab.rewritten_sha}}),
+            from_state='initial', to_state='pushed',
+        )
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'add_trailers',
+                side_effect=lambda *_: mocklab.push_updated()[2],
+                autospec=True,
+        ):
+            job = self.make_job(
+                api,
+                mocklab,
+                options=marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False),
+            )
+            job.execute()
+
+        assert api.state == 'merged'
+        assert api.notes == []
+
     def test_succeeds_if_skipped(self, api, mocklab):
         api.add_pipelines(
             mocklab.merge_request_info['source_project_id'],
@@ -203,6 +241,36 @@ class TestUpdateAndAccept(object):
         )
 
         with mocklab.branch_update():
+            job = self.make_job(
+                api,
+                mocklab,
+                options=marge.job.MergeJobOptions.default(add_tested=True, add_reviewers=False),
+            )
+            job.execute()
+
+        assert api.state == 'merged'
+        assert api.notes == []
+
+    def test_succeeds_if_source_is_master(self, mocklab_factory):
+        mocklab = mocklab_factory(
+            merge_request_options={'source_branch': 'master', 'target_branch': 'production'},
+        )
+        api = mocklab.api
+        api.add_transition(
+            GET(
+                '/projects/1234/repository/branches/{source}'.format(
+                    source=mocklab.merge_request_info['source_branch'],
+                ),
+            ),
+            Ok({'commit': {'id': mocklab.rewritten_sha}}),
+            from_state='initial', to_state='pushed',
+        )
+        with patch.object(
+                marge.single_merge_job.SingleMergeJob,
+                'add_trailers',
+                side_effect=lambda *_: mocklab.push_updated()[2],
+                autospec=True,
+        ):
             job = self.make_job(
                 api,
                 mocklab,
