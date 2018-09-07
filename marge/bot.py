@@ -154,7 +154,14 @@ class Bot(object):
                 log.exception('BatchMergeJob failed: %s', err)
         log.info('Attempting to merge the oldest MR...')
         merge_request = merge_requests[0]
-        merge_job = single_merge_job.SingleMergeJob(
+        merge_job = self._get_job(
+            project=project, merge_request=merge_request, repo=repo,
+            options=self._config.merge_opts,
+        )
+        merge_job.execute()
+
+    def _get_job(self, project, merge_request, repo, options):
+        return single_merge_job.SingleMergeJob(
             api=self._api,
             user=self.user,
             project=project,
@@ -162,7 +169,6 @@ class Bot(object):
             repo=repo,
             options=self._config.merge_opts,
         )
-        merge_job.execute()
 
 
 class BotConfig(namedtuple('BotConfig',
