@@ -247,7 +247,7 @@ will pick up any changes in membership at runtime.
 #### Installing marge-bot with nix
 
 Alternatively, if you prefer not to use docker, you can also directly run marge.
-If you use [https://nixos.org/nix/](nix) do `nix-env --install -f default.nix`.
+If you use [nix](https://nixos.org/nix/) do `nix-env --install -f default.nix`.
 
 The nix install should be fully reproducible on any version of linux (and also
 work on OS X, although this is not something we properly test). If you don't
