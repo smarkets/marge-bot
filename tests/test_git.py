@@ -21,6 +21,7 @@ class TestRepo(object):
             local_path='/tmp/local/path',
             ssh_key_file=None,
             timeout=datetime.timedelta(seconds=1),
+            reference=None,
         )
 
     def test_clone(self, mocked_run):
@@ -189,6 +190,14 @@ class TestRepo(object):
         assert get_calls(mocked_run) == [
             '%s git -C /tmp/local/path config user.email bart@gmail.com' % git_ssh,
             '%s git -C /tmp/local/path config user.name bart' % git_ssh,
+        ]
+
+    def test_passes_reference_repo(self, mocked_run):
+        repo = self.repo._replace(reference='/foo/reference_repo')
+        repo.clone()
+        assert get_calls(mocked_run) == [
+            'git clone --origin=origin --reference=/foo/reference_repo ssh://git@git.foo.com/some/repo.git ' +
+            '/tmp/local/path',
         ]
 
 

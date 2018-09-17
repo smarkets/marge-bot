@@ -37,6 +37,7 @@ class Bot(object):
                 root_dir=root_dir,
                 ssh_key_file=self._config.ssh_key_file,
                 timeout=self._config.git_timeout,
+                reference=self._config.git_reference_repo,
             )
             self._run(repo_manager)
 
@@ -165,7 +166,8 @@ class Bot(object):
 
 
 class BotConfig(namedtuple('BotConfig',
-                           'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp batch')):
+                           'user ssh_key_file project_regexp merge_opts git_timeout ' +
+                           'git_reference_repo branch_regexp batch')):
     pass
 
 
