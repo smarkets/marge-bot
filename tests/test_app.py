@@ -199,6 +199,12 @@ def test_branch_regexp():
             assert bot.config.branch_regexp == re.compile('foo.*bar')
 
 
+def test_git_reference_repo():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--git-reference-repo='/foo/reference_repo'") as bot:
+            assert bot.config.git_reference_repo == '/foo/reference_repo'
+
+
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
 # seems to seriously mess up the test run
 def test_time_interval():

@@ -106,6 +106,9 @@ optional arguments:
   --git-timeout GIT_TIMEOUT
                         How long a single git operation can take.
                            [env var: MARGE_GIT_TIMEOUT] (default: 120s)
+  --git-reference-repo GIT_REFERENCE_REPO
+                        A reference repo to be used when git cloning.
+                           [env var: MARGE_GIT_REFERENCE_REPO] (default: None)
   --branch-regexp BRANCH_REGEXP
                         Only process MRs whose target branches match the given regular expression.
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)

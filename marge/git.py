@@ -30,9 +30,11 @@ def _filter_branch_script(trailer_name, trailer_values):
     return filter_script
 
 
-class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
+class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout reference')):
     def clone(self):
-        self.git('clone', '--origin=origin', self.remote_url, self.local_path, from_repo=False)
+        reference_flag = '--reference=' + self.reference if self.reference else ''
+        self.git('clone', '--origin=origin', reference_flag, self.remote_url,
+                 self.local_path, from_repo=False)
 
     def config_user_info(self, user_name, user_email):
         self.git('config', 'user.email', user_email)

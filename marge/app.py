@@ -171,6 +171,12 @@ def _parse_config(args):
         help='How long a single git operation can take.\n'
     )
     parser.add_argument(
+        '--git-reference-repo',
+        type=str,
+        default=None,
+        help='A reference repo to be used when git cloning.\n'
+    )
+    parser.add_argument(
         '--branch-regexp',
         type=regexp,
         default='.*',
@@ -243,6 +249,7 @@ def main(args=None):
             ssh_key_file=ssh_key_file,
             project_regexp=options.project_regexp,
             git_timeout=options.git_timeout,
+            git_reference_repo=options.git_reference_repo,
             branch_regexp=options.branch_regexp,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
