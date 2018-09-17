@@ -77,11 +77,15 @@ optional arguments:
   --embargo INTERVAL[,..]
                         Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".
                            [env var: MARGE_EMBARGO] (default: None)
-  --use-merge-strategy  Use git merge instead of git rebase (EXPERIMENTAL)
-                        Enable if you use a workflow based on merge-commits and not linear history.
+  --use-merge-strategy  Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)
+                        If you need to use a strict no-rebase workflow (in most cases
+                        you don't want this, even if you configured gitlab to use merge requests
+                        to use merge commits on the *target* branch (the default).)
                            [env var: MARGE_USE_MERGE_STRATEGY] (default: False)
   --add-tested          Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.
                            [env var: MARGE_ADD_TESTED] (default: False)
+  --batch               Enable processing MRs in batches
+                           [env var: MARGE_BATCH] (default: False)
   --add-part-of         Add "Part-of: <$MR_URL>" to each commit in MR.
                            [env var: MARGE_ADD_PART_OF] (default: False)
   --add-reviewers       Add "Reviewed-by: $approver" for each approver of MR to each commit in MR.
@@ -94,6 +98,7 @@ optional arguments:
                         Only useful with the "new commits remove all approvals" option in a project's settings.
                         This is to handle the potential race condition where approvals don't reset in GitLab
                         after a force push due to slow processing of the event.
+                           [env var: MARGE_APPROVAL_RESET_TIMEOUT] (default: 0s)
   --project-regexp PROJECT_REGEXP
                         Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'.
                            [env var: MARGE_PROJECT_REGEXP] (default: .*)
@@ -114,8 +119,6 @@ optional arguments:
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
-  --batch               Enable processing MRs in batches.
-                           [env var: MARGE_BATCH] (default: False)
 ```
 Here is a config file example
 ```yaml
