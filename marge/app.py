@@ -107,7 +107,7 @@ def _parse_config(args):
             'Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)\n'
             'If you need to use a strict no-rebase workflow (in most cases\n'
             'you don\'t want this, even if you configured gitlab to use merge requests\n'
-            'to use merge commits on the *target* branch (the default).)'
+            'to use merge commits on the *target* branch (the default).)\n'
         ),
     )
     parser.add_argument(
