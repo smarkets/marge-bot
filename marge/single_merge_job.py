@@ -121,7 +121,12 @@ class SingleMergeJob(MergeJob):
                     log.info('Merge request is already merged, someone was faster!')
                     updated_into_up_to_date_target_branch = True
                 else:
-                    raise CannotMerge("Gitlab refused to merge this request and I don't know why!")
+                    raise CannotMerge(
+                        "Gitlab refused to merge this request and I don't know why!" + (
+                            " Maybe you have unresolved discussions?"
+                            if self._project.only_allow_merge_if_all_discussions_are_resolved else ""
+                        )
+                    )
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
                 raise CannotMerge('had some issue with GitLab, check my logs...')
