@@ -73,6 +73,7 @@ class MergeJob(object):
         # add Reviewed-by
         reviewers = (
             _get_reviewer_names_and_emails(
+                merge_request.fetch_commits(),
                 merge_request.fetch_approvals(),
                 self._api,
             ) if self._options.add_reviewers else None
@@ -291,11 +292,14 @@ class MergeJob(object):
                 repo.remove_branch(source_branch)
 
 
-def _get_reviewer_names_and_emails(approvals, api):
+def _get_reviewer_names_and_emails(commits, approvals, api):
     """Return a list ['A. Prover <a.prover@example.com', ...]` for `merge_request.`"""
-
     uids = approvals.approver_ids
-    return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, api)) for uid in uids]
+    users = [User.fetch_by_id(uid, api) for uid in uids]
+    self_reviewed = {commit['author_email'] for commit in commits} & {user.email for user in users}
+    if self_reviewed and len(users) <= 1:
+        raise CannotMerge('Commits require at least one independent reviewer.')
+    return ['{0.name} <{0.email}>'.format(user) for user in users]
 
 
 JOB_OPTIONS = [
