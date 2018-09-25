@@ -1,11 +1,13 @@
 from unittest.mock import call, Mock, patch
 
+import pytest
+
 from marge.gitlab import Api, GET, POST, Version
 from marge.approvals import Approvals
 from marge.merge_request import MergeRequest
 import marge.user
 # testing this here is more convenient
-from marge.job import _get_reviewer_names_and_emails
+from marge.job import CannotMerge, _get_reviewer_names_and_emails
 
 INFO = {
     "id": 5,
@@ -114,7 +116,27 @@ class TestApprovals(object):
     @patch('marge.user.User.fetch_by_id')
     def test_get_reviewer_names_and_emails(self, user_fetch_by_id):
         user_fetch_by_id.side_effect = lambda id, _: marge.user.User(self.api, USERS[id])
-        assert _get_reviewer_names_and_emails(approvals=self.approvals, api=self.api) == [
+        assert _get_reviewer_names_and_emails(commits=[], approvals=self.approvals, api=self.api) == [
             'Administrator <root@localhost>',
             'Roger Ebert <ebert@example.com>'
+        ]
+
+    @patch('marge.user.User.fetch_by_id')
+    def test_approvals_fails_when_same_author(self, user_fetch_by_id):
+        info = dict(INFO, approved_by=list(INFO['approved_by']))
+        del info['approved_by'][1]
+        approvals = Approvals(self.api, info)
+        user_fetch_by_id.side_effect = lambda id, _: marge.user.User(self.api, USERS[id])
+        commits = [{'author_email': 'root@localhost'}]
+        with pytest.raises(CannotMerge):
+            _get_reviewer_names_and_emails(commits=commits, approvals=approvals, api=self.api)
+
+    @patch('marge.user.User.fetch_by_id')
+    def test_approvals_succeeds_with_independent_author(self, user_fetch_by_id):
+        user_fetch_by_id.side_effect = lambda id, _: marge.user.User(self.api, USERS[id])
+        print(INFO['approved_by'])
+        commits = [{'author_email': 'root@localhost'}]
+        assert _get_reviewer_names_and_emails(commits=commits, approvals=self.approvals, api=self.api) == [
+            'Administrator <root@localhost>',
+            'Roger Ebert <ebert@example.com>',
         ]

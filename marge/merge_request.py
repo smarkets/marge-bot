@@ -147,3 +147,6 @@ class MergeRequest(gitlab.Resource):
         approvals = Approvals(self.api, info)
         approvals.refetch_info()
         return approvals
+
+    def fetch_commits(self):
+        return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
