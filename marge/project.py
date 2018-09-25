@@ -62,6 +62,10 @@ class Project(gitlab.Resource):
         return self.info['only_allow_merge_if_pipeline_succeeds']
 
     @property
+    def only_allow_merge_if_all_discussions_are_resolved(self):  # pylint: disable=invalid-name
+        return self.info['only_allow_merge_if_all_discussions_are_resolved']
+
+    @property
     def approvals_required(self):
         return self.info['approvals_before_merge']
 

@@ -499,6 +499,31 @@ class TestUpdateAndAccept(object):
         assert api.state == 'rejected_by_git_hook'
         assert api.notes == ["I couldn't merge this branch: %s" % message]
 
+    def test_assumes_unresolved_discussions_on_merge_refusal(self, api, mocklab):
+        rewritten_sha = mocklab.rewritten_sha
+        api.add_transition(
+            PUT(
+                '/projects/1234/merge_requests/{iid}/merge'.format(iid=mocklab.merge_request_info['iid']),
+                dict(sha=rewritten_sha, should_remove_source_branch=True, merge_when_pipeline_succeeds=True),
+            ),
+            Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
+            from_state='passed', to_state='unresolved_discussions',
+        )
+        api.add_merge_request(
+            dict(mocklab.merge_request_info),
+            from_state='unresolved_discussions',
+        )
+        message = (
+            "Gitlab refused to merge this request and I don't know why! "
+            "Maybe you have unresolved discussions?"
+        )
+        with mocklab.branch_update(), mocklab.expected_failure(message):
+            with patch.dict(mocklab.project_info, only_allow_merge_if_all_discussions_are_resolved=True):
+                job = self.make_job(api, mocklab)
+                job.execute()
+        assert api.state == 'unresolved_discussions'
+        assert api.notes == ["I couldn't merge this branch: %s" % message]
+
     def test_discovers_if_someone_closed_the_merge_request(self, api, mocklab):
         rewritten_sha = mocklab.rewritten_sha
         api.add_transition(
