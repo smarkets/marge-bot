@@ -122,9 +122,9 @@ class MergeJob(object):
             merge_request.source_branch,
             self._api,
         )
-        current_pipeline = next(iter(pipelines), None)
+        current_pipeline = next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
 
-        if current_pipeline and current_pipeline.sha == commit_sha:
+        if current_pipeline:
             ci_status = current_pipeline.status
         else:
             log.warning('No pipeline listed for %s on branch %s', commit_sha, merge_request.source_branch)
