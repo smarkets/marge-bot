@@ -3,6 +3,8 @@ ENV/
 .cache
 *.egg-info
 .coverage
+*.swp
+*.swo
 
 # nix stuff
 result
