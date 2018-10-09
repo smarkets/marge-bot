@@ -12,8 +12,9 @@ from datetime import timedelta
 import configargparse
 
 from . import bot
-from . import interval
 from . import gitlab
+from . import interval
+from . import job
 from . import user as user_module
 
 
@@ -99,8 +100,8 @@ def _parse_config(args):
         metavar='INTERVAL[,..]',
         help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".\n',
     )
-    experimental_group = parser.add_mutually_exclusive_group(required=False)
-    experimental_group.add_argument(
+    merge_strategy_group = parser.add_mutually_exclusive_group(required=False)
+    merge_strategy_group.add_argument(
         '--use-merge-strategy',
         action='store_true',
         help=(
@@ -108,6 +109,16 @@ def _parse_config(args):
             'If you need to use a strict no-rebase workflow (in most cases\n'
             'you don\'t want this, even if you configured gitlab to use merge requests\n'
             'to use merge commits on the *target* branch (the default).)\n'
+        ),
+    )
+    merge_strategy_group.add_argument(
+        '--merge-strategy',
+        type=job.MergeStrategy,
+        default=job.MergeStrategy.rebase,
+        choices=list(job.MergeStrategy),
+        help=(
+            'How to go about the merge. Exclusive with --use-merge-strategy, which is\n'
+            'equivalent to --merge-strategy=merge.\n'
         ),
     )
     parser.add_argument(
@@ -189,10 +200,15 @@ def _parse_config(args):
     )
     config = parser.parse_args(args)
 
-    if config.use_merge_strategy and config.batch:
-        raise MargeBotCliArgError('--use-merge-strategy and --batch are currently mutually exclusive')
-    if config.use_merge_strategy and config.add_tested:
-        raise MargeBotCliArgError('--use-merge-strategy and --add-tested are currently mutually exclusive')
+    if config.use_merge_strategy:
+        config.merge_strategy = job.MergeStrategy.merge
+    if config.merge_strategy == job.MergeStrategy.merge:
+        if config.batch:
+            raise MargeBotCliArgError('--merge-strategy=merge and --batch are currently mutually exclusive')
+        elif config.add_tested:
+            raise MargeBotCliArgError(
+                '--merge-strategy=merge and --add-tested are currently mutually exclusive')
+    del config.use_merge_strategy
 
     cli_args = []
     # pylint: disable=protected-access
@@ -259,7 +275,7 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
-                use_merge_strategy=options.use_merge_strategy,
+                merge_strategy=options.merge_strategy,
             ),
             batch=options.batch,
         )

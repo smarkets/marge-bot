@@ -102,11 +102,13 @@ def test_embargo():
             )
 
 
-def test_use_merge_strategy():
+def test_merge_strategy():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--use-merge-strategy') as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(use_merge_strategy=True)
+            assert bot.config.merge_opts.merge_strategy == job.MergeStrategy.merge
+        with main('--merge-strategy=rebase') as bot:
+            assert bot.config.merge_opts.merge_strategy == job.MergeStrategy.rebase
 
 
 def test_add_tested():

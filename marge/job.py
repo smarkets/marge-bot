@@ -1,4 +1,5 @@
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+import enum
 import logging as log
 import time
 from collections import namedtuple
@@ -10,6 +11,17 @@ from .interval import IntervalUnion
 from .project import Project
 from .user import User
 from .pipeline import Pipeline
+
+
+@enum.unique
+class MergeStrategy(enum.Enum):
+    merge = 'merge'
+    rebase = 'rebase'
+    rebase_then_merge = 'rebase_then_merge'
+
+    # convince argparse to omit the MergeStrategy. prefix
+    def __str__(self):
+        return self.value
 
 
 class MergeJob(object):
@@ -92,7 +104,7 @@ class MergeJob(object):
             ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
             else None
         )
-        if tested_by is not None and not self._options.use_merge_strategy:
+        if tested_by is not None and self._options.merge_strategy == MergeStrategy.rebase:
             sha = self._repo.tag_with_trailer(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
@@ -217,13 +229,30 @@ class MergeJob(object):
 
     def fuse(self, source, target, source_repo_url=None, local=False):
         # NOTE: this leaves git switched to branch_a
-        strategy = self._repo.merge if self._options.use_merge_strategy else self._repo.rebase
+        strategies = {
+            MergeStrategy.merge: self._repo.merge,
+            MergeStrategy.rebase: self._repo.rebase,
+            MergeStrategy.rebase_then_merge: self.rebase_then_merge
+        }
+        strategy = strategies[self._options.merge_strategy]
         return strategy(
             source,
             target,
             source_repo_url=source_repo_url,
             local=local,
         )
+
+    def rebase_then_merge(self, *args, **kw):
+        try:
+            return self._repo.rebase(*args, **kw)
+        except git.GitError as rebase_error:
+            log.info('rebase failed, trying merge: %s', rebase_error)
+            try:
+                return self._repo.merge(*args, **kw)
+            except git.GitError as merge_error:
+                log.info('merge also failed: %s', merge_error)
+                raise
+                # The caller will handle GitError
 
     def update_from_target_branch_and_push(
             self,
@@ -274,10 +303,8 @@ class MergeJob(object):
                     ).protected
                 ):
                     raise CannotMerge('Sorry, I can\'t push rewritten changes to protected branches!')
-                if self.opts.use_merge_strategy:
-                    raise CannotMerge('failed to push merged changes, check my logs!')
-                else:
-                    raise CannotMerge('failed to push rebased changes, check my logs!')
+                raise CannotMerge(
+                    'failed to push with strategy {}, check my logs!'.format(self.opts.merge_strategy.value))
 
             raise
         else:
@@ -306,7 +333,7 @@ JOB_OPTIONS = [
     'approval_timeout',
     'embargo',
     'ci_timeout',
-    'use_merge_strategy',
+    'merge_strategy',
 ]
 
 
@@ -321,7 +348,8 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False
+            approval_timeout=None, embargo=None, ci_timeout=None,
+            merge_strategy=MergeStrategy.rebase,
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -334,7 +362,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             approval_timeout=approval_timeout,
             embargo=embargo,
             ci_timeout=ci_timeout,
-            use_merge_strategy=use_merge_strategy,
+            merge_strategy=merge_strategy,
         )
 
 
