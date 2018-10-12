@@ -16,7 +16,11 @@ class Api(object):
         headers = {'PRIVATE-TOKEN': self._auth_token}
         if sudo:
             headers['SUDO'] = '%d' % sudo
-        log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
+        cleaned_headers = headers.copy()
+        cleaned_headers['PRIVATE-TOKEN'] = 'xxxx'
+        log.debug(
+            'REQUEST: %s %s %r %r',
+            method.__name__.upper(), url, cleaned_headers, command.call_args)
         response = method(url, headers=headers, **command.call_args)
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
