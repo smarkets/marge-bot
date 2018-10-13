@@ -4,11 +4,11 @@ services:
 language: nix
 deploy:
   provider: script
-  script: make dockerize && make docker-push
+  script: make dockerize && make docker-push VERSION="$TRAVIS_BRANCH"
   on:
     repo: smarkets/marge-bot
-    tags: true
-    condition: "$TRAVIS_TAG = $(cat version)"
+    all_branches: true
+    condition: "$TRAVIS_BRANCH = $(cat version) || $TRAVIS_BRANCH = master"
 env:
   global:
     # smarkets ci docker username

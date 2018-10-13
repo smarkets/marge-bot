@@ -1,3 +1,5 @@
+VERSION?=$$(git rev-parse --abbrev-ref HEAD)
+
 requirements_frozen.txt requirements.nix requirements_override.nix: requirements.txt
 	pypi2nix -V 3.6 -r $^
 
@@ -25,10 +27,11 @@ docker-push:
 	  docker login; \
 	fi
 	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
-	docker push smarkets/marge-bot:$$(cat version)
+	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:$(VERSION)
+	docker push smarkets/marge-bot:$(VERSION)
 	docker push smarkets/marge-bot:latest
 	# for backwards compatibility push to previous location
 	docker tag smarkets/marge-bot:latest smarketshq/marge-bot:latest
-	docker tag smarkets/marge-bot:latest smarketshq/marge-bot:$$(cat version)
-	docker push smarketshq/marge-bot:$$(cat version)
+	docker tag smarkets/marge-bot:latest smarketshq/marge-bot:$(VERSION)
+	docker push smarketshq/marge-bot:$(VERSION)
 	docker push smarketshq/marge-bot:latest
