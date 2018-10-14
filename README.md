@@ -226,9 +226,18 @@ ssh-key: |
 ```bash
 docker run --restart=on-failure \
   -v "$(pwd)":/configuration \
-  smarkets/marge-bot \
+  smarkets/marge-bot:stable \
   --config-file=/configuration/marge-bot-config.yaml
 ```
+
+Note the use of the stable tag, which will use the latest released version.
+Without this, by default docker will use the `latest` tag, which corresponds to
+the HEAD commit of the `master` branch. Feel free to use this instead (or the
+`master` tag, to be more precise) if you want the latest updates, at the risk
+of possible bugs.
+
+You can also specify a particular version as a tag, e.g.
+`smarkets/marge-bot:0.7.0`.
 
 ### Running marge-bot in kubernetes
 It's also possible to run marge in kubernetes, e.g. here's how you use a ktmpl
