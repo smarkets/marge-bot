@@ -226,15 +226,15 @@ ssh-key: |
 ```bash
 docker run --restart=on-failure \
   -v "$(pwd)":/configuration \
-  smarkets/marge-bot:stable \
+  smarkets/marge-bot \
   --config-file=/configuration/marge-bot-config.yaml
 ```
 
-Note the use of the stable tag, which will use the latest released version.
-Without this, by default docker will use the `latest` tag, which corresponds to
-the HEAD commit of the `master` branch. Feel free to use this instead (or the
-`master` tag, to be more precise) if you want the latest updates, at the risk
-of possible bugs.
+By default docker will use the `latest` tag, which corresponds to the latest 
+stable version. You can also use the `stable` tag to make this more explicit.
+If you want a development version, you can use the `master` tag to obtain an
+image built from the HEAD commit of the `master` branch. Note that this image
+may contain bugs.
 
 You can also specify a particular version as a tag, e.g.
 `smarkets/marge-bot:0.7.0`.
