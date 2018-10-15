@@ -1,3 +1,12 @@
+  * 0.8.0
+    - Feature: allow reference repository in git clone #129
+    - Feature: add new stable/master tags for docker images #142
+    - Fix: fix TypeError when fetching source project #122
+    - Fix: handle CI status 'skipped' #127
+    - Fix: handle merging when source branch is master #127
+    - Fix: handle error on pushing to protected branches #127
+    - Enhancement: add appropriate error if unresolved discussions on merge request #136
+    - Enhancement: ensure reviewer and commit author aren't the same #137
   * 0.7.0:
     - Feature: add `--batch` to better support repos with many daily MRs and slow-ish CI (#84, #116)
     - Fix: fix fuse() call when using experimental --use-merge-strategy to update source branch #102
