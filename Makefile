@@ -28,7 +28,7 @@ docker-push:
 	fi
 	docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:$(VERSION)
 	if [ "$(VERSION)" = "$$(cat version)" ]; then \
-	  docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest
+	  docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:latest; \
 	  docker tag smarkets/marge-bot:$$(cat version) smarkets/marge-bot:stable; \
 	  docker push smarkets/marge-bot:stable; \
 	  docker push smarkets/marge-bot:latest; \
