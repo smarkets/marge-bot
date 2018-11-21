@@ -111,7 +111,9 @@ class TestMergeRequest(object):
         api = self.api
         mr1, mr_not_me, mr2 = INFO, dict(INFO, assignee={'id': _MARGE_ID+1}, id=679), dict(INFO, id=678)
         api.collect_all_pages = Mock(return_value=[mr1, mr_not_me, mr2])
-        result = MergeRequest.fetch_all_open_for_user(1234, user_id=_MARGE_ID, api=api)
+        result = MergeRequest.fetch_all_open_for_user(
+            1234, user_id=_MARGE_ID, api=api, merge_order='created_at'
+        )
         api.collect_all_pages.assert_called_once_with(GET(
             '/projects/1234/merge_requests',
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},

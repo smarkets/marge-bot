@@ -93,6 +93,9 @@ optional arguments:
   --impersonate-approvers
                         Marge-bot pushes effectively don't change approval status.
                            [env var: MARGE_IMPERSONATE_APPROVERS] (default: False)
+  --merge-order         The order you want marge to merge its requests.
+                        As of earliest merge request creation time (created_at) or update time (updated_at)
+                          [env var: MARGE_MERGE_ORDER] (default: created_at)
   --approval-reset-timeout APPROVAL_RESET_TIMEOUT
                         How long to wait for approvals to reset after pushing.
                         Only useful with the "new commits remove all approvals" option in a project's settings.

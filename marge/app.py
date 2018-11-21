@@ -136,6 +136,12 @@ def _parse_config(args):
         help='Marge-bot pushes effectively don\'t change approval status.\n',
     )
     parser.add_argument(
+        '--merge-order',
+        default='created_at',
+        choices=('created_at', 'updated_at'),
+        help='Order marge merges assigned requests. created_at (default) or updated_at.\n',
+    )
+    parser.add_argument(
         '--approval-reset-timeout',
         type=time_interval,
         default='0s',
@@ -251,6 +257,7 @@ def main(args=None):
             git_timeout=options.git_timeout,
             git_reference_repo=options.git_reference_repo,
             branch_regexp=options.branch_regexp,
+            merge_order=options.merge_order,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
