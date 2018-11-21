@@ -103,7 +103,8 @@ class Bot(object):
         my_merge_requests = MergeRequest.fetch_all_open_for_user(
             project_id=project.id,
             user_id=self.user.id,
-            api=self._api
+            api=self._api,
+            merge_order=self._config.merge_order,
         )
         branch_regexp = self._config.branch_regexp
         filtered_mrs = [mr for mr in my_merge_requests
@@ -172,7 +173,7 @@ class Bot(object):
 
 
 class BotConfig(namedtuple('BotConfig',
-                           'user ssh_key_file project_regexp merge_opts git_timeout ' +
+                           'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
                            'git_reference_repo branch_regexp batch')):
     pass
 

@@ -92,6 +92,7 @@ def test_default_values():
             assert bot.config.project_regexp == re.compile('.*')
             assert bot.config.git_timeout == datetime.timedelta(seconds=120)
             assert bot.config.merge_opts == job.MergeJobOptions.default()
+            assert bot.config.merge_order == 'created_at'
 
 
 def test_embargo():
@@ -203,6 +204,12 @@ def test_git_reference_repo():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--git-reference-repo='/foo/reference_repo'") as bot:
             assert bot.config.git_reference_repo == '/foo/reference_repo'
+
+
+def test_merge_order():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--merge-order='updated_at'") as bot:
+            assert bot.config.merge_order == 'updated_at'
 
 
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
