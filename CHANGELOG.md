@@ -1,3 +1,5 @@
+  * 0.8.1
+    - Feature: allow merging in order of last-update time #149
   * 0.8.0
     - Feature: allow reference repository in git clone #129
     - Feature: add new stable/master tags for docker images #142
