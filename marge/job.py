@@ -230,7 +230,7 @@ class MergeJob(object):
             self,
             merge_request,
             *,
-            source_repo_url=None,
+            source_repo_url=None
     ):
         """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
         The update strategy can either be rebase or merge. The default is rebase.
