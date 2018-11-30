@@ -154,7 +154,9 @@ class Bot(object):
             except git.GitError as err:
                 log.exception('BatchMergeJob failed: %s', err)
         log.info('Attempting to merge the oldest MR...')
-        merge_request = merge_requests[0]
+        # check if label `merge_first` exists, otherwise pick the oldest MR
+        merge_first = [MR for MR in merge_requests if "merge_first" in MR.labels]
+        merge_request = merge_requests[0] if not merge_first else merge_first[0]
         merge_job = self._get_single_job(
             project=project, merge_request=merge_request, repo=repo,
             options=self._config.merge_opts,
