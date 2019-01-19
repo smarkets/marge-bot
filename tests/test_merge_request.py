@@ -1,7 +1,9 @@
-from unittest.mock import Mock
+from unittest.mock import call, Mock
+
+import pytest
 
 from marge.gitlab import Api, GET, POST, PUT, Version
-from marge.merge_request import MergeRequest
+from marge.merge_request import MergeRequest, MergeRequestRebaseFailed
 
 _MARGE_ID = 77
 
@@ -81,6 +83,71 @@ class TestMergeRequest(object):
     def test_unassign(self):
         self.merge_request.unassign()
         self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': None}))
+
+    def test_rebase_was_not_in_progress_no_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                INFO
+            ),
+            (
+                PUT('/projects/1234/merge_requests/54/rebase'),
+                True
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                dict(INFO, rebase_in_progress=False)
+            ),
+        ]
+
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+        self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
+
+    def test_rebase_was_not_in_progress_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                INFO
+            ),
+            (
+                PUT('/projects/1234/merge_requests/54/rebase'),
+                True
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> BOOM
+                dict(INFO, rebase_in_progress=False, merge_error="Rebase failed. Please rebase locally")
+            ),
+        ]
+
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+
+        with pytest.raises(MergeRequestRebaseFailed):
+            self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
+
+    def test_rebase_was_in_progress_no_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                dict(INFO, rebase_in_progress=False)
+            ),
+        ]
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+        self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
 
     def test_accept(self):
         self._load(dict(INFO, sha='badc0de'))

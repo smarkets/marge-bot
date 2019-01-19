@@ -1,3 +1,6 @@
+import logging as log
+import time
+
 from . import gitlab
 from .approvals import Approvals
 
@@ -60,6 +63,14 @@ class MergeRequest(gitlab.Resource):
         return self.info['state']
 
     @property
+    def rebase_in_progress(self):
+        return self.info.get('rebase_in_progress', False)
+
+    @property
+    def merge_error(self):
+        return self.info.get('merge_error')
+
+    @property
     def assignee_id(self):
         assignee = self.info['assignee'] or {}
         return assignee.get('id')
@@ -116,6 +127,31 @@ class MergeRequest(gitlab.Resource):
 
         return self._api.call(POST(notes_url, {'body': message}))
 
+    def rebase(self):
+        self.refetch_info()
+
+        if not self.rebase_in_progress:
+            self._api.call(PUT(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/rebase'.format(self),
+            ))
+        else:
+            # We wanted to rebase and someone just happened to press the button for us!
+            log.info('A rebase was already in progress on the merge request!')
+
+        max_attempts = 30
+        wait_between_attempts_in_secs = 1
+
+        for _ in range(max_attempts):
+            self.refetch_info()
+            if not self.rebase_in_progress:
+                if self.merge_error:
+                    raise MergeRequestRebaseFailed(self.merge_error)
+                return
+
+            time.sleep(wait_between_attempts_in_secs)
+
+        raise TimeoutError('Waiting for merge request to be rebased by GitLab')
+
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
@@ -150,3 +186,7 @@ class MergeRequest(gitlab.Resource):
 
     def fetch_commits(self):
         return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
+
+
+class MergeRequestRebaseFailed(Exception):
+    pass
