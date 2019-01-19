@@ -21,8 +21,11 @@ class Api(object):
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
 
+        if response.status_code == 202:
+            return True  # Accepted
+
         if response.status_code == 204:
-            return True
+            return True  # NoContent
 
         if response.status_code < 300:
             return command.extract(response.json()) if command.extract else response.json()
