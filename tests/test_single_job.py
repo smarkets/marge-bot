@@ -15,6 +15,7 @@ import marge.project
 import marge.single_merge_job
 import marge.user
 from marge.gitlab import GET, PUT
+from marge.job import Fusion
 from marge.merge_request import MergeRequest
 from tests.git_repo_mock import RepoMock
 from tests.gitlab_api_mock import Error, Ok, MockLab
@@ -161,8 +162,8 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
     def fork(self, request):
         return request.param
 
-    @pytest.fixture(params=[True, False])
-    def use_merge(self, request):
+    @pytest.fixture(params=list(f for f in Fusion if f is not Fusion.gitlab_rebase))
+    def fusion(self, request):
         return request.param
 
     @pytest.fixture(params=[True, False])
@@ -178,10 +179,10 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
         return request.param
 
     @pytest.fixture()
-    def options_factory(self, use_merge, add_tested, add_reviewers, add_part_of):
+    def options_factory(self, fusion, add_tested, add_reviewers, add_part_of):
         def make_options(**kwargs):
             fixture_opts = {
-                'use_merge_strategy': use_merge,
+                'fusion': fusion,
                 'add_tested': add_tested,
                 'add_part_of': add_part_of,
                 'add_reviewers': add_reviewers,
@@ -192,26 +193,27 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
         yield make_options
 
     @pytest.fixture()
-    def update_sha(self, use_merge):
+    def update_sha(self, fusion):
         def new_sha(new, old):
-            if use_merge:
-                pat = 'merge(%s with %s)'
-            else:
-                pat = 'rebase(%s onto %s)'
-            return pat % (new, old)
+            pats = {
+                marge.job.Fusion.rebase: 'rebase(%s onto %s)',
+                marge.job.Fusion.merge: 'merge(%s with %s)',
+                marge.job.Fusion.gitlab_rebase: 'rebase(%s onto %s)',
+            }
+            return pats[fusion] % (new, old)
         yield new_sha
 
     @pytest.fixture()
-    def rewrite_sha(self, use_merge, add_tested, add_reviewers, add_part_of):
+    def rewrite_sha(self, fusion, add_tested, add_reviewers, add_part_of):
         def new_sha(sha):
             # NB. The order matches the one used in the Git mock to run filters
-            if add_tested and not use_merge:
+            if add_tested and fusion == marge.job.Fusion.rebase:
                 sha = 'add-tested-by(%s)' % sha
 
-            if add_reviewers:
+            if add_reviewers and fusion != marge.job.Fusion.gitlab_rebase:
                 sha = 'add-reviewed-by(%s)' % sha
 
-            if add_part_of:
+            if add_part_of and fusion != marge.job.Fusion.gitlab_rebase:
                 sha = 'add-part-of(%s)' % sha
 
             return sha

@@ -1,4 +1,5 @@
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+import enum
 import logging as log
 import time
 from collections import namedtuple
@@ -93,7 +94,7 @@ class MergeJob(object):
             ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
             else None
         )
-        if tested_by is not None and not self._options.use_merge_strategy:
+        if tested_by is not None and self._options.fusion == Fusion.rebase:
             sha = self._repo.tag_with_trailer(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
@@ -220,7 +221,13 @@ class MergeJob(object):
 
     def fuse(self, source, target, source_repo_url=None, local=False):
         # NOTE: this leaves git switched to branch_a
-        strategy = self._repo.merge if self._options.use_merge_strategy else self._repo.rebase
+        strategies = {
+            Fusion.rebase: self._repo.rebase,
+            Fusion.merge: self._repo.merge,
+            Fusion.gitlab_rebase: self._repo.rebase,  # we rebase locally to know sha
+        }
+
+        strategy = strategies[self._options.fusion]
         return strategy(
             source,
             target,
@@ -305,7 +312,7 @@ class MergeJob(object):
             if branch_was_modified and fetch_remote_branch().protected:
                 raise CannotMerge("Sorry, I can't push rewritten changes to protected branches!")
 
-            change_type = "merged" if self.opts.use_merge_strategy else "rebased"
+            change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
             raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
 
 
@@ -319,6 +326,13 @@ def _get_reviewer_names_and_emails(commits, approvals, api):
     return ['{0.name} <{0.email}>'.format(user) for user in users]
 
 
+@enum.unique
+class Fusion(enum.Enum):
+    merge = 0
+    rebase = 1
+    gitlab_rebase = 2
+
+
 JOB_OPTIONS = [
     'add_tested',
     'add_part_of',
@@ -327,7 +341,7 @@ JOB_OPTIONS = [
     'approval_timeout',
     'embargo',
     'ci_timeout',
-    'use_merge_strategy',
+    'fusion',
 ]
 
 
@@ -342,7 +356,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False
+            approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -355,7 +369,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             approval_timeout=approval_timeout,
             embargo=embargo,
             ci_timeout=ci_timeout,
-            use_merge_strategy=use_merge_strategy,
+            fusion=fusion,
         )
 
 

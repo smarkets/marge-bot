@@ -4,7 +4,7 @@ from unittest.mock import ANY, Mock, patch, create_autospec
 
 import pytest
 
-from marge.job import CannotMerge, MergeJob, MergeJobOptions, SkipMerge
+from marge.job import CannotMerge, Fusion, MergeJob, MergeJobOptions, SkipMerge
 import marge.interval
 import marge.git
 import marge.gitlab
@@ -147,7 +147,7 @@ class TestJob(object):
         merge_request.unassign.assert_called_once()
 
     def test_fuse_using_rebase(self):
-        merge_job = self.get_merge_job(options=MergeJobOptions.default(use_merge_strategy=False))
+        merge_job = self.get_merge_job(options=MergeJobOptions.default(fusion=Fusion.rebase))
         branch_a = 'A'
         branch_b = 'B'
 
@@ -161,7 +161,7 @@ class TestJob(object):
         )
 
     def test_fuse_using_merge(self):
-        merge_job = self.get_merge_job(options=MergeJobOptions.default(use_merge_strategy=True))
+        merge_job = self.get_merge_job(options=MergeJobOptions.default(fusion=Fusion.merge))
         branch_a = 'A'
         branch_b = 'B'
 
@@ -185,7 +185,7 @@ class TestMergeJobOptions(object):
             approval_timeout=timedelta(seconds=0),
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
-            use_merge_strategy=False,
+            fusion=Fusion.rebase,
         )
 
     def test_default_ci_time(self):
