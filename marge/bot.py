@@ -179,3 +179,4 @@ class BotConfig(namedtuple('BotConfig',
 
 
 MergeJobOptions = job.MergeJobOptions
+Fusion = job.Fusion

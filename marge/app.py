@@ -250,6 +250,11 @@ def main(args=None):
         if options.batch:
             logging.warning('Experimental batch mode enabled')
 
+        if options.use_merge_strategy:
+            fusion = bot.Fusion.merge
+        else:
+            fusion = bot.Fusion.rebase
+
         config = bot.BotConfig(
             user=user,
             ssh_key_file=ssh_key_file,
@@ -266,7 +271,7 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
-                use_merge_strategy=options.use_merge_strategy,
+                fusion=fusion,
             ),
             batch=options.batch,
         )
