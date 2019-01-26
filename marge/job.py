@@ -185,12 +185,14 @@ class MergeJob(object):
             def sufficient_approvals():
                 return merge_request.fetch_approvals().sufficient
             # Make sure we don't race by ensuring approvals have reset since the push
-            time_0 = datetime.utcnow()
             waiting_time_in_secs = 5
+            approval_timeout_in_secs = self._options.approval_timeout.total_seconds()
+            iterations = round(approval_timeout_in_secs / waiting_time_in_secs)
             log.info('Checking if approvals have reset')
-            while sufficient_approvals() and datetime.utcnow() - time_0 < self._options.approval_timeout:
+            while sufficient_approvals() and iterations:
                 log.debug('Approvals haven\'t reset yet, sleeping for %s secs', waiting_time_in_secs)
                 time.sleep(waiting_time_in_secs)
+                iterations -= 1
             if not sufficient_approvals():
                 approvals.reapprove()
 
