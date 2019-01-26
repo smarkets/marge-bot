@@ -24,7 +24,7 @@ def commit(commit_id, status):
 
 
 class MockLab(object):  # pylint: disable=too-few-public-methods
-    def __init__(self, gitlab_url=None, fork=False, merge_request_options=None):
+    def __init__(self, initial_master_sha='505e', gitlab_url=None, fork=False, merge_request_options=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
         self.api = api = Api(gitlab_url=gitlab_url, auth_token='no-token', initial_state='initial')
 
@@ -35,9 +35,7 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
         api.add_user(self.user_info, is_current=True)
 
         self.project_info = dict(test_project.INFO)
-        self.forked_project_info = {**self.project_info, **{'id': 4321}}
         api.add_project(self.project_info)
-        api.add_project(self.forked_project_info)
 
         self.commit_info = dict(test_commit.INFO)
         api.add_commit(self.project_info['id'], self.commit_info)
@@ -62,11 +60,21 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
         }
         if merge_request_options is not None:
             self.merge_request_info.update(merge_request_options)
+
         if fork:
+            self.forked_project_info = dict(
+                self.project_info,
+                id=4321,
+                ssh_url_to_repo='ssh://some.other.project/stuff',
+            )
+            api.add_project(self.forked_project_info)
             self.merge_request_info.update({'iid': 55, 'source_project_id': '4321'})
+        else:
+            self.forked_project_info = None
+
         api.add_merge_request(self.merge_request_info)
 
-        self.initial_master_sha = '505e'
+        self.initial_master_sha = initial_master_sha
         self.approvals_info = dict(
             test_approvals.INFO,
             id=self.merge_request_info['id'],
