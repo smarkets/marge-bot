@@ -246,33 +246,34 @@ class MergeJob(object):
         if source_repo_url is None and source_branch == target_branch:
             raise CannotMerge('source and target branch seem to coincide!')
 
-        branch_updated = branch_rewritten = changes_pushed = False
+        branch_update_done = commits_rewrite_done = changes_pushed = False
         try:
+            initial_mr_sha = merge_request.sha
             updated_sha = self.fuse(
                 source_branch,
                 target_branch,
                 source_repo_url=source_repo_url,
             )
-            branch_updated = True
+            branch_update_done = True
             # The fuse above fetches origin again, so we are now safe to fetch
             # the sha from the remote target branch.
             target_sha = repo.get_commit_hash('origin/' + target_branch)
             if updated_sha == target_sha:
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
-            rewritten_sha = self.add_trailers(merge_request) or updated_sha
-            branch_rewritten = rewritten_sha != updated_sha
+            final_sha = self.add_trailers(merge_request) or updated_sha
+            commits_rewrite_done = True
             repo.push(source_branch, source_repo_url=source_repo_url, force=True)
             changes_pushed = True
         except git.GitError:
-            if not branch_updated:
+            if not branch_update_done:
                 raise CannotMerge('got conflicts while rebasing, your problem now...')
-            if not branch_rewritten:
+            if not commits_rewrite_done:
                 raise CannotMerge('failed on filter-branch; check my logs!')
             if not changes_pushed:
-                if (
-                    branch_rewritten and Branch.fetch_by_name(
+                if final_sha != initial_mr_sha and (
+                     Branch.fetch_by_name(
                         merge_request.source_project_id, merge_request.source_branch, self._api,
-                    ).protected
+                     ).protected
                 ):
                     raise CannotMerge('Sorry, I can\'t push rewritten changes to protected branches!')
                 if self.opts.use_merge_strategy:
@@ -282,7 +283,7 @@ class MergeJob(object):
 
             raise
         else:
-            return target_sha, updated_sha, rewritten_sha
+            return target_sha, updated_sha, final_sha
         finally:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
