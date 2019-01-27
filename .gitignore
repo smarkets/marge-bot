@@ -3,6 +3,7 @@ ENV/
 .cache
 *.egg-info
 .coverage
+.pytest_cache
 
 # nix stuff
 result
