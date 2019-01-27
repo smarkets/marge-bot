@@ -227,3 +227,6 @@ class Version(namedtuple('Version', 'release edition')):
     @property
     def is_ee(self):
         return self.edition == 'ee'
+
+    def __str__(self):
+        return '%s-%s' % ('.'.join(map(str, self.release)), self.edition)

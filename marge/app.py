@@ -111,6 +111,15 @@ def _parse_config(args):
         ),
     )
     parser.add_argument(
+        '--rebase-remotely',
+        action='store_true',
+        help=(
+            "Instead of rebasing in a local clone of the repository, use GitLab's\n"
+            "built-in rebase functionality, via their API. Note that Marge can't add\n"
+            "information in the commits in this case.\n"
+        ),
+    ),
+    parser.add_argument(
         '--add-tested',
         action='store_true',
         help='Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.\n',
@@ -199,6 +208,16 @@ def _parse_config(args):
         raise MargeBotCliArgError('--use-merge-strategy and --batch are currently mutually exclusive')
     if config.use_merge_strategy and config.add_tested:
         raise MargeBotCliArgError('--use-merge-strategy and --add-tested are currently mutually exclusive')
+    if config.rebase_remotely:
+        conflicting_flag = [
+            '--use-merge-strategy',
+            '--add-tested',
+            '--add-reviewers',
+            '--add-part-of',
+        ]
+        for flag in conflicting_flag:
+            if getattr(config, flag[2:].replace("-", "_")):
+                raise MargeBotCliArgError('--rebase-remotely and %s are mutually exclusive' % flag)
 
     cli_args = []
     # pylint: disable=protected-access
@@ -252,6 +271,14 @@ def main(args=None):
 
         if options.use_merge_strategy:
             fusion = bot.Fusion.merge
+        elif options.rebase_remotely:
+            version = api.version()
+            if version.release < (11, 6):
+                raise Exception(
+                    "Need GitLab 11.6+ to use rebase through the API, "
+                    "but your instance is {}".format(version)
+                )
+            fusion = bot.Fusion.gitlab_rebase
         else:
             fusion = bot.Fusion.rebase
 

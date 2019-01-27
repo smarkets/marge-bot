@@ -65,6 +65,7 @@ def main(cmdline=''):
         api = gitlab_mock.Api(gitlab_url=gitlab_url, auth_token=auth_token, initial_state='initial')
         user_info_for_token = dict(user_info, is_admin=auth_token == 'ADMIN-TOKEN')
         api.add_user(user_info_for_token, is_current=True)
+        api.add_transition(gitlab_mock.GET('/version'), gitlab_mock.Ok({'version': '11.6.0-ce'}))
         return api
 
     class DoNothingBot(bot_module.Bot):
@@ -101,6 +102,13 @@ def test_embargo():
             assert bot.config.merge_opts == job.MergeJobOptions.default(
                 embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
             )
+
+
+def test_rebase_remotely():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--rebase-remotely') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(fusion=job.Fusion.gitlab_rebase)
 
 
 def test_use_merge_strategy():
@@ -142,6 +150,12 @@ def test_add_reviewers():
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_reviewers=True)
 
+def test_rebase_remotely_option_conflicts():
+    for conflicting_flag in ['--use-merge-strategy', '--add-tested', '--add-part-of', '--add-reviewers']:
+        with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+            with pytest.raises(app.MargeBotCliArgError):
+                with main('--rebase-remotely %s' % conflicting_flag) as bot:
+                    pass
 
 def test_impersonate_approvers():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
