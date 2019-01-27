@@ -1,3 +1,4 @@
+# pylint: disable=too-many-locals
 import contextlib
 from collections import namedtuple
 from datetime import timedelta
@@ -60,6 +61,7 @@ class SingleJobMockLab(MockLab):
         rewritten_sha,
         gitlab_url=None,
         fork=False,
+        expect_gitlab_rebase=False,
         merge_request_options=None,
     ):
         super().__init__(
@@ -70,6 +72,33 @@ class SingleJobMockLab(MockLab):
         )
         api = self.api
         self.rewritten_sha = rewritten_sha
+        if expect_gitlab_rebase:
+            api.add_transition(
+                PUT(
+                    '/projects/{project_id}/merge_requests/{iid}/rebase'.format(
+                        project_id=self.merge_request_info['project_id'],
+                        iid=self.merge_request_info['iid'],
+                    ),
+                ),
+                Ok(True),
+                from_state='initial',
+                to_state='rebase-in-progress',
+            )
+            api.add_merge_request(
+               dict(self.merge_request_info, rebase_in_progress=True),
+               from_state='rebase-in-progress',
+               to_state='rebase-finished'
+            )
+            api.add_merge_request(
+               dict(
+                 self.merge_request_info,
+                 rebase_in_progress=False,
+                 sha=rewritten_sha,
+               ),
+               from_state='rebase-finished',
+               to_state='pushed',
+            )
+
         api.add_pipelines(
             self.merge_request_info['source_project_id'],
             _pipeline(sha1=rewritten_sha, status='running', ref=self.merge_request_info['source_branch']),
@@ -162,7 +191,7 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
     def fork(self, request):
         return request.param
 
-    @pytest.fixture(params=list(f for f in Fusion if f is not Fusion.gitlab_rebase))
+    @pytest.fixture(params=list(Fusion))
     def fusion(self, request):
         return request.param
 
@@ -225,8 +254,9 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
             yield
 
     @pytest.fixture()
-    def mocklab_factory(self, fork):
-        return partial(SingleJobMockLab, fork=fork)
+    def mocklab_factory(self, fork, fusion):
+        expect_rebase = fusion is Fusion.gitlab_rebase
+        return partial(SingleJobMockLab, fork=fork, expect_gitlab_rebase=expect_rebase)
 
     @pytest.fixture()
     def mocks_factory(self, mocklab_factory, options_factory, update_sha, rewrite_sha):
@@ -260,6 +290,9 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
 
             merge_request = MergeRequest.fetch_by_iid(project_id, merge_request_iid, api)
 
+            def assert_can_push(*_args, **_kwargs):
+                assert options.fusion is not Fusion.gitlab_rebase
+
             callback = on_push or mocklab.push_updated
             repo = RepoMock.init_for_merge_request(
                 merge_request=merge_request,
@@ -267,6 +300,7 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
                 project=project,
                 forked_project=forked_project,
             )
+            repo.mock_impl.on_push_callbacks.append(assert_can_push)
             repo.mock_impl.on_push_callbacks.append(callback)
 
             user = marge.user.User.myself(api)
@@ -399,7 +433,7 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
             "I couldn't merge this branch: Someone pushed to branch while we were trying to merge",
         ]
 
-    def test_fails_if_branch_is_protected(self, mocks_factory):
+    def test_fails_if_branch_is_protected(self, mocks_factory, fusion):
         def reject_push(*_args, **_kwargs):
             raise marge.git.GitError()
 
@@ -413,12 +447,25 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
             Ok(_branch('useless_new_feature', protected=True)),
             from_state='initial', to_state='protected'
         )
-        with mocklab.expected_failure("Sorry, I can't push rewritten changes to protected branches!"):
+
+        if fusion is Fusion.gitlab_rebase:
+            api.add_transition(
+                PUT(
+                    '/projects/{project_id}/merge_requests/{iid}/rebase'.format(
+                        project_id=mocklab.merge_request_info['project_id'],
+                        iid=mocklab.merge_request_info['iid'],
+                    ),
+                ),
+                Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
+                from_state='initial',
+            )
+
+        with mocklab.expected_failure("Sorry, I can't modify protected branches!"):
             job.execute()
 
         assert api.state == 'protected'
 
-    def test_second_time_if_master_moved(self, mocks_factory, update_sha, rewrite_sha):
+    def test_second_time_if_master_moved(self, mocks_factory, fusion, update_sha, rewrite_sha):
         initial_master_sha = 'eaeaea9e9e'
         moved_master_sha = 'fafafa'
         first_rewritten_sha = rewrite_sha(update_sha(INITIAL_MR_SHA, initial_master_sha))
@@ -426,16 +473,13 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
 
         # pylint: disable=unused-argument
         def push_effects(remote_url, remote_branch, old_sha, new_sha):
-            nonlocal mocklab
-            project_url = mocklab.project_info['ssh_url_to_repo']
-            remote_repo = job.repo.mock_impl.remote_repos[project_url]
-            target_branch = mocklab.merge_request_info['target_branch']
+            nonlocal mocklab, target_branch, remote_target_repo
 
             if api.state == 'initial':
                 assert old_sha == INITIAL_MR_SHA
                 assert new_sha == first_rewritten_sha
                 api.state = 'pushed_but_master_moved'
-                remote_repo.set_ref(target_branch, moved_master_sha)
+                remote_target_repo.set_ref(target_branch, moved_master_sha)
             elif api.state == 'merge_rejected':
                 assert new_sha == second_rewritten_sha
                 api.state = 'pushed'
@@ -446,10 +490,29 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
             on_push=push_effects,
         )
 
+        source_project_info = mocklab.forked_project_info or mocklab.project_info
+        target_project_info = mocklab.project_info
+
+        source_project_url = source_project_info['ssh_url_to_repo']
+        target_project_url = target_project_info['ssh_url_to_repo']
+
+        source_branch = mocklab.merge_request_info['source_branch']
+        target_branch = mocklab.merge_request_info['target_branch']
+
+        remote_source_repo = job.repo.mock_impl.remote_repos[source_project_url]
+        remote_target_repo = job.repo.mock_impl.remote_repos[target_project_url]
+
+        api.add_merge_request(
+            dict(
+                mocklab.merge_request_info,
+                sha=first_rewritten_sha,
+            ),
+            from_state=['pushed_but_master_moved', 'merge_rejected'],
+        )
         api.add_pipelines(
             mocklab.merge_request_info['source_project_id'],
             _pipeline(sha1=first_rewritten_sha, status='success'),
-            from_state=['pushed_but_master_moved', 'merged_rejected'],
+            from_state=['pushed_but_master_moved', 'merge_rejected'],
         )
         api.add_transition(
             PUT(
@@ -477,6 +540,25 @@ class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
             Ok({'commit': _commit(commit_id=moved_master_sha, status='success')}),
             from_state='merge_rejected'
         )
+        if fusion is Fusion.gitlab_rebase:
+            rebase_url = '/projects/{project_id}/merge_requests/{iid}/rebase'.format(
+                project_id=mocklab.merge_request_info['project_id'],
+                iid=mocklab.merge_request_info['iid'],
+            )
+
+            api.add_transition(
+                PUT(rebase_url), Ok(True),
+                from_state='initial', to_state='pushed_but_master_moved',
+                side_effect=lambda: (
+                    remote_source_repo.set_ref(source_branch, first_rewritten_sha),
+                    remote_target_repo.set_ref(target_branch, moved_master_sha)
+                )
+            )
+            api.add_transition(
+                PUT(rebase_url), Ok(True),
+                from_state='merge_rejected', to_state='rebase-in-progress',
+                side_effect=lambda: remote_source_repo.set_ref(source_branch, second_rewritten_sha)
+            )
 
         job.execute()
         assert api.state == 'merged'
