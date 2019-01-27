@@ -226,7 +226,7 @@ def _secret_auth_token_and_ssh_key(options):
 
 
 def main(args=None):
-    if not args:
+    if args is None:
         args = sys.argv[1:]
     logging.basicConfig()
 
