@@ -5,9 +5,10 @@ import time
 from collections import namedtuple
 from datetime import datetime, timedelta
 
-from . import git
+from . import git, gitlab
 from .branch import Branch
 from .interval import IntervalUnion
+from .merge_request import MergeRequestRebaseFailed
 from .project import Project
 from .user import User
 from .pipeline import Pipeline
@@ -72,12 +73,17 @@ class MergeJob(object):
         log.info('Adding trailers for MR !%s', merge_request.iid)
 
         # add Reviewed-by
+        should_add_reviewers = (
+            self._options.add_reviewers and
+            self._options.fusion is not Fusion.gitlab_rebase
+        )
         reviewers = (
             _get_reviewer_names_and_emails(
                 merge_request.fetch_commits(),
                 merge_request.fetch_approvals(),
                 self._api,
-            ) if self._options.add_reviewers else None
+            ) if should_add_reviewers
+            else None
         )
         sha = None
         if reviewers is not None:
@@ -89,12 +95,18 @@ class MergeJob(object):
             )
 
         # add Tested-by
-        should_add_tested = self._options.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
+        should_add_tested = (
+            self._options.add_tested and
+            self._project.only_allow_merge_if_pipeline_succeeds and
+            self._options.fusion is Fusion.rebase
+        )
+
         tested_by = (
-            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
+            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)]
+            if should_add_tested
             else None
         )
-        if tested_by is not None and self._options.fusion == Fusion.rebase:
+        if tested_by is not None:
             sha = self._repo.tag_with_trailer(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
@@ -103,8 +115,13 @@ class MergeJob(object):
             )
 
         # add Part-of
+        should_add_parts_of = (
+            self._options.add_part_of and
+            self._options.fusion is not Fusion.gitlab_rebase
+        )
         part_of = (
-            '<{0.web_url}>'.format(merge_request) if self._options.add_part_of
+            '<{0.web_url}>'.format(merge_request)
+            if should_add_parts_of
             else None
         )
         if part_of is not None:
@@ -295,6 +312,21 @@ class MergeJob(object):
         branch_was_modified,
         source_repo_url=None,
     ):
+        if self._options.fusion is Fusion.gitlab_rebase:
+            self.synchronize_using_gitlab_rebase(merge_request)
+        else:
+            self.push_force_to_mr(
+                merge_request,
+                branch_was_modified,
+                source_repo_url=source_repo_url,
+            )
+
+    def push_force_to_mr(
+        self,
+        merge_request,
+        branch_was_modified,
+        source_repo_url=None,
+    ):
         try:
             self._repo.push(
                 merge_request.source_branch,
@@ -310,10 +342,34 @@ class MergeJob(object):
                 )
 
             if branch_was_modified and fetch_remote_branch().protected:
-                raise CannotMerge("Sorry, I can't push rewritten changes to protected branches!")
+                raise CannotMerge("Sorry, I can't modify protected branches!")
 
             change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
             raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
+
+    def synchronize_using_gitlab_rebase(self, merge_request, expected_sha=None):
+        expected_sha = expected_sha or self._repo.get_commit_hash()
+        try:
+            merge_request.rebase()
+        except MergeRequestRebaseFailed as err:
+            raise CannotMerge("GitLab failed to rebase the branch saying: {0[0]}".format(err.args))
+        except TimeoutError:
+            raise CannotMerge("GitLab was taking too long to rebase the branch...")
+        except gitlab.ApiError:
+            branch = Branch.fetch_by_name(
+                        merge_request.source_project_id,
+                        merge_request.source_branch,
+                        self._api,
+                     )
+            if branch.protected:
+                raise CannotMerge("Sorry, I can't modify protected branches!")
+            raise
+        else:
+            if merge_request.sha != expected_sha:
+                raise GitLabRebaseResultMismatch(
+                    gitlab_sha=merge_request.sha,
+                    expected_sha=expected_sha,
+                )
 
 
 def _get_reviewer_names_and_emails(commits, approvals, api):
@@ -385,3 +441,11 @@ class CannotMerge(Exception):
 
 class SkipMerge(CannotMerge):
     pass
+
+
+class GitLabRebaseResultMismatch(CannotMerge):
+    def __init__(self, gitlab_sha, expected_sha):
+        super(GitLabRebaseResultMismatch, self).__init__(
+            "GitLab rebase ended up with a different commit:"
+            "I expected %s but they got %s" % (expected_sha, gitlab_sha)
+        )

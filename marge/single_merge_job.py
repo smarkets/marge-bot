@@ -5,7 +5,7 @@ from datetime import datetime
 
 from . import git, gitlab
 from .commit import Commit
-from .job import CannotMerge, MergeJob, SkipMerge
+from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
 
 
 class SingleMergeJob(MergeJob):
@@ -48,11 +48,18 @@ class SingleMergeJob(MergeJob):
         while not updated_into_up_to_date_target_branch:
             self.ensure_mergeable_mr(merge_request)
             source_project, source_repo_url, _ = self.fetch_source_project(merge_request)
-            # NB. this will be a no-op if there is nothing to update/rewrite
-            target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
-                merge_request,
-                source_repo_url=source_repo_url,
-            )
+            try:
+                # NB. this will be a no-op if there is nothing to update/rewrite
+
+                target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
+                    merge_request,
+                    source_repo_url=source_repo_url,
+                )
+            except GitLabRebaseResultMismatch:
+                log.info("Gitlab rebase didn't give expected result")
+                merge_request.comment("Someone skipped the queue! Will have to try again...")
+                continue
+
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
 
