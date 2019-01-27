@@ -109,7 +109,7 @@ class Api(gitlab.Api):
             self.state,
         )
         try:
-            response, next_state = self._find(command, sudo)
+            response, next_state, side_effect = self._find(command, sudo)
         except KeyError:
             page = command.args.get('page')
             if page == 0:
@@ -132,13 +132,15 @@ class Api(gitlab.Api):
             if next_state:
                 self.state = next_state
 
+            if side_effect:
+                side_effect()
             return response()
 
     def _find(self, command, sudo):
         more_specific = self._transitions.get(_key(command, sudo, self.state))
         return more_specific or self._transitions[_key(command, sudo, None)]
 
-    def add_transition(self, command, response, sudo=None, from_state=None, to_state=None):
+    def add_transition(self, command, response, sudo=None, from_state=None, to_state=None, side_effect=None):
         from_states = from_state if isinstance(from_state, list) else [from_state]
 
         for _from_state in from_states:
@@ -150,7 +152,7 @@ class Api(gitlab.Api):
                 show_from,
                 show_from if to_state is None else repr(to_state),
             )
-            self._transitions[_key(command, sudo, _from_state)] = (response, to_state)
+            self._transitions[_key(command, sudo, _from_state)] = (response, to_state, side_effect)
 
     def add_resource(self, path, info, sudo=None, from_state=None, to_state=None):
         self.add_transition(GET(path.format(attrs(info))), Ok(info), sudo, from_state, to_state)
