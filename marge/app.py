@@ -118,7 +118,7 @@ def _parse_config(args):
             "built-in rebase functionality, via their API. Note that Marge can't add\n"
             "information in the commits in this case.\n"
         ),
-    ),
+    )
     parser.add_argument(
         '--add-tested',
         action='store_true',
