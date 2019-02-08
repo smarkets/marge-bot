@@ -150,17 +150,19 @@ def test_add_reviewers():
             assert bot.config.merge_opts != job.MergeJobOptions.default()
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_reviewers=True)
 
+
 def test_rebase_remotely_option_conflicts():
     for conflicting_flag in ['--use-merge-strategy', '--add-tested', '--add-part-of', '--add-reviewers']:
         with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
             with pytest.raises(app.MargeBotCliArgError):
-                with main('--rebase-remotely %s' % conflicting_flag) as bot:
+                with main('--rebase-remotely %s' % conflicting_flag):
                     pass
+
 
 def test_impersonate_approvers():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(AssertionError):
-            with main('--impersonate-approvers') as bot:
+            with main('--impersonate-approvers'):
                 pass
 
     with env(MARGE_AUTH_TOKEN="ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
