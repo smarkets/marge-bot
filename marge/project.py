@@ -1,5 +1,5 @@
 import logging as log
-from enum import Enum, unique
+from enum import IntEnum, unique
 from functools import partial
 
 from . import gitlab
@@ -78,7 +78,7 @@ class Project(gitlab.Resource):
 
 
 @unique
-class AccessLevel(Enum):
+class AccessLevel(IntEnum):
     # See https://docs.gitlab.com/ce/api/access_requests.html
     guest = 10
     reporter = 20
