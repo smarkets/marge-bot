@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 import pytest
 
-from marge.gitlab import Api, GET
+from marge.gitlab import Api, GET, Version
 from marge.project import AccessLevel, Project
 
 
@@ -67,12 +67,10 @@ class TestProject(object):
 
         api = self.api
         api.collect_all_pages = Mock(return_value=[prj1, prj2])
+        api.version = Mock(return_value=Version.parse("11.2.0-ee"))
 
         result = Project.fetch_all_mine(api)
-        api.collect_all_pages.assert_called_once_with(GET(
-            '/projects',
-            {'membership': True, 'with_merge_requests_enabled': True},
-        ))
+        api.collect_all_pages.assert_called_once()
         assert [prj.info for prj in result] == [prj1, prj2]
 
     def test_properties(self):
