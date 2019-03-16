@@ -62,16 +62,43 @@ class TestProject(object):
         api.collect_all_pages.assert_called_once_with(GET('/projects'))
         assert project and project.info == prj2
 
-    def test_fetch_all_mine(self):
+    def fetch_all_mine_with_permissions(self):
         prj1, prj2 = INFO, dict(INFO, id=678)
+
+        api = self.api
+        api.collect_all_pages = Mock(return_value=[prj1, prj2])
+        api.version = Mock(return_value=Version.parse("11.0.0-ee"))
+
+        result = Project.fetch_all_mine(api)
+        api.collect_all_pages.assert_called_once_with(GET(
+            '/projects',
+            {
+                'membership': True,
+                'with_merge_requests_enabled': True,
+            },
+        ))
+        assert [prj.info for prj in result] == [prj1, prj2]
+        assert all(prj.access_level == AccessLevel.developer for prj in result)
+
+    def fetch_all_mine_with_min_access_level(self):
+        prj1, prj2 = dict(INFO, permissions=NONE_ACCESS), dict(INFO, id=678, permissions=NONE_ACCESS)
 
         api = self.api
         api.collect_all_pages = Mock(return_value=[prj1, prj2])
         api.version = Mock(return_value=Version.parse("11.2.0-ee"))
 
         result = Project.fetch_all_mine(api)
-        api.collect_all_pages.assert_called_once()
+        api.collect_all_pages.assert_called_once_with(GET(
+            '/projects',
+            {
+                'membership': True,
+                'with_merge_requests_enabled': True,
+                "min_access_level": AccessLevel.developer.value,
+            },
+        ))
         assert [prj.info for prj in result] == [prj1, prj2]
+        assert all(prj.info["permissions"]["marge"] for prj in result)
+        assert all(prj.access_level == AccessLevel.developer for prj in result)
 
     def test_properties(self):
         project = Project(api=self.api, info=INFO)
