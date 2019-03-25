@@ -1,10 +1,8 @@
 let
-  fetchFromGitHub = (import <nixpkgs> {}).fetchFromGitHub;
-  pinned = fetchFromGitHub {
-    owner  = "NixOS";
-    repo   = "nixpkgs";
-    rev    = "90afb0c10fe6f437fca498298747b2bcb6a77d39";
-    sha256 = "0mvzdw5aygi1vjnvm0bc8bp7iwb9rypiqg749m6a6km84m7srm0w";
+  spec = builtins.fromJSON (builtins.readFile ./pinnedNixpkgs.src.json);
+  src = builtins.fetchTarball {
+    url = "https://github.com/${spec.owner}/${spec.repo}/archive/${spec.rev}.tar.gz";
+    sha256 = spec.sha256;
   };
 in
-  import pinned {}
+  import src {}
