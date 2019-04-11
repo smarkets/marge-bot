@@ -289,7 +289,12 @@ class MergeJob(object):
             final_sha = self.add_trailers(merge_request) or updated_sha
             commits_rewrite_done = True
             branch_was_modified = final_sha != initial_mr_sha
-            self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url)
+
+            if self._options.fusion is Fusion.gitlab_rebase:
+                final_sha = self.synchronize_using_gitlab_rebase(merge_request)
+            else:
+                self.push_force_to_mr(merge_request, branch_was_modified, source_repo_url)
+
         except git.GitError:
             if not branch_update_done:
                 raise CannotMerge('got conflicts while rebasing, your problem now...')
@@ -305,21 +310,6 @@ class MergeJob(object):
             if source_branch != 'master':
                 repo.checkout_branch('master')
                 repo.remove_branch(source_branch)
-
-    def synchronize_mr_with_local_changes(
-        self,
-        merge_request,
-        branch_was_modified,
-        source_repo_url=None,
-    ):
-        if self._options.fusion is Fusion.gitlab_rebase:
-            self.synchronize_using_gitlab_rebase(merge_request)
-        else:
-            self.push_force_to_mr(
-                merge_request,
-                branch_was_modified,
-                source_repo_url=source_repo_url,
-            )
 
     def push_force_to_mr(
         self,
@@ -347,8 +337,8 @@ class MergeJob(object):
             change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
             raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
 
-    def synchronize_using_gitlab_rebase(self, merge_request, expected_sha=None):
-        expected_sha = expected_sha or self._repo.get_commit_hash()
+    def synchronize_using_gitlab_rebase(self, merge_request):
+        """Return the SHA of the MR after GitLab has rebased it."""
         try:
             merge_request.rebase()
         except MergeRequestRebaseFailed as err:
@@ -365,11 +355,7 @@ class MergeJob(object):
                 raise CannotMerge("Sorry, I can't modify protected branches!")
             raise
         else:
-            if merge_request.sha != expected_sha:
-                raise GitLabRebaseResultMismatch(
-                    gitlab_sha=merge_request.sha,
-                    expected_sha=expected_sha,
-                )
+            return merge_request.sha
 
 
 def _get_reviewer_names_and_emails(commits, approvals, api):
