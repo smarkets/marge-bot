@@ -168,6 +168,12 @@ def _parse_config(args):
         help="Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'.\n",
     )
     parser.add_argument(
+        '--include-archived',
+        type=bool,
+        default=False,
+        help="Marge should process all available projects, including those that are archived.\n",
+    )
+    parser.add_argument(
         '--ci-timeout',
         type=time_interval,
         default='15min',

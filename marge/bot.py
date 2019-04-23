@@ -67,7 +67,7 @@ class Bot(object):
 
     def _get_projects(self):
         log.info('Finding out my current projects...')
-        my_projects = Project.fetch_all_mine(self._api)
+        my_projects = Project.fetch_all_mine(self._api, self._config.include_archived)
         project_regexp = self._config.project_regexp
         filtered_projects = [p for p in my_projects if project_regexp.match(p.path_with_namespace)]
         log.debug(
