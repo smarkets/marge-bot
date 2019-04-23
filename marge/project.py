@@ -26,8 +26,10 @@ class Project(gitlab.Resource):
         return gitlab.from_singleton_list(make_project)(filter_by_path_with_namespace(all_projects))
 
     @classmethod
-    def fetch_all_mine(cls, api):
+    def fetch_all_mine(cls, api, include_archived=False):
         projects_kwargs = {'membership': True, 'with_merge_requests_enabled': True}
+        if not include_archived:
+            projects_kwargs['archived'] = False
 
         # GitLab has an issue where projects may not show appropriate permissions in nested groups. Using
         # `min_access_level` is known to provide the correct projects, so we'll prefer this method
