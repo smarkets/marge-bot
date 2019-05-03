@@ -1,3 +1,5 @@
+  * 0.8.2:
+    - Fix: bump all dependencies (getting rid of vulnerable packages)
   * 0.8.1
     - Feature: allow merging in order of last-update time #149
   * 0.8.0
