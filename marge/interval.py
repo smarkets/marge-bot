@@ -30,7 +30,7 @@ def find_weekday(string_or_day):
     raise ValueError('Not a week day: %r' % string_or_day)
 
 
-class WeeklyInterval(object):
+class WeeklyInterval:
     def __init__(self, from_weekday, from_time, to_weekday, to_time):
         from_weekday = find_weekday(from_weekday)
         to_weekday = find_weekday(to_weekday)
@@ -111,7 +111,7 @@ class WeeklyInterval(object):
         return True
 
 
-class IntervalUnion(object):
+class IntervalUnion:
     def __init__(self, iterable):
         self._intervals = list(iterable)
 

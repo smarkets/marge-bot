@@ -3,7 +3,7 @@ import tempfile
 from . import git
 
 
-class RepoManager(object):
+class RepoManager:
 
     def __init__(self, user, root_dir, ssh_key_file=None, timeout=None, reference=None):
         self._root_dir = root_dir

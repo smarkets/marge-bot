@@ -36,7 +36,7 @@ NONE_ACCESS = {
 
 
 # pylint: disable=attribute-defined-outside-init,duplicate-code
-class TestProject(object):
+class TestProject:
 
     def setup_method(self, _method):
         self.api = Mock(Api)

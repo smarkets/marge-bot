@@ -58,12 +58,12 @@ class RepoMock(git.Repo):
         return stub(stdout=result_bytes)
 
 
-class stub(object):  # pylint: disable=invalid-name,too-few-public-methods
+class stub:  # pylint: disable=invalid-name,too-few-public-methods
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
 
 
-class GitRepoModel(object):
+class GitRepoModel:
     def __init__(self, copy_of=None):
         # pylint: disable=protected-access
         self._refs = dict(copy_of._refs) if copy_of else {}
@@ -84,7 +84,7 @@ class GitRepoModel(object):
         return "<%s: %s>" % (type(self), self._refs)
 
 
-class GitModel(object):
+class GitModel:
     def __init__(self, origin, remote_repos):
         assert origin in remote_repos
 
