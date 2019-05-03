@@ -115,14 +115,14 @@ class SingleMergeJob(MergeJob):
                     raise CannotMerge(
                         'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
                     )
-                elif merge_request.state == 'reopened':
+                if merge_request.state == 'reopened':
                     raise CannotMerge(
                         'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
                         'is rejecting my commits; maybe my email needs to be white-listed?'
                     )
-                elif merge_request.state == 'closed':
+                if merge_request.state == 'closed':
                     raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
-                elif merge_request.state == 'merged':
+                if merge_request.state == 'merged':
                     # We are not covering any observed behaviour here, but if at this
                     # point the request is merged, our job is done, so no need to complain
                     log.info('Merge request is already merged, someone was faster!')

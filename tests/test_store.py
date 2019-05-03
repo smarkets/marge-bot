@@ -13,7 +13,7 @@ from tests.test_user import INFO as USER_INFO
 
 # pylint: disable=attribute-defined-outside-init
 @mock.patch('marge.git._run')
-class TestRepoManager(object):
+class TestRepoManager:
 
     def setup_method(self, _method):
         user = marge.user.User(api=None, info=dict(USER_INFO, name='Peter Parker', email='pparker@bugle.com'))

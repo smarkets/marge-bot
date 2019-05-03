@@ -5,7 +5,7 @@ from collections import namedtuple
 import requests
 
 
-class Api(object):
+class Api:
     def __init__(self, gitlab_url, auth_token):
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
@@ -191,7 +191,7 @@ class UnexpectedError(ApiError):
     pass
 
 
-class Resource(object):
+class Resource:
     def __init__(self, api, info):
         self._info = info
         self._api = api

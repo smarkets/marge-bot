@@ -184,7 +184,7 @@ class SingleJobMockLab(MockLab):
         assert error_note in self.api.notes
 
 
-class TestUpdateAndAccept(object):  # pylint: disable=too-many-public-methods
+class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
     Mocks = namedtuple('Mocks', 'mocklab api job')
 
     @pytest.fixture(params=[True, False])

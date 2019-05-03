@@ -8,7 +8,7 @@ def date(spec):
     return maya.parse(spec).datetime()
 
 
-class TestWeekly(object):
+class TestWeekly:
     def test_on_same_week(self):
         interval = WeeklyInterval('Mon', time(10, 00), 'Fri', time(18, 00))
         assert interval.covers(date('Tuesday 3pm'))
@@ -40,7 +40,7 @@ class TestWeekly(object):
         assert WeeklyInterval.from_human('Mon@9:00-Tue@17:00') != working_hours
 
 
-class TestIntervalUnion(object):
+class TestIntervalUnion:
     def test_empty(self):
         empty_interval = IntervalUnion.empty()
         assert empty_interval == IntervalUnion([])

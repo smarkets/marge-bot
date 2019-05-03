@@ -14,7 +14,7 @@ from .project import AccessLevel, Project
 MergeRequest = merge_request_module.MergeRequest
 
 
-class Bot(object):
+class Bot:
     def __init__(self, *, api, config):
         self._api = api
         self._config = config

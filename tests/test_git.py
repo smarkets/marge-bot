@@ -13,7 +13,7 @@ from marge.git import GIT_SSH_COMMAND
 
 # pylint: disable=attribute-defined-outside-init
 @mock.patch('marge.git._run')
-class TestRepo(object):
+class TestRepo:
 
     def setup_method(self, _method):
         self.repo = marge.git.Repo(
@@ -77,10 +77,9 @@ class TestRepo(object):
         def fail_on_filter_branch(*args, **unused_kwargs):
             if 'filter-branch' in args:
                 raise subprocess.CalledProcessError(returncode=1, cmd='git rebase blah')
-            elif 'rev-parse' in args or 'reset' in args:
+            if 'rev-parse' in args or 'reset' in args:
                 return mock.Mock()
-            else:
-                raise Exception('Unexpected call:', args)
+            raise Exception('Unexpected call:', args)
 
         mocked_run.side_effect = fail_on_filter_branch
 

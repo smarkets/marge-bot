@@ -25,7 +25,7 @@ INFO = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestMergeRequest(object):
+class TestMergeRequest:
 
     def setup_method(self, _method):
         self.api = Mock(Api)

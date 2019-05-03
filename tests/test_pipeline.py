@@ -13,7 +13,7 @@ INFO = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestPipeline(object):
+class TestPipeline:
 
     def setup_method(self, _method):
         self.api = Mock(Api)

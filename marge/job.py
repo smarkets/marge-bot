@@ -14,7 +14,7 @@ from .user import User
 from .pipeline import Pipeline
 
 
-class MergeJob(object):
+class MergeJob:
 
     def __init__(self, *, api, user, project, repo, options):
         self._api = api
@@ -59,8 +59,7 @@ class MergeJob(object):
         if state not in ('opened', 'reopened', 'locked'):
             if state in ('merged', 'closed'):
                 raise SkipMerge('The merge request is already {}!'.format(state))
-            else:
-                raise CannotMerge('The merge request is in an unknown state: {}'.format(state))
+            raise CannotMerge('The merge request is in an unknown state: {}'.format(state))
 
         if self.during_merge_embargo():
             raise SkipMerge('Merge embargo!')

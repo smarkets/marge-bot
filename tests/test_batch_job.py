@@ -13,7 +13,7 @@ from marge.merge_request import MergeRequest
 from tests.gitlab_api_mock import MockLab, Ok, commit
 
 
-class TestBatchJob(object):
+class TestBatchJob:
     @pytest.fixture(params=[True, False])
     def fork(self, request):
         return request.param

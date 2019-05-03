@@ -23,7 +23,7 @@ def commit(commit_id, status):
     }
 
 
-class MockLab(object):  # pylint: disable=too-few-public-methods
+class MockLab:  # pylint: disable=too-few-public-methods
     def __init__(self, initial_master_sha='505e', gitlab_url=None, fork=False, merge_request_options=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
         self.api = api = Api(gitlab_url=gitlab_url, auth_token='no-token', initial_state='initial')

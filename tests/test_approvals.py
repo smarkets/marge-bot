@@ -64,7 +64,7 @@ USERS = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestApprovals(object):
+class TestApprovals:
 
     def setup_method(self, _method):
         self.api = Mock(Api)

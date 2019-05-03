@@ -13,7 +13,7 @@ import marge.project
 import marge.user
 
 
-class TestJob(object):
+class TestJob:
     def _mock_merge_request(self, **options):
         return create_autospec(marge.merge_request.MergeRequest, spec_set=True, **options)
 
@@ -175,7 +175,7 @@ class TestJob(object):
         )
 
 
-class TestMergeJobOptions(object):
+class TestMergeJobOptions:
     def test_default(self):
         assert MergeJobOptions.default() == MergeJobOptions(
             add_tested=False,
