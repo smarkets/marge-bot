@@ -16,7 +16,9 @@ in
       with pkgs; [
         bash
         coreutils
+        git
         glibcLocales
+        openssh
       ] ++ [ marge ];
     config = {
       Entrypoint = [ "/bin/marge.app" ];

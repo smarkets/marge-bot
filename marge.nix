@@ -24,9 +24,9 @@ in
       pytest-pylint
       pytest-runner
     ];
-    propagatedBuildInputs =
-      (with python.packages; [ ConfigArgParse maya PyYAML requests ]) ++
-      (with pkgs; [ git openssh ]);
+    propagatedBuildInputs = with python.packages; [
+      ConfigArgParse maya PyYAML requests
+    ];
     meta = {
       homepage = "https://github.com/smarkets/marge-bot";
       description = "A build bot for GitLab";
