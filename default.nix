@@ -1,3 +1,4 @@
-let pkgs = import ./pinnedNixpkgs.nix;
+let
+  pkgs = import ./pinnedNixpkgs.nix;
 in
-pkgs.callPackage ./marge.nix {}
+  pkgs.callPackage ./marge.nix {}
