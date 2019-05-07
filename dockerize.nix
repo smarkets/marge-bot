@@ -1,4 +1,4 @@
-{ pkgs ? import ./pinnedNixpkgs.nix }:
+{ pkgs }:
 let
   marge = pkgs.callPackage ./marge.nix {};
   version = marge.version;

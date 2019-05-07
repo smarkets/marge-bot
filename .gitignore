@@ -7,3 +7,4 @@ ENV/
 
 # nix stuff
 result
+result-*
