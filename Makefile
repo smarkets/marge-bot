@@ -9,7 +9,7 @@ marge-bot:
 
 .PHONY: clean
 clean:
-	rm -rf .cache result requirements_frozen.txt
+	rm -rf .cache result result-* requirements_frozen.txt
 
 .PHONY: bump
 bump: bump-requirements bump-sources
