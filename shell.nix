@@ -1,3 +1,4 @@
+# Customization for the project's nix-shell, injects tooling to bump dependencies.
 let
   addBuildTools = pkg: tools: pkg.overrideAttrs
      (oldAttrs: { nativeBuildInputs = oldAttrs.nativeBuildInputs ++ tools; });

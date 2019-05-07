@@ -1,7 +1,7 @@
 VERSION?=$$(git rev-parse --abbrev-ref HEAD)
 
 .PHONY: all
-all: requirements_frozen.txt requirements.nix requirements_override.nix marge-bot dockerize
+all: nix/requirements_frozen.txt nix/requirements.nix nix/requirements_override.nix marge-bot dockerize
 
 .PHONY: marge-bot
 marge-bot:
@@ -21,7 +21,7 @@ bump-sources:
 .PHONY: bump-requirements
 bump-requirements: clean requirements_frozen.txt
 
-requirements_frozen.txt requirements.nix requirements_override.nix: requirements.txt
+nix/requirements_frozen.txt nix/requirements.nix nix/requirements_override.nix: requirements.txt
 	pypi2nix -V 3.6 -r $^
 
 .PHONY: dockerize
