@@ -12,7 +12,7 @@ INFO = {
     'iid': 54,
     'title': 'a title',
     'project_id': 1234,
-    'assignee': {'id': _MARGE_ID},
+    'assignees': [{'id': _MARGE_ID}],
     'author': {'id': 88},
     'state': 'opened',
     'sha': 'dead4g00d',
@@ -54,7 +54,7 @@ class TestMergeRequest:
         assert self.merge_request.project_id == 1234
         assert self.merge_request.iid == 54
         assert self.merge_request.title == 'a title'
-        assert self.merge_request.assignee_id == 77
+        assert self.merge_request.assignee_ids == [77]
         assert self.merge_request.author_id == 88
         assert self.merge_request.state == 'opened'
         assert self.merge_request.source_branch == 'useless_new_feature'
@@ -64,8 +64,8 @@ class TestMergeRequest:
         assert self.merge_request.target_project_id == 1234
         assert self.merge_request.work_in_progress is False
 
-        self._load({'assignee': {}})
-        assert self.merge_request.assignee_id is None
+        self._load({'assignees': []})
+        assert self.merge_request.assignee_ids == []
 
     def test_comment(self):
         self.merge_request.comment('blah')
@@ -176,7 +176,7 @@ class TestMergeRequest:
 
     def test_fetch_all_opened_for_me(self):
         api = self.api
-        mr1, mr_not_me, mr2 = INFO, dict(INFO, assignee={'id': _MARGE_ID+1}, id=679), dict(INFO, id=678)
+        mr1, mr_not_me, mr2 = INFO, dict(INFO, assignees=[{'id': _MARGE_ID+1}], id=679), dict(INFO, id=678)
         api.collect_all_pages = Mock(return_value=[mr1, mr_not_me, mr2])
         result = MergeRequest.fetch_all_open_for_user(
             1234, user_id=_MARGE_ID, api=api, merge_order='created_at'

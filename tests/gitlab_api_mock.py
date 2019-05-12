@@ -47,7 +47,7 @@ class MockLab:  # pylint: disable=too-few-public-methods
             'title': 'a title',
             'project_id': 1234,
             'author': {'id': self.author_id},
-            'assignee': {'id': self.user_id},
+            'assignees': [{'id': self.user_id}],
             'approved_by': [],
             'state': 'opened',
             'sha': self.commit_info['id'],
