@@ -79,7 +79,7 @@ class TestJob:
     def test_ensure_mergeable_mr_state_not_ok(self):
         merge_job = self.get_merge_job()
         merge_request = self._mock_merge_request(
-            assignee_id=merge_job._user.id,
+            assignee_ids=[merge_job._user.id],
             state='merged',
             work_in_progress=False,
             squash=False,
@@ -91,7 +91,7 @@ class TestJob:
     def test_ensure_mergeable_mr_not_approved(self):
         merge_job = self.get_merge_job()
         merge_request = self._mock_merge_request(
-            assignee_id=merge_job._user.id,
+            assignee_ids=[merge_job._user.id],
             state='opened',
             work_in_progress=False,
             squash=False,
@@ -106,7 +106,7 @@ class TestJob:
     def test_ensure_mergeable_mr_wip(self):
         merge_job = self.get_merge_job()
         merge_request = self._mock_merge_request(
-            assignee_id=merge_job._user.id,
+            assignee_ids=[merge_job._user.id],
             state='opened',
             work_in_progress=True,
         )
@@ -119,7 +119,7 @@ class TestJob:
     def test_ensure_mergeable_mr_squash_and_trailers(self):
         merge_job = self.get_merge_job(options=MergeJobOptions.default(add_reviewers=True))
         merge_request = self._mock_merge_request(
-            assignee_id=merge_job._user.id,
+            assignee_ids=[merge_job._user.id],
             state='opened',
             work_in_progress=False,
             squash=True,

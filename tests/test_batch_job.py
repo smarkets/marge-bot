@@ -119,7 +119,7 @@ class TestBatchJob:
         batch_merge_job = self.get_batch_merge_job(api, mocklab)
         bmj_get_mr_ci_status.return_value = 'failed'
         merge_request = self._mock_merge_request(
-            assignee_id=batch_merge_job._user.id,
+            assignee_ids=[batch_merge_job._user.id],
             state='opened',
             work_in_progress=False,
             squash=False,
