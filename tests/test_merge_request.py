@@ -158,7 +158,7 @@ class TestMergeRequest:
                 '/projects/1234/merge_requests/54/merge',
                 dict(
                     merge_when_pipeline_succeeds=True,
-                    remove_source_branch=boolean,
+                    should_remove_source_branch=boolean,
                     sha='badc0de',
                 )
             ))
@@ -169,7 +169,7 @@ class TestMergeRequest:
             '/projects/1234/merge_requests/54/merge',
             dict(
                 merge_when_pipeline_succeeds=True,
-                remove_source_branch=False,
+                should_remove_source_branch=False,
                 sha='g00dc0de',
             )
         ))

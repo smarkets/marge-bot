@@ -158,7 +158,7 @@ class MergeRequest(gitlab.Resource):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
             dict(
-                remove_source_branch=remove_branch,
+                should_remove_source_branch=remove_branch,
                 merge_when_pipeline_succeeds=True,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
             ),
