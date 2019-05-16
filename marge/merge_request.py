@@ -120,14 +120,22 @@ class MergeRequest(gitlab.Resource):
     def refetch_info(self):
         self._info = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}'.format(self)))
 
+    def delete_previous_comments(self, author_id, ignore_id=None):
+        comments = self._api.collect_all_pages(
+            GET('/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)))
+        for comment in comments:
+            if not comment['system'] and comment['author']['id'] == author_id and comment['id'] != ignore_id:
+                self._api.call(DELETE('/projects/{0.project_id}/merge_requests/{0.iid}/notes/{1}'
+                                      .format(self, comment['id'])))
+
     def comment(self, message):
         if self._api.version().release >= (9, 2, 2):
             notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
         else:
             # GitLab botched the v4 api before 9.2.2
             notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
-
-        return self._api.call(POST(notes_url, {'body': message}))
+        response = self._api.call(POST(notes_url, {'body': message}))
+        return self.delete_previous_comments(author_id=response['author']['id'], ignore_id=response['id'])
 
     def rebase(self):
         self.refetch_info()
