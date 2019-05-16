@@ -117,6 +117,10 @@ class MergeRequest(gitlab.Resource):
     def web_url(self):
         return self.info['web_url']
 
+    @property
+    def force_remove_source_branch(self):
+        return self.info['force_remove_source_branch']
+
     def refetch_info(self):
         self._info = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}'.format(self)))
 
