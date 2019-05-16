@@ -19,6 +19,7 @@ INFO = {
     'source_project_id': 5678,
     'target_project_id': 1234,
     'source_branch': 'useless_new_feature',
+    'force_remove_source_branch': True,
     'target_branch': 'master',
     'work_in_progress': False,
 }
