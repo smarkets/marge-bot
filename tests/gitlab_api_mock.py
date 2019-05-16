@@ -54,6 +54,7 @@ class MockLab:  # pylint: disable=too-few-public-methods
             'source_project_id': 1234,
             'target_project_id': 1234,
             'source_branch': 'useless_new_feature',
+            'force_remove_source_branch': True,
             'target_branch': 'master',
             'work_in_progress': False,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
