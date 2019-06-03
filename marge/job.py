@@ -421,6 +421,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             add_tested=add_tested,
             add_part_of=add_part_of,
             add_reviewers=add_reviewers,
+            keep_source_branch=keep_source_branch,
             reapprove=reapprove,
             approval_timeout=approval_timeout,
             embargo=embargo,
