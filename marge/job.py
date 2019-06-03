@@ -410,8 +410,9 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     @classmethod
     def default(
             cls, *,
-            add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
+            add_tested=False, add_part_of=False, add_reviewers=False, keep_source_branch=False,
+            reapprove=False, approval_timeout=None, embargo=None, ci_timeout=None, 
+            fusion=Fusion.rebase,
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()

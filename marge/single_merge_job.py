@@ -79,7 +79,7 @@ class SingleMergeJob(MergeJob):
             self.ensure_mergeable_mr(merge_request)
 
             try:
-                merge_request.accept(remove_branch=True, sha=actual_sha)
+                merge_request.accept(remove_branch=not self.options.keep-source-branch, sha=actual_sha)
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we updated, just try again

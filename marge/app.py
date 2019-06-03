@@ -140,6 +140,11 @@ def _parse_config(args):
         help='Add "Reviewed-by: $approver" for each approver of MR to each commit in MR.\n',
     )
     parser.add_argument(
+        '--keep-source-branch',
+        action='store_true',
+        help='Marge-bot doesn\'t remove source branch.\n',
+    )
+    parser.add_argument(
         '--impersonate-approvers',
         action='store_true',
         help='Marge-bot pushes effectively don\'t change approval status.\n',
@@ -294,6 +299,7 @@ def main(args=None):
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
                 add_reviewers=options.add_reviewers,
+                keep_source_branch=options.keep_source_branch,
                 reapprove=options.impersonate_approvers,
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
