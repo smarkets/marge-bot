@@ -392,6 +392,7 @@ JOB_OPTIONS = [
     'add_tested',
     'add_part_of',
     'add_reviewers',
+    'keep_source_branch',
     'reapprove',
     'approval_timeout',
     'embargo',
