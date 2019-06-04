@@ -8,8 +8,18 @@ let
       ''
         mkdir -p $out
         cd $out
-        ${pkgs.dockerTools.shadowSetup}
         mkdir -p root/.ssh
+        mkdir -p etc/pam.d
+        echo "root:x:0:0::/root:/bin/sh" >etc/passwd
+        echo "root:!x:::::::" > etc/shadow
+        echo "root:x:0:" > etc/group
+        echo "root:x::" > etc/gshadow
+        cat > etc/pam.d/other <<EOF
+        account sufficient pam_unix.so
+        auth sufficient pam_rootok.so
+        password requisite pam_unix.so nullok sha512
+        session required pam_unix.so
+        EOF
       '';
 in
   pkgs.dockerTools.buildImage {
