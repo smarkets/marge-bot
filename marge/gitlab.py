@@ -17,7 +17,14 @@ class Api:
         if sudo:
             headers['SUDO'] = '%d' % sudo
         log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
-        response = method(url, headers=headers, **command.call_args)
+        # Timeout to prevent indefinitely hanging requests. 60s is very conservative,
+        # but should be short enough to not cause any practical annoyances. We just
+        # crash rather than retry since marge-bot should be run in a restart loop anyway.
+        try:
+            response = method(url, headers=headers, timeout=60, **command.call_args)
+        except requests.exceptions.Timeout as err:
+            log.error('Request timeout: %s', err)
+            raise
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
 
