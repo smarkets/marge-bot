@@ -453,6 +453,8 @@ marge-bot with `--embargo "Friday 1pm - Monday 9am" --branch-regexp master` and
 the other with `--branch-regexp (?!master)`. This would allow development to
 continue on other branches during the embargo on master.
 
+It is possible to restrict the source branches with `--source-branch-regexp`.
+
 ## Some handy git aliases
 
 Only `git bisect run` on commits that have passed CI (requires running marge-bot with `--add-tested`):

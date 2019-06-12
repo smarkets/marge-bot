@@ -216,6 +216,12 @@ def test_branch_regexp():
             assert bot.config.branch_regexp == re.compile('foo.*bar')
 
 
+def test_source_branch_regexp():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--source-branch-regexp='foo.*bar'") as bot:
+            assert bot.config.source_branch_regexp == re.compile('foo.*bar')
+
+
 def test_git_reference_repo():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--git-reference-repo='/foo/reference_repo'") as bot:

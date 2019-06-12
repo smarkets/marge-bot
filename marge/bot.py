@@ -119,7 +119,20 @@ class Bot:
                 'MRs that do not match branch_regexp: %s',
                 [mr.web_url for mr in filtered_out]
             )
-        return filtered_mrs
+        source_branch_regexp = self._config.source_branch_regexp
+        source_filtered_mrs = [mr for mr in filtered_mrs
+                               if source_branch_regexp.match(mr.source_branch)]
+        log.debug(
+            'MRs that match source_branch_regexp: %s',
+            [mr.web_url for mr in source_filtered_mrs]
+        )
+        source_filtered_out = set(filtered_mrs) - set(source_filtered_mrs)
+        if filtered_out:
+            log.debug(
+                'MRs that do not match source_branch_regexp: %s',
+                [mr.web_url for mr in source_filtered_out]
+            )
+        return source_filtered_mrs
 
     def _process_merge_requests(self, repo_manager, project, merge_requests):
         if not merge_requests:
@@ -174,7 +187,7 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
-                           'git_reference_repo branch_regexp batch')):
+                           'git_reference_repo branch_regexp source_branch_regexp batch')):
     pass
 
 
