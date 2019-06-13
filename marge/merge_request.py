@@ -176,12 +176,12 @@ class MergeRequest(gitlab.Resource):
                 '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
                 {'assignee_id': user_id},
             ))
-        return true
+        return True
 
     def unassign(self):
         if self.author_id not in self.assignee_ids:
             return self.assign_to(None)
-        return true
+        return True
 
     def fetch_approvals(self):
         # 'id' needed for for GitLab 9.2.2 hack (see Approvals.refetch_info())
