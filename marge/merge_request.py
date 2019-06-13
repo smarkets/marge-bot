@@ -171,7 +171,7 @@ class MergeRequest(gitlab.Resource):
         ))
 
     def assign_to(self, user_id):
-        if self.author_id() not in self.assignee_ids():
+        if self.author_id not in self.assignee_ids:
             return self._api.call(PUT(
                 '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
                 {'assignee_id': user_id},
@@ -179,7 +179,7 @@ class MergeRequest(gitlab.Resource):
         return
 
     def unassign(self):
-        if self.author_id() not in self.assignee_ids():
+        if self.author_id not in self.assignee_ids:
             return self.assign_to(None)
         return
 
