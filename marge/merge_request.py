@@ -128,7 +128,7 @@ class MergeRequest(gitlab.Resource):
         self.refetch_notes()
         last_note = next(iter(self._notes))
 
-        if last_note.get('body') != message and last_note.get('created_at').utcnow() - time_0 < self._options.comment_antiflood:
+        if last_note.get('body') != message or last_note.get('created_at').utcnow() - time_0 > self._options.comment_antiflood:
 
         if self._api.version().release >= (9, 2, 2):
             notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
