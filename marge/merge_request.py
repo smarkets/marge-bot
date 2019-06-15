@@ -1,6 +1,7 @@
 import logging as log
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from dateutil.parser import parse as parse_datetime
 
 from . import gitlab
 from .approvals import Approvals
@@ -125,10 +126,10 @@ class MergeRequest(gitlab.Resource):
         self._notes = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/notes?sort=desc&order_by=created_at'.format(self)))
 
     def comment(self, message):
-        time_0 = datetime.utcnow()
+        time_0 = datetime.now(timezone.utc)
         self.refetch_notes()
         last_note = next(iter(self._notes))
-        last_note_tmstp = time.mktime(time.strptime(last_note.get('created_at'), '%Y-%m-%dT%H:%M:%SZ'))
+        last_note_tmstp = parse_datetime(last_note.get('created_at'))
 
         if last_note.get('body') != message or last_note_tmstp - time_0 > self._options.comment_antiflood:
 
