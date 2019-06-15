@@ -130,13 +130,15 @@ class MergeRequest(gitlab.Resource):
 
         if last_note.get('body') != message or last_note.get('created_at').utcnow() - time_0 > self._options.comment_antiflood:
 
-        if self._api.version().release >= (9, 2, 2):
-            notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
-        else:
-            # GitLab botched the v4 api before 9.2.2
-            notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
+            if self._api.version().release >= (9, 2, 2):
+                notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
+            else:
+                # GitLab botched the v4 api before 9.2.2
+                notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
 
-        return self._api.call(POST(notes_url, {'body': message}))
+            return self._api.call(POST(notes_url, {'body': message}))
+
+        return True
 
     def rebase(self):
         self.refetch_info()

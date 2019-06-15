@@ -296,6 +296,7 @@ def main(args=None):
             git_reference_repo=options.git_reference_repo,
             branch_regexp=options.branch_regexp,
             merge_order=options.merge_order,
+            comment_antiflood=options.comment_antiflood,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
@@ -304,7 +305,6 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
-                comment_antiflood=options.comment_antiflood,
                 fusion=fusion,
             ),
             batch=options.batch,
