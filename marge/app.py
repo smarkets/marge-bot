@@ -174,12 +174,6 @@ def _parse_config(args):
         help='How long to wait for CI to pass.\n',
     )
     parser.add_argument(
-        '--comment-antiflood',
-        type=time_interval,
-        default='15min',
-        help='How long to wait before the bot writes the same comment.\n',
-    )
-    parser.add_argument(
         '--max-ci-time-in-minutes',
         type=int,
         default=None,
@@ -296,7 +290,6 @@ def main(args=None):
             git_reference_repo=options.git_reference_repo,
             branch_regexp=options.branch_regexp,
             merge_order=options.merge_order,
-            comment_antiflood=options.comment_antiflood,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
