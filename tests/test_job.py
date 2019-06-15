@@ -48,21 +48,35 @@ class TestJob:
             assert r_source_project is not merge_job._project
             assert r_source_project is project_class.fetch_by_id.return_value
 
-    def test_get_mr_ci_status(self):
+    @pytest.mark.parametrize(
+        'version,use_merge_request_pipelines',
+        [('9.4.0-ee', False), ('10.5.0-ee', True)],
+    )
+    def test_get_mr_ci_status(self, version, use_merge_request_pipelines):
         with patch('marge.job.Pipeline', autospec=True) as pipeline_class:
-            pipeline_class.pipelines_by_branch.return_value = [
+            pipeline_success = [
                 Mock(spec=pipeline_class, sha='abc', status='success'),
             ]
+            pipeline_class.pipelines_by_branch.return_value = pipeline_success
+            pipeline_class.pipelines_by_merge_request.return_value = pipeline_success
             merge_job = self.get_merge_job()
+            merge_job._api.version.return_value = marge.gitlab.Version.parse(version)
             merge_request = self._mock_merge_request(sha='abc')
 
             r_ci_status = merge_job.get_mr_ci_status(merge_request)
 
-            pipeline_class.pipelines_by_branch.assert_called_once_with(
-                merge_request.source_project_id,
-                merge_request.source_branch,
-                merge_job._api,
-            )
+            if use_merge_request_pipelines:
+                pipeline_class.pipelines_by_merge_request.assert_called_once_with(
+                    merge_request.source_project_id,
+                    merge_request.iid,
+                    merge_job._api,
+                )
+            else:
+                pipeline_class.pipelines_by_branch.assert_called_once_with(
+                    merge_request.source_project_id,
+                    merge_request.source_branch,
+                    merge_job._api,
+                )
             assert r_ci_status == 'success'
 
     def test_ensure_mergeable_mr_not_assigned(self):

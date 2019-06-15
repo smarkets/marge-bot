@@ -135,11 +135,19 @@ class MergeJob:
     def get_mr_ci_status(self, merge_request, commit_sha=None):
         if commit_sha is None:
             commit_sha = merge_request.sha
-        pipelines = Pipeline.pipelines_by_branch(
-            merge_request.source_project_id,
-            merge_request.source_branch,
-            self._api,
-        )
+
+        if self._api.version().release >= (10, 5, 0):
+            pipelines = Pipeline.pipelines_by_merge_request(
+                merge_request.source_project_id,
+                merge_request.iid,
+                self._api,
+            )
+        else:
+            pipelines = Pipeline.pipelines_by_branch(
+                merge_request.source_project_id,
+                merge_request.source_branch,
+                self._api,
+            )
         current_pipeline = next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
 
         if current_pipeline:
