@@ -82,7 +82,7 @@ class TestMergeRequest:
 
     def test_unassign(self):
         self.merge_request.unassign()
-        self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': None}))
+        self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': 0}))
 
     def test_rebase_was_not_in_progress_no_error(self):
         expected = [
