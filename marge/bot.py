@@ -174,7 +174,7 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
-                           'git_reference_repo branch_regexp batch comment_antiflood')):
+                           'git_reference_repo branch_regexp batch')):
     pass
 
 
