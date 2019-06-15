@@ -177,7 +177,7 @@ class MergeRequest(gitlab.Resource):
         ))
 
     def unassign(self):
-        return self.assign_to(None)
+        return self.assign_to(0)
 
     def fetch_approvals(self):
         # 'id' needed for for GitLab 9.2.2 hack (see Approvals.refetch_info())
