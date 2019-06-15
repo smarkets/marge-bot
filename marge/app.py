@@ -174,6 +174,12 @@ def _parse_config(args):
         help='How long to wait for CI to pass.\n',
     )
     parser.add_argument(
+        '--comment-antiflood',
+        type=time_interval,
+        default='15min',
+        help='How long to wait before the bot writes the same comment.\n',
+    )
+    parser.add_argument(
         '--max-ci-time-in-minutes',
         type=int,
         default=None,
@@ -298,6 +304,7 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
+                comment_antiflood=options.comment_antiflood,
                 fusion=fusion,
             ),
             batch=options.batch,
