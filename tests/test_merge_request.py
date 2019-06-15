@@ -69,12 +69,16 @@ class TestMergeRequest:
 
     def test_comment(self):
         self.merge_request.comment('blah')
-        self.api.call.assert_called_once_with(
+        self.api.call.assert_called_with(GET('projects/1234/merge_requests/54/notes?sort=desc&order_by=created_at'))
+        self.api.call.assert_called_with(
             POST(
                 '/projects/1234/merge_requests/54/notes',
                 {'body': 'blah'},
             ),
         )
+        self.api.call.reset_mock()
+        self.merge_request.comment('blah')
+        self.api.call.assert_called_once_with(GET('projects/1234/merge_requests/54/notes?sort=desc&order_by=created_at'))
 
     def test_assign(self):
         self.merge_request.assign_to(42)
