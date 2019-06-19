@@ -1,3 +1,12 @@
+  * 0.9.0:
+    - Fix: For API versions > v10.5.0 fetch pipelines by merge request id
+      branch name is no longer the ref field as set by GitLab #212
+    - Feature: add config for filtering source branches in MRs by regex #206
+    - Enhancement: add a timeout for all GitLab requests of 60s #200
+    - Enhancement: make the docker image smaller #199
+    - Fix: docker image root user creation #198
+    - Fix: single assignee support #192
+    - Feature: support multiple assignees in merge requests #186
   * 0.8.2:
     - Fix: bump all dependencies (getting rid of vulnerable packages)
   * 0.8.1
