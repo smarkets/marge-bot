@@ -1,5 +1,14 @@
-  * 0.8.2:
-    - Fix: bump all dependencies (getting rid of vulnerable packages)
+  * 0.9.0:
+    - Feature: support rebasing through GitLab's API #160
+    - Feature: allow restrict source branches #206
+    - Fix: only fetch projects with min access level #166
+    - Fix: bump all dependencies (getting rid of vulnerable packages) #179
+    - Fix: support multiple assignees #186, #192
+    - Fix: fetch pipelines by merge request instead of branch #212
+    - Fix: fix unassign when author is Marge #211
+    - Enhancement: ignore archived projects #177
+    - Enhancement: add a timeout to all gitlab requests #200
+    - Enhancement: smaller docker image size  #199
   * 0.8.1
     - Feature: allow merging in order of last-update time #149
   * 0.8.0
