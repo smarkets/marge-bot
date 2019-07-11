@@ -30,7 +30,7 @@ max-line-length=110
 [DESIGN]
 max-args=10
 max-attributes=15
-max-public-methods=30
+max-public-methods=35
 
 [REPORTS]
 output-format=parseable
