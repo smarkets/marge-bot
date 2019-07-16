@@ -243,6 +243,9 @@ class MergeJob:
             )
         return source_project
 
+    def get_target_project(self, merge_request):
+        return Project.fetch_by_id(merge_request.target_project_id, api=self._api)
+
     def fuse(self, source, target, source_repo_url=None, local=False):
         # NOTE: this leaves git switched to branch_a
         strategies = {
