@@ -138,7 +138,7 @@ class MergeJob:
 
         if self._api.version().release >= (10, 5, 0):
             pipelines = Pipeline.pipelines_by_merge_request(
-                merge_request.source_project_id,
+                merge_request.target_project_id,
                 merge_request.iid,
                 self._api,
             )

@@ -67,7 +67,7 @@ class TestJob:
 
             if use_merge_request_pipelines:
                 pipeline_class.pipelines_by_merge_request.assert_called_once_with(
-                    merge_request.source_project_id,
+                    merge_request.target_project_id,
                     merge_request.iid,
                     merge_job._api,
                 )
