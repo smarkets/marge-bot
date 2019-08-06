@@ -166,7 +166,7 @@ class BatchMergeJob(MergeJob):
 
         return final_sha
 
-    def execute(self):
+    def execute(self, play_manual_jobs):
         # Cleanup previous batch work
         self.remove_batch_branch()
         self.close_batch_mr()
@@ -234,7 +234,8 @@ class BatchMergeJob(MergeJob):
             for merge_request in working_merge_requests:
                 merge_request.comment('I will attempt to batch this MR (!{})...'.format(batch_mr.iid))
             try:
-                self.wait_for_ci_to_pass(batch_mr)
+
+                self.wait_for_ci_to_pass(batch_mr, play_manual_jobs=play_manual_jobs)
             except CannotMerge as err:
                 for merge_request in working_merge_requests:
                     merge_request.comment(

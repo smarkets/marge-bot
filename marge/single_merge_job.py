@@ -14,14 +14,14 @@ class SingleMergeJob(MergeJob):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_request = merge_request
 
-    def execute(self):
+    def execute(self, play_manual_jobs):
         merge_request = self._merge_request
 
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
         try:
             approvals = merge_request.fetch_approvals()
-            self.update_merge_request_and_accept(approvals)
+            self.update_merge_request_and_accept(approvals, play_manual_jobs)
             log.info('Successfully merged !%s.', merge_request.info['iid'])
         except SkipMerge as err:
             log.warning("Skipping MR !%s: %s", merge_request.info['iid'], err.reason)
@@ -40,7 +40,7 @@ class SingleMergeJob(MergeJob):
             self.unassign_from_mr(merge_request)
             raise
 
-    def update_merge_request_and_accept(self, approvals):
+    def update_merge_request_and_accept(self, approvals, play_manual_jobs):
         api = self._api
         merge_request = self._merge_request
         updated_into_up_to_date_target_branch = False
@@ -72,9 +72,9 @@ class SingleMergeJob(MergeJob):
                 raise CannotMerge('Someone pushed to branch while we were trying to merge')
 
             self.maybe_reapprove(merge_request, approvals)
-
+            
             if target_project.only_allow_merge_if_pipeline_succeeds:
-                self.wait_for_ci_to_pass(merge_request, actual_sha)
+                self.wait_for_ci_to_pass(merge_request, actual_sha, play_manual_jobs)
                 time.sleep(2)
 
             self.ensure_mergeable_mr(merge_request)

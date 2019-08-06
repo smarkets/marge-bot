@@ -1,7 +1,7 @@
 """
 An auto-merger of merge requests for GitLab
 """
-
+import logging as log
 import contextlib
 import logging
 import re
@@ -208,6 +208,12 @@ def _parse_config(args):
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
     )
+    parser.add_argument(
+        '--play-manual-jobs',
+        type=bool,
+        default=False,
+        help='Determines whether Marge will press play on any Manual Jobs she encounters.\n'
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -251,12 +257,13 @@ def _secret_auth_token_and_ssh_key(options):
 
 
 def main(args=None):
+    
     if args is None:
         args = sys.argv[1:]
     logging.basicConfig()
 
     options = _parse_config(args)
-
+    log.info('++++ THESE ARE THE OPTIONS ++++ %r', options)
     if options.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     else:
@@ -308,6 +315,7 @@ def main(args=None):
                 fusion=fusion,
             ),
             batch=options.batch,
+            play_manual_jobs=options.play_manual_jobs
         )
 
         marge_bot = bot.Bot(api=api, config=config)

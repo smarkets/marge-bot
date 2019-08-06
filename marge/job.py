@@ -13,6 +13,7 @@ from .project import Project
 from .user import User
 from .pipeline import Pipeline
 
+GET, POST = gitlab.GET, gitlab.POST
 
 class MergeJob:
 
@@ -32,7 +33,7 @@ class MergeJob:
     def opts(self):
         return self._options
 
-    def execute(self):
+    def execute(self, play_manual_jobs):
         raise NotImplementedError
 
     def ensure_mergeable_mr(self, merge_request):
@@ -133,6 +134,16 @@ class MergeJob:
         return sha
 
     def get_mr_ci_status(self, merge_request, commit_sha=None):
+        current_pipeline = self.get_pipeline_by_mr(merge_request, commit_sha)
+        if current_pipeline:
+            ci_status = current_pipeline.status
+        else:
+            log.warning('No pipeline listed for %s on branch %s', commit_sha, merge_request.source_branch)
+            ci_status = None
+
+        return ci_status
+    
+    def get_pipeline_by_mr(self, merge_request, commit_sha=None):
         if commit_sha is None:
             commit_sha = merge_request.sha
 
@@ -148,17 +159,10 @@ class MergeJob:
                 merge_request.source_branch,
                 self._api,
             )
-        current_pipeline = next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
+        return next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
 
-        if current_pipeline:
-            ci_status = current_pipeline.status
-        else:
-            log.warning('No pipeline listed for %s on branch %s', commit_sha, merge_request.source_branch)
-            ci_status = None
 
-        return ci_status
-
-    def wait_for_ci_to_pass(self, merge_request, commit_sha=None):
+    def wait_for_ci_to_pass(self, merge_request, commit_sha=None, play_manual_jobs=False):
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
@@ -167,7 +171,9 @@ class MergeJob:
 
         log.info('Waiting for CI to pass for MR !%s', merge_request.iid)
         while datetime.utcnow() - time_0 < self._options.ci_timeout:
+            pipeline = self.get_pipeline_by_mr(merge_request, commit_sha=commit_sha)
             ci_status = self.get_mr_ci_status(merge_request, commit_sha=commit_sha)
+            
             if ci_status == 'success':
                 log.info('CI for MR !%s passed', merge_request.iid)
                 return
@@ -182,13 +188,31 @@ class MergeJob:
             if ci_status == 'canceled':
                 raise CannotMerge('Someone canceled the CI.')
 
-            if ci_status not in ('pending', 'running'):
+            if ci_status == 'manual':
+                if play_manual_jobs:
+                    self.play_pending_manual_jobs(merge_request, pipeline.id)
+                else:
+                    raise CannotMerge('Manual Step encountered with play_manual_jobs set to False')
+            if ci_status not in ('running', 'pending', 'manual'):
                 log.warning('Suspicious CI status: %r', ci_status)
 
             log.debug('Waiting for %s secs before polling CI status again', waiting_time_in_secs)
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('CI is taking too long.')
+
+    def play_pending_manual_jobs(self, merge_request, pipeline_id):
+        # Get All Manual Jobs
+        manual_job_list = Pipeline.manual_jobs_by_pipeline(
+            merge_request.target_project_id,
+            pipeline_id,
+            self._api
+            )
+        # Loop through list, find the one with manual status
+        for job in manual_job_list:
+            if job['status'] == 'manual':
+                # Press play on that job
+                self._api.call(POST('/projects/{id}/jobs/{job_id}/play'.format(id=merge_request.target_project_id, job_id=job['id'])))
 
     def unassign_from_mr(self, merge_request):
         log.info('Unassigning from MR !%s', merge_request.iid)
