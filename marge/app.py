@@ -1,7 +1,6 @@
 """
 An auto-merger of merge requests for GitLab
 """
-import logging as log
 import contextlib
 import logging
 import re
@@ -257,13 +256,11 @@ def _secret_auth_token_and_ssh_key(options):
 
 
 def main(args=None):
-    
     if args is None:
         args = sys.argv[1:]
     logging.basicConfig()
 
     options = _parse_config(args)
-    log.info('++++ THESE ARE THE OPTIONS ++++ %r', options)
     if options.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     else:

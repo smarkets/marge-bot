@@ -50,7 +50,6 @@ class Bot:
         return self._api
 
     def _run(self, repo_manager, play_manual_jobs):
-        log.info('START OF RUN play_manual_jobs: %r', play_manual_jobs)
         time_to_sleep_between_projects_in_secs = 1
         min_time_to_sleep_after_iterating_all_projects_in_secs = 30
         while True:

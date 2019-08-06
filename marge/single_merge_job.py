@@ -72,13 +72,10 @@ class SingleMergeJob(MergeJob):
                 raise CannotMerge('Someone pushed to branch while we were trying to merge')
 
             self.maybe_reapprove(merge_request, approvals)
-            
             if target_project.only_allow_merge_if_pipeline_succeeds:
                 self.wait_for_ci_to_pass(merge_request, actual_sha, play_manual_jobs)
                 time.sleep(2)
-
             self.ensure_mergeable_mr(merge_request)
-
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:

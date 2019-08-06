@@ -173,7 +173,6 @@ class MergeJob:
         while datetime.utcnow() - time_0 < self._options.ci_timeout:
             pipeline = self.get_pipeline_by_mr(merge_request, commit_sha=commit_sha)
             ci_status = self.get_mr_ci_status(merge_request, commit_sha=commit_sha)
-            
             if ci_status == 'success':
                 log.info('CI for MR !%s passed', merge_request.iid)
                 return
@@ -202,17 +201,15 @@ class MergeJob:
         raise CannotMerge('CI is taking too long.')
 
     def play_pending_manual_jobs(self, merge_request, pipeline_id):
-        # Get All Manual Jobs
         manual_job_list = Pipeline.manual_jobs_by_pipeline(
             merge_request.target_project_id,
             pipeline_id,
             self._api
             )
-        # Loop through list, find the one with manual status
         for job in manual_job_list:
             if job['status'] == 'manual':
-                # Press play on that job
-                self._api.call(POST('/projects/{id}/jobs/{job_id}/play'.format(id=merge_request.target_project_id, job_id=job['id'])))
+                self._api.call(POST('/projects/{id}/jobs/{job_id}/play'
+                .format(id=merge_request.target_project_id, job_id=job['id'])))
 
     def unassign_from_mr(self, merge_request):
         log.info('Unassigning from MR !%s', merge_request.iid)
