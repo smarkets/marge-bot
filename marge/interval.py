@@ -82,9 +82,12 @@ class WeeklyInterval:
 
         def parse_part(part):
             part = part.replace('@', ' ')
-            weekday, time = part.split()
+            parts = part.split()
+            weekday = parts[0]
+            time = parts[1]
+            timezone = parts[2] if len(parts) > 2 else 'UTC'
             weekday = find_weekday(weekday)
-            time = maya.parse(time).datetime().time()
+            time = maya.parse(time, timezone=timezone).datetime().time()
             return weekday, time
 
         from_weekday, from_time = parse_part(from_)
