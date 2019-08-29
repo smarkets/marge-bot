@@ -75,7 +75,8 @@ optional arguments:
   --ssh-key-file FILE   Path to the private ssh key for marge so it can clone/push.
                            [env var: MARGE_SSH_KEY_FILE] (default: None)
   --embargo INTERVAL[,..]
-                        Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".
+                        Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am"
+                           or "Fri 12:30 Europe/London - Mon 08:00 Europe/London"
                            [env var: MARGE_EMBARGO] (default: None)
   --use-merge-strategy  Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)
                         If you need to use a strict no-rebase workflow (in most cases
