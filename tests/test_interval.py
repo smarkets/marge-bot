@@ -1,6 +1,8 @@
 from datetime import time
 
 import maya
+import pendulum
+from pendulum.helpers import set_test_now
 from marge.interval import IntervalUnion, WeeklyInterval
 
 
@@ -39,6 +41,23 @@ class TestWeekly:
         assert WeeklyInterval.from_human('Mon@9:00-Fri@17:00') == working_hours
         assert WeeklyInterval.from_human('Mon@9:00-Tue@17:00') != working_hours
 
+    def test_from_human_with_timezone(self):
+        working_hours = WeeklyInterval('Mon', time(9, 00), 'Fri', time(17, 0))
+
+        # During summer time
+        now = pendulum.datetime(2019, 8, 30, tz='Europe/London')
+        set_test_now(now)
+        assert WeeklyInterval.from_human(
+               "Mon 10:00 Europe/London - Fri 18:00 Europe/London"
+        ) == working_hours
+
+        # Outside summer time
+        now = pendulum.datetime(2019, 12, 30, tz='Europe/London')
+        set_test_now(now)
+        assert WeeklyInterval.from_human(
+            "Mon 09:00 Europe/London - Fri 17:00 Europe/London"
+        ) == working_hours
+
 
 class TestIntervalUnion:
     def test_empty(self):
@@ -68,3 +87,24 @@ class TestIntervalUnion:
 
         assert interval == IntervalUnion.from_human('Mon@10am - Fri@6pm,Sat@12pm-Sunday 9am')
         assert IntervalUnion([weekly_1]) == IntervalUnion.from_human('Mon@10am - Fri@6pm')
+
+    def test_from_human_with_timezone(self):
+        weekly_1 = WeeklyInterval('Mon', time(10, 00), 'Fri', time(18, 00))
+        weekly_2 = WeeklyInterval('Sat', time(12, 00), 'Sun', time(9, 00))
+        interval = IntervalUnion([weekly_1, weekly_2])
+
+        # During summer time
+        now = pendulum.datetime(2019, 8, 30, tz='Europe/London')
+        set_test_now(now)
+        assert IntervalUnion.from_human(
+            "Mon 11:00 Europe/London - Fri 19:00 Europe/London,"
+            "Sat 13:00 Europe/London - Sun 10:00 Europe/London"
+        ) == interval
+
+        # Outside summer time
+        now = pendulum.datetime(2019, 12, 30, tz='Europe/London')
+        set_test_now(now)
+        assert IntervalUnion.from_human(
+            "Mon 10:00 Europe/London - Fri 18:00 Europe/London,"
+            "Sat 12:00 Europe/London - Sun 09:00 Europe/London"
+        ) == interval
