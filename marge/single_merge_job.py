@@ -14,7 +14,7 @@ class SingleMergeJob(MergeJob):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_request = merge_request
 
-    def execute(self, play_manual_jobs):
+    def execute(self, play_manual_jobs=None):
         merge_request = self._merge_request
 
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
