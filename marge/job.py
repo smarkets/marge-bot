@@ -15,6 +15,7 @@ from .pipeline import Pipeline
 
 GET, POST = gitlab.GET, gitlab.POST
 
+
 class MergeJob:
 
     def __init__(self, *, api, user, project, repo, options):
@@ -142,7 +143,7 @@ class MergeJob:
             ci_status = None
 
         return ci_status
-    
+
     def get_pipeline_by_mr(self, merge_request, commit_sha=None):
         if commit_sha is None:
             commit_sha = merge_request.sha
@@ -160,7 +161,6 @@ class MergeJob:
                 self._api,
             )
         return next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
-
 
     def wait_for_ci_to_pass(self, merge_request, commit_sha=None, play_manual_jobs=False):
         log.info('PLAY MANUAL JOB ======= %r', play_manual_jobs)
@@ -206,11 +206,11 @@ class MergeJob:
             merge_request.target_project_id,
             pipeline_id,
             self._api
-            )
+        )
         for job in manual_job_list:
             if job['status'] == 'manual':
                 self._api.call(POST('/projects/{id}/jobs/{job_id}/play'
-                .format(id=merge_request.target_project_id, job_id=job['id'])))
+                                    .format(id=merge_request.target_project_id, job_id=job['id'])))
 
     def unassign_from_mr(self, merge_request):
         log.info('Unassigning from MR !%s', merge_request.iid)
@@ -389,10 +389,10 @@ class MergeJob:
             raise CannotMerge("GitLab was taking too long to rebase the branch...")
         except gitlab.ApiError:
             branch = Branch.fetch_by_name(
-                        merge_request.source_project_id,
-                        merge_request.source_branch,
-                        self._api,
-                     )
+                merge_request.source_project_id,
+                merge_request.source_branch,
+                self._api,
+            )
             if branch.protected:
                 raise CannotMerge("Sorry, I can't modify protected branches!")
             raise

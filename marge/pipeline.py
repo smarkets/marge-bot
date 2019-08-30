@@ -1,5 +1,3 @@
-import logging as log
-
 from . import gitlab
 
 GET, POST = gitlab.GET, gitlab.POST
@@ -48,7 +46,7 @@ class Pipeline(gitlab.Resource):
         jobs = api.call(
             GET('/projects/{project_id}/pipelines/{pipeline_id}/jobs?scope[]=manual'.format(
                 project_id=project_id, pipeline_id=pipeline_id)
-            )
+                )
         )
         return jobs
 
