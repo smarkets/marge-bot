@@ -1,3 +1,6 @@
+  * 0.9.1:
+    - Feature: support passing a timezone with the embargo #228
+    - Fix: fix not checking the target project for MRs from forked projects #218
   * 0.9.0:
     - Feature: support rebasing through GitLab's API #160
     - Feature: allow restrict source branches #206
