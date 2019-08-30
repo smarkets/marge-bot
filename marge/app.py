@@ -209,9 +209,8 @@ def _parse_config(args):
     )
     parser.add_argument(
         '--play-manual-jobs',
-        type=bool,
-        default=False,
-        help='Determines whether Marge will press play on any Manual Jobs she encounters.\n'
+        action='store_true',
+        help='Add this flag to have Marge press play on manual jobs within the pipeline.\n'
     )
     config = parser.parse_args(args)
 
@@ -261,6 +260,8 @@ def main(args=None):
     logging.basicConfig()
 
     options = _parse_config(args)
+    logging.info('THESE ARE THE OPTIONS ===== %r', options)
+    logging.info('THIS IS THE ARGS ===== %r', args)
     if options.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     else:

@@ -39,7 +39,7 @@ class Bot:
                 timeout=self._config.git_timeout,
                 reference=self._config.git_reference_repo,
             )
-            self._run(repo_manager, self._config.play_manual_jobs)
+            self._run(repo_manager)
 
     @property
     def user(self):
@@ -49,7 +49,7 @@ class Bot:
     def api(self):
         return self._api
 
-    def _run(self, repo_manager, play_manual_jobs):
+    def _run(self, repo_manager):
         time_to_sleep_between_projects_in_secs = 1
         min_time_to_sleep_after_iterating_all_projects_in_secs = 30
         while True:
@@ -57,8 +57,7 @@ class Bot:
             self._process_projects(
                 repo_manager,
                 time_to_sleep_between_projects_in_secs,
-                projects,
-                play_manual_jobs
+                projects
             )
             big_sleep = max(0,
                             min_time_to_sleep_after_iterating_all_projects_in_secs -
@@ -87,8 +86,7 @@ class Bot:
         self,
         repo_manager,
         time_to_sleep_between_projects_in_secs,
-        projects,
-        play_manual_jobs
+        projects
     ):
         for project in projects:
             project_name = project.path_with_namespace
@@ -97,7 +95,7 @@ class Bot:
                 log.warning("Don't have enough permissions to browse merge requests in %s!", project_name)
                 continue
             merge_requests = self._get_merge_requests(project, project_name)
-            self._process_merge_requests(repo_manager, project, merge_requests, play_manual_jobs)
+            self._process_merge_requests(repo_manager, project, merge_requests)
             time.sleep(time_to_sleep_between_projects_in_secs)
 
     def _get_merge_requests(self, project, project_name):
@@ -136,7 +134,7 @@ class Bot:
             )
         return source_filtered_mrs
 
-    def _process_merge_requests(self, repo_manager, project, merge_requests, play_manual_jobs):
+    def _process_merge_requests(self, repo_manager, project, merge_requests):
         if not merge_requests:
             log.info('Nothing to merge at this point...')
             return
@@ -159,7 +157,7 @@ class Bot:
                 options=self._config.merge_opts,
             )
             try:
-                batch_merge_job.execute(play_manual_jobs)
+                batch_merge_job.execute(self._config.play_manual_jobs)
                 return
             except batch_job.CannotBatch as err:
                 log.warning('BatchMergeJob aborted: %s', err)
@@ -174,7 +172,7 @@ class Bot:
             project=project, merge_request=merge_request, repo=repo,
             options=self._config.merge_opts,
         )
-        merge_job.execute(play_manual_jobs)
+        merge_job.execute(self._config.play_manual_jobs)
 
     def _get_single_job(self, project, merge_request, repo, options):
         return single_merge_job.SingleMergeJob(

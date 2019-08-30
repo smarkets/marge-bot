@@ -163,6 +163,7 @@ class MergeJob:
 
 
     def wait_for_ci_to_pass(self, merge_request, commit_sha=None, play_manual_jobs=False):
+        log.info('PLAY MANUAL JOB ======= %r', play_manual_jobs)
         time_0 = datetime.utcnow()
         waiting_time_in_secs = 10
 
