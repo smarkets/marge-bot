@@ -121,6 +121,9 @@ optional arguments:
   --branch-regexp BRANCH_REGEXP
                         Only process MRs whose target branches match the given regular expression.
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
+  --source-branch-regexp SOURCE_BRANCH_REGEXP
+                        Only process MRs whose source branches match the given regular expression.
+                           [env var: MARGE_SOURCE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
 ```
