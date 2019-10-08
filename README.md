@@ -25,7 +25,7 @@ this is only to be found out when the commits have already landed.
 GitLab (in their [enterprise edition](https://about.gitlab.com/products/)),
 offers an important improvement here with
 their
-[semi-linear history and fast-forward](https://docs.gitlab.com/ee/user/project/merge_requests/) merge
+[semi-linear history and fast-forward](https://docs.gitlab.com/ee/user/project/merge_requests/#semi-linear-history-merge-requests) merge
 request methods: in both cases a merge request can only be accepted if the
 resulting master branch will be effectively the same as the merge request branch
 on which CI has passed. If master has changed since the tests were last ran, it
