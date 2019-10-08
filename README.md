@@ -183,6 +183,8 @@ Once you have the token, put it in a file, e.g. `marge-bot.token`.
 
 Finally, create a new ssh key-pair, e.g like so
 
+Margebot also requires the [Only allow merge requests to be merged if the pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html#only-allow-merge-requests-to-be-merged-if-the-pipeline-succeeds) setting to be enabled.
+
 ```bash
 ssh-keygen -t ed25519 -C marge-bot@invalid -f marge-bot-ssh-key -P ''
 ```
