@@ -216,6 +216,7 @@ def mocked_stdout(stdout):
     return subprocess.CompletedProcess(['blah', 'args'], 0, stdout, None)
 
 
+# pylint: disable=unexpected-keyword-arg
 def _filter_test(message, trailer_name, trailer_values):
     script = marge.git._filter_branch_script(trailer_name, trailer_values)  # pylint: disable=protected-access
     result = subprocess.check_output(
