@@ -1,25 +1,38 @@
 {
-    "nixpkgs": {
-        "url": "https://github.com/NixOS/nixpkgs-channels/archive/915ce0f1e1a75adec7079ddb6cd3ffba5036b3fc.tar.gz",
-        "owner": "NixOS",
-        "branch": "nixos-19.03",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "repo": "nixpkgs-channels",
-        "type": "tarball",
-        "sha256": "1kmx29i3xy4701z4lgmv5xxslb1djahrjxmrf83ig1whb4vgk4wm",
-        "description": "Nixpkgs/NixOS branches that track the Nixpkgs/NixOS channels",
-        "rev": "915ce0f1e1a75adec7079ddb6cd3ffba5036b3fc"
-    },
     "niv": {
-        "homepage": "https://github.com/nmattia/niv",
-        "url": "https://github.com/nmattia/niv/archive/e5e441998ede88dfce5b8b9a7ea99e1e0f1102fa.tar.gz",
-        "owner": "nmattia",
         "branch": "master",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "repo": "niv",
-        "type": "tarball",
-        "sha256": "0s3pwakbp9qmwzznl8xd3smmymz1s2vrvyip8yizqdllaps4pf18",
         "description": "Easy dependency management for Nix projects",
-        "rev": "e5e441998ede88dfce5b8b9a7ea99e1e0f1102fa"
+        "homepage": "https://github.com/nmattia/niv",
+        "owner": "nmattia",
+        "repo": "niv",
+        "rev": "6da5c19aa220dfd840031e0cdbe83bf8f807fd50",
+        "sha256": "173gkldf4in77ksm8bgf7bhkfyc4ayddka4cgxv5361kpgyvgccw",
+        "type": "tarball",
+        "url": "https://github.com/nmattia/niv/archive/6da5c19aa220dfd840031e0cdbe83bf8f807fd50.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs": {
+        "branch": "nixos-19.09",
+        "description": "Nixpkgs/NixOS branches that track the Nixpkgs/NixOS channels",
+        "homepage": "https://github.com/NixOS/nixpkgs",
+        "owner": "NixOS",
+        "repo": "nixpkgs-channels",
+        "rev": "5f506b95f9f6290f4c46f523cc3f5cef581c5666",
+        "sha256": "14ry2fs2pny2shlg2dq8c9vns636gv0zvfh0dmyy4bnq713k377n",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs-channels/archive/5f506b95f9f6290f4c46f523cc3f5cef581c5666.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "poetry2nix": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "stolyaroleh",
+        "repo": "poetry2nix",
+        "rev": "1b2ca0e7fdb6efb043c07d809668be1c86e7b2f7",
+        "sha256": "0w3q7sxjxr8bdqsx5lnhlxf93p3kq38d6hk4jw9fly5616whzhlj",
+        "type": "tarball",
+        "url": "https://github.com/stolyaroleh/poetry2nix/archive/1b2ca0e7fdb6efb043c07d809668be1c86e7b2f7.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

@@ -1,32 +1,23 @@
 VERSION?=$$(git rev-parse --abbrev-ref HEAD)
 
 .PHONY: all
-all: requirements_frozen.txt requirements.nix requirements_override.nix marge-bot dockerize
+all: marge-bot dockerize
 
 .PHONY: marge-bot
 marge-bot:
-	nix-build --keep-failed --attr marge-bot default.nix
+	nix-build --keep-failed --attr marge
 
 .PHONY: clean
 clean:
-	rm -rf .cache result result-* requirements_frozen.txt
-
-.PHONY: bump
-bump: bump-requirements bump-sources
+	rm -rf .pytest_cache .cache .coverage dist result result-*
 
 .PHONY: bump-sources
 bump-sources:
-	nix-shell --run niv update
-
-.PHONY: bump-requirements
-bump-requirements: clean requirements_frozen.txt
-
-requirements_frozen.txt requirements.nix requirements_override.nix: requirements.txt
-	pypi2nix -V 3.6 -r $^
+	niv update
 
 .PHONY: dockerize
 dockerize:
-	docker load --input $$(nix-build --attr docker-image default.nix)
+	docker load --input $$(nix-build --attr marge-image)
 
 .PHONY: docker-push
 docker-push:
