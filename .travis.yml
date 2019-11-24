@@ -3,6 +3,7 @@ services:
 - docker
 language: nix
 nix: 2.3.1
+script: nix-build --attr marge-image
 deploy:
   provider: script
   script: make dockerize && make docker-push VERSION="$TRAVIS_BRANCH"
