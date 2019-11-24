@@ -2,6 +2,7 @@ sudo: required
 services:
 - docker
 language: nix
+nix: 2.3.1
 deploy:
   provider: script
   script: make dockerize && make docker-push VERSION="$TRAVIS_BRANCH"
