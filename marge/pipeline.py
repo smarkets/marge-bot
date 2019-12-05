@@ -1,6 +1,5 @@
 from . import gitlab
 
-
 GET, POST = gitlab.GET, gitlab.POST
 
 
@@ -41,6 +40,15 @@ class Pipeline(gitlab.Resource):
         ))
         pipelines_info.sort(key=lambda pipeline_info: pipeline_info['id'], reverse=True)
         return [cls(api, pipeline_info, project_id) for pipeline_info in pipelines_info]
+
+    @classmethod
+    def manual_jobs_by_pipeline(cls, project_id, pipeline_id, api):
+        jobs = api.call(
+            GET('/projects/{project_id}/pipelines/{pipeline_id}/jobs?scope[]=manual'.format(
+                project_id=project_id, pipeline_id=pipeline_id)
+                )
+        )
+        return jobs
 
     @property
     def project_id(self):

@@ -57,7 +57,7 @@ class Bot:
             self._process_projects(
                 repo_manager,
                 time_to_sleep_between_projects_in_secs,
-                projects,
+                projects
             )
             big_sleep = max(0,
                             min_time_to_sleep_after_iterating_all_projects_in_secs -
@@ -86,7 +86,7 @@ class Bot:
         self,
         repo_manager,
         time_to_sleep_between_projects_in_secs,
-        projects,
+        projects
     ):
         for project in projects:
             project_name = project.path_with_namespace
@@ -157,7 +157,7 @@ class Bot:
                 options=self._config.merge_opts,
             )
             try:
-                batch_merge_job.execute()
+                batch_merge_job.execute(self._config.play_manual_jobs)
                 return
             except batch_job.CannotBatch as err:
                 log.warning('BatchMergeJob aborted: %s', err)
@@ -172,7 +172,7 @@ class Bot:
             project=project, merge_request=merge_request, repo=repo,
             options=self._config.merge_opts,
         )
-        merge_job.execute()
+        merge_job.execute(self._config.play_manual_jobs)
 
     def _get_single_job(self, project, merge_request, repo, options):
         return single_merge_job.SingleMergeJob(
@@ -187,7 +187,7 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
-                           'git_reference_repo branch_regexp source_branch_regexp batch')):
+                           'git_reference_repo branch_regexp source_branch_regexp batch play_manual_jobs')):
     pass
 
 

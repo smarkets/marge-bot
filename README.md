@@ -121,6 +121,9 @@ optional arguments:
   --branch-regexp BRANCH_REGEXP
                         Only process MRs whose target branches match the given regular expression.
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
+  --play-manual-jobs PLAY_MANUAL_JOBS
+                        Determines whether Marge will press play on manual jobs in the pipeline.
+                           [env var: MARGE_PLAY_MANUAL_JOBS] (default: False)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
 ```

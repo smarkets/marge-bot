@@ -26,7 +26,7 @@ requirements_frozen.txt requirements.nix requirements_override.nix: requirements
 
 .PHONY: dockerize
 dockerize:
-	docker load --input $$(nix-build --attr docker-image default.nix)
+	docker load --input $$(nix-build --attr docker-image default.nix) --show-trace
 
 .PHONY: docker-push
 docker-push:
