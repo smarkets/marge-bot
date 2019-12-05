@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from . import git, gitlab
 from .branch import Branch
+from .commit import Commit
 from .interval import IntervalUnion
 from .merge_request import MergeRequestRebaseFailed
 from .project import Project
@@ -133,19 +134,30 @@ class MergeJob:
         return sha
 
     def get_mr_ci_status(self, merge_request, commit_sha=None):
+        temp_branch = self.opts.temp_branch
         if commit_sha is None:
             commit_sha = merge_request.sha
 
-        if self._api.version().release >= (10, 5, 0):
+        if temp_branch and merge_request.source_project_id != merge_request.target_project.id:
+            ref = temp_branch
+            self.update_temp_branch(merge_request, commit_sha)
+            pipelines = Pipeline.pipelines_by_branch(
+                merge_request.target_project.id,
+                ref,
+                self._api,
+            )
+        elif self._api.version().release >= (10, 5, 0):
+            ref = merge_request.iid
             pipelines = Pipeline.pipelines_by_merge_request(
                 merge_request.target_project_id,
-                merge_request.iid,
+                ref,
                 self._api,
             )
         else:
+            ref = merge_request.source_branch
             pipelines = Pipeline.pipelines_by_branch(
                 merge_request.source_project_id,
-                merge_request.source_branch,
+                ref,
                 self._api,
             )
         current_pipeline = next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
@@ -153,7 +165,7 @@ class MergeJob:
         if current_pipeline:
             ci_status = current_pipeline.status
         else:
-            log.warning('No pipeline listed for %s on branch %s', commit_sha, merge_request.source_branch)
+            log.warning('No pipeline listed for %s on branch %s', commit_sha, ref)
             ci_status = None
 
         return ci_status
@@ -354,6 +366,41 @@ class MergeJob:
             if branch_was_modified and fetch_remote_branch().protected:
                 raise CannotMerge("Sorry, I can't modify protected branches!")
 
+    def update_temp_branch(self, merge_request, commit_sha):
+        temp_branch = self.opts.temp_branch
+        waiting_time_in_secs = 30
+
+        try:
+            sha_branch = Commit.last_on_branch(self._project.id, temp_branch, self._api).id
+        except gitlab.NotFound:
+            sha_branch = None
+        if sha_branch != commit_sha:
+            log.info('Setting up %s in target project', temp_branch)
+            self.delete_temp_branch(merge_request.source_project_id)
+            self._project.create_branch(temp_branch, commit_sha, self._api)
+            self._project.protect_branch(temp_branch, self._api)
+            merge_request.comment(
+                ('The temporary branch **{branch}** was updated to [{sha:.8}](../commit/{sha}) ' +
+                 'and local pipelines will be used.').format(
+                    branch=temp_branch, sha=commit_sha
+                )
+            )
+
+            time.sleep(waiting_time_in_secs)
+
+    def delete_temp_branch(self, source_project_id):
+        temp_branch = self.opts.temp_branch
+
+        if temp_branch and source_project_id != self._project.id:
+            try:
+                self._project.unprotect_branch(temp_branch, self._api)
+            except gitlab.ApiError:
+                pass
+            try:
+                self._project.delete_branch(temp_branch, self._api)
+            except gitlab.ApiError:
+                pass
+
             change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
             raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
 
@@ -408,6 +455,7 @@ JOB_OPTIONS = [
     'embargo',
     'ci_timeout',
     'fusion',
+    'temp_branch',
 ]
 
 
@@ -423,6 +471,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
+            temp_branch=""
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -436,6 +485,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             embargo=embargo,
             ci_timeout=ci_timeout,
             fusion=fusion,
+            temp_branch=temp_branch,
         )
 
 

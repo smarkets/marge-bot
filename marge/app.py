@@ -198,6 +198,12 @@ def _parse_config(args):
         help='Only process MRs whose target branches match the given regular expression.\n',
     )
     parser.add_argument(
+        '--temp-branch',
+        type=str,
+        default="",
+        help='Temporary branch name for external merge requests (disabled if empty).\n',
+    )
+    parser.add_argument(
         '--source-branch-regexp',
         type=regexp,
         default='.*',
@@ -306,6 +312,7 @@ def main(args=None):
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 fusion=fusion,
+                temp_branch=options.temp_branch,
             ),
             batch=options.batch,
         )

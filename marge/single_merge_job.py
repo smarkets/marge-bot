@@ -44,6 +44,7 @@ class SingleMergeJob(MergeJob):
         api = self._api
         merge_request = self._merge_request
         updated_into_up_to_date_target_branch = False
+        temp_branch = self.opts.temp_branch
 
         while not updated_into_up_to_date_target_branch:
             self.ensure_mergeable_mr(merge_request)
@@ -73,14 +74,38 @@ class SingleMergeJob(MergeJob):
 
             self.maybe_reapprove(merge_request, approvals)
 
+            trust = True
             if target_project.only_allow_merge_if_pipeline_succeeds:
+                if temp_branch and source_project is not self._project:
+                    trust = False
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
 
             self.ensure_mergeable_mr(merge_request)
 
             try:
-                merge_request.accept(remove_branch=True, sha=actual_sha)
+                if trust:
+                    merge_request.accept(remove_branch=True, sha=actual_sha)
+                else:
+                    # Cannot accept the MR using the API, because it requires a passing pipeline
+                    # but the pipeline associated to the MR cannot be trusted. Use manual merging
+                    log.info('Merging %r manually (into: %r)', temp_branch, merge_request.target_branch)
+                    try:
+                        final_sha = self.repo.fast_forward(
+                            merge_request.target_branch,
+                            temp_branch,
+                        )
+                        assert final_sha == actual_sha
+                        self.repo.push(merge_request.target_branch, force=False)
+                    except AssertionError:
+                        log.warning('sha mismatch!')
+                        raise CannotMerge('Manually merged branch does not match source branch!')
+                    except git.GitError:
+                        log.warning('Failed to push!')
+                        raise CannotMerge(
+                            'Failed to push manually merged branch!'
+                            'Do I have permission to push to **%s**?' % merge_request.target_branch
+                        )
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we updated, just try again
@@ -139,6 +164,8 @@ class SingleMergeJob(MergeJob):
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
                 raise CannotMerge('had some issue with GitLab, check my logs...')
             else:
+                # temp_branch can be removed before because it was only used for CI, not for merging
+                self.delete_temp_branch(source_project.id)
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
 
