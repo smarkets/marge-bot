@@ -65,6 +65,7 @@ def main(cmdline=''):
         api = gitlab_mock.Api(gitlab_url=gitlab_url, auth_token=auth_token, initial_state='initial')
         user_info_for_token = dict(user_info, is_admin=auth_token == 'ADMIN-TOKEN')
         api.add_user(user_info_for_token, is_current=True)
+        api.add_transition(gitlab_mock.GET('/version'), gitlab_mock.Ok({'version': '11.6.0-ce'}))
         return api
 
     class DoNothingBot(bot_module.Bot):
@@ -92,6 +93,7 @@ def test_default_values():
             assert bot.config.project_regexp == re.compile('.*')
             assert bot.config.git_timeout == datetime.timedelta(seconds=120)
             assert bot.config.merge_opts == job.MergeJobOptions.default()
+            assert bot.config.merge_order == 'created_at'
 
 
 def test_embargo():
@@ -102,11 +104,18 @@ def test_embargo():
             )
 
 
+def test_rebase_remotely():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--rebase-remotely') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(fusion=job.Fusion.gitlab_rebase)
+
+
 def test_use_merge_strategy():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--use-merge-strategy') as bot:
             assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(use_merge_strategy=True)
+            assert bot.config.merge_opts == job.MergeJobOptions.default(fusion=job.Fusion.merge)
 
 
 def test_add_tested():
@@ -118,7 +127,7 @@ def test_add_tested():
 
 def test_use_merge_strategy_and_add_tested_are_mutualy_exclusive():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
-        with pytest.raises(SystemExit):
+        with pytest.raises(app.MargeBotCliArgError):
             with main('--use-merge-strategy --add-tested'):
                 pass
 
@@ -142,10 +151,18 @@ def test_add_reviewers():
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_reviewers=True)
 
 
+def test_rebase_remotely_option_conflicts():
+    for conflicting_flag in ['--use-merge-strategy', '--add-tested', '--add-part-of', '--add-reviewers']:
+        with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+            with pytest.raises(app.MargeBotCliArgError):
+                with main('--rebase-remotely %s' % conflicting_flag):
+                    pass
+
+
 def test_impersonate_approvers():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(AssertionError):
-            with main('--impersonate-approvers') as bot:
+            with main('--impersonate-approvers'):
                 pass
 
     with env(MARGE_AUTH_TOKEN="ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
@@ -197,6 +214,24 @@ def test_branch_regexp():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--branch-regexp='foo.*bar'") as bot:
             assert bot.config.branch_regexp == re.compile('foo.*bar')
+
+
+def test_source_branch_regexp():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--source-branch-regexp='foo.*bar'") as bot:
+            assert bot.config.source_branch_regexp == re.compile('foo.*bar')
+
+
+def test_git_reference_repo():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--git-reference-repo='/foo/reference_repo'") as bot:
+            assert bot.config.git_reference_repo == '/foo/reference_repo'
+
+
+def test_merge_order():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--merge-order='updated_at'") as bot:
+            assert bot.config.merge_order == 'updated_at'
 
 
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules

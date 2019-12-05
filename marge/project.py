@@ -1,5 +1,5 @@
 import logging as log
-from enum import Enum, unique
+from enum import IntEnum, unique
 from functools import partial
 
 from . import gitlab
@@ -27,9 +27,21 @@ class Project(gitlab.Resource):
 
     @classmethod
     def fetch_all_mine(cls, api):
+        projects_kwargs = {'membership': True,
+                           'with_merge_requests_enabled': True,
+                           'archived': False,
+                           }
+
+        # GitLab has an issue where projects may not show appropriate permissions in nested groups. Using
+        # `min_access_level` is known to provide the correct projects, so we'll prefer this method
+        # if it's available. See #156 for more details.
+        use_min_access_level = api.version().release >= (11, 2)
+        if use_min_access_level:
+            projects_kwargs["min_access_level"] = int(AccessLevel.developer)
+
         projects_info = api.collect_all_pages(GET(
             '/projects',
-            {'membership': True, 'with_merge_requests_enabled': True},
+            projects_kwargs,
         ))
 
         def project_seems_ok(project_info):
@@ -43,7 +55,19 @@ class Project(gitlab.Resource):
 
             return permissions_ok
 
-        return [cls(api, project_info) for project_info in projects_info if project_seems_ok(project_info)]
+        projects = []
+
+        for project_info in projects_info:
+            if use_min_access_level:
+                # We know we fetched projects with at least developer access, so we'll use that as
+                # a fallback if GitLab doesn't correctly report permissions as described above.
+                project_info["permissions"]["marge"] = {"access_level": AccessLevel.developer}
+            elif not project_seems_ok(projects_info):
+                continue
+
+            projects.append(cls(api, project_info))
+
+        return projects
 
     @property
     def path_with_namespace(self):
@@ -62,19 +86,27 @@ class Project(gitlab.Resource):
         return self.info['only_allow_merge_if_pipeline_succeeds']
 
     @property
+    def only_allow_merge_if_all_discussions_are_resolved(self):  # pylint: disable=invalid-name
+        return self.info['only_allow_merge_if_all_discussions_are_resolved']
+
+    @property
     def approvals_required(self):
         return self.info['approvals_before_merge']
 
     @property
     def access_level(self):
         permissions = self.info['permissions']
-        effective_access = permissions['project_access'] or permissions['group_access']
+        effective_access = (
+                permissions['project_access']
+                or permissions['group_access']
+                or permissions.get("marge")
+        )
         assert effective_access is not None, "GitLab failed to provide user permissions on project"
         return AccessLevel(effective_access['access_level'])
 
 
 @unique
-class AccessLevel(Enum):
+class AccessLevel(IntEnum):
     # See https://docs.gitlab.com/ce/api/access_requests.html
     guest = 10
     reporter = 20

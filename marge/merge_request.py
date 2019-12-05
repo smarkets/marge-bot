@@ -1,3 +1,6 @@
+import logging as log
+import time
+
 from . import gitlab
 from .approvals import Approvals
 
@@ -31,14 +34,15 @@ class MergeRequest(gitlab.Resource):
         return merge_request
 
     @classmethod
-    def fetch_all_open_for_user(cls, project_id, user_id, api):
+    def fetch_all_open_for_user(cls, project_id, user_id, api, merge_order):
         all_merge_request_infos = api.collect_all_pages(GET(
             '/projects/{project_id}/merge_requests'.format(project_id=project_id),
-            {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
+            {'state': 'opened', 'order_by': merge_order, 'sort': 'asc'},
         ))
         my_merge_request_infos = [
             mri for mri in all_merge_request_infos
-            if (mri['assignee'] or {}).get('id') == user_id
+            if ((mri.get('assignee', {}) or {}).get('id') == user_id) or
+               (user_id in [assignee.get('id') for assignee in (mri.get('assignees', []) or [])])
         ]
 
         return [cls(api, merge_request_info) for merge_request_info in my_merge_request_infos]
@@ -60,9 +64,18 @@ class MergeRequest(gitlab.Resource):
         return self.info['state']
 
     @property
-    def assignee_id(self):
-        assignee = self.info['assignee'] or {}
-        return assignee.get('id')
+    def rebase_in_progress(self):
+        return self.info.get('rebase_in_progress', False)
+
+    @property
+    def merge_error(self):
+        return self.info.get('merge_error')
+
+    @property
+    def assignee_ids(self):
+        if 'assignees' in self.info:
+            return [assignee.get('id') for assignee in (self.info['assignees'] or [])]
+        return [(self.info.get('assignee', {}) or {}).get('id')]
 
     @property
     def author_id(self):
@@ -116,6 +129,31 @@ class MergeRequest(gitlab.Resource):
 
         return self._api.call(POST(notes_url, {'body': message}))
 
+    def rebase(self):
+        self.refetch_info()
+
+        if not self.rebase_in_progress:
+            self._api.call(PUT(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/rebase'.format(self),
+            ))
+        else:
+            # We wanted to rebase and someone just happened to press the button for us!
+            log.info('A rebase was already in progress on the merge request!')
+
+        max_attempts = 30
+        wait_between_attempts_in_secs = 1
+
+        for _ in range(max_attempts):
+            self.refetch_info()
+            if not self.rebase_in_progress:
+                if self.merge_error:
+                    raise MergeRequestRebaseFailed(self.merge_error)
+                return
+
+            time.sleep(wait_between_attempts_in_secs)
+
+        raise TimeoutError('Waiting for merge request to be rebased by GitLab')
+
     def accept(self, remove_branch=False, sha=None):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
@@ -139,7 +177,7 @@ class MergeRequest(gitlab.Resource):
         ))
 
     def unassign(self):
-        return self.assign_to(None)
+        return self.assign_to(0)
 
     def fetch_approvals(self):
         # 'id' needed for for GitLab 9.2.2 hack (see Approvals.refetch_info())
@@ -147,6 +185,9 @@ class MergeRequest(gitlab.Resource):
         approvals = Approvals(self.api, info)
         approvals.refetch_info()
         return approvals
+
+    def fetch_commits(self):
+        return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
 
     def triggered(self, user_id):
         if self._api.version().release >= (9, 2, 2):
@@ -159,3 +200,7 @@ class MergeRequest(gitlab.Resource):
         message = 'I created a new pipeline for [{sha:.8s}]'.format(sha=self.sha)
         my_comments = [c['body'] for c in comments if c['author']['id'] == user_id]
         return any(message in c for c in my_comments)
+
+
+class MergeRequestRebaseFailed(Exception):
+    pass

@@ -14,6 +14,7 @@ disable=bad-continuation,
         fixme,
         missing-docstring,
         no-self-use,
+        unsubscriptable-object
 
 [SIMILARITIES]
 min-similarity-lines=10

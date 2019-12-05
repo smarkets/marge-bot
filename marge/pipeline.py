@@ -32,6 +32,17 @@ class Pipeline(gitlab.Resource):
         return [cls(api, pipeline_info, project_id) for pipeline_info in pipelines_info]
 
     @classmethod
+    def pipelines_by_merge_request(cls, project_id, merge_request_iid, api):
+        """Fetch all pipelines for a merge request in descending order of pipeline ID."""
+        pipelines_info = api.call(GET(
+            '/projects/{project_id}/merge_requests/{merge_request_iid}/pipelines'.format(
+                project_id=project_id, merge_request_iid=merge_request_iid,
+            )
+        ))
+        pipelines_info.sort(key=lambda pipeline_info: pipeline_info['id'], reverse=True)
+        return [cls(api, pipeline_info, project_id) for pipeline_info in pipelines_info]
+
+    @classmethod
     def create(cls, project_id, ref, api):
         try:
             pipeline_info = {}

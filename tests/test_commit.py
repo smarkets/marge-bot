@@ -29,7 +29,7 @@ INFO = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestProjectWithCommits(object):
+class TestProjectWithCommits:
 
     def setup_method(self, _method):
         self.api = Mock(Api)

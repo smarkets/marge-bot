@@ -5,7 +5,7 @@ from datetime import datetime
 
 from . import git, gitlab
 from .commit import Commit
-from .job import CannotMerge, MergeJob, SkipMerge
+from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
 
 
 class SingleMergeJob(MergeJob):
@@ -48,11 +48,19 @@ class SingleMergeJob(MergeJob):
         while not updated_into_up_to_date_target_branch:
             self.ensure_mergeable_mr(merge_request)
             source_project, source_repo_url, _ = self.fetch_source_project(merge_request)
-            # NB. this will be a no-op if there is nothing to update/rewrite
-            target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
-                merge_request,
-                source_repo_url=source_repo_url,
-            )
+            target_project = self.get_target_project(merge_request)
+            try:
+                # NB. this will be a no-op if there is nothing to update/rewrite
+
+                target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
+                    merge_request,
+                    source_repo_url=source_repo_url,
+                )
+            except GitLabRebaseResultMismatch:
+                log.info("Gitlab rebase didn't give expected result")
+                merge_request.comment("Someone skipped the queue! Will have to try again...")
+                continue
+
             log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
             time.sleep(5)
 
@@ -65,9 +73,12 @@ class SingleMergeJob(MergeJob):
 
             self.maybe_reapprove(merge_request, approvals)
 
-            if source_project.only_allow_merge_if_pipeline_succeeds:
+            if target_project.only_allow_merge_if_pipeline_succeeds:
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
+
+            self.ensure_mergeable_mr(merge_request)
+
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
             except gitlab.NotAcceptable as err:
@@ -105,20 +116,25 @@ class SingleMergeJob(MergeJob):
                     raise CannotMerge(
                         'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
                     )
-                elif merge_request.state == 'reopened':
+                if merge_request.state == 'reopened':
                     raise CannotMerge(
                         'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
                         'is rejecting my commits; maybe my email needs to be white-listed?'
                     )
-                elif merge_request.state == 'closed':
+                if merge_request.state == 'closed':
                     raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
-                elif merge_request.state == 'merged':
+                if merge_request.state == 'merged':
                     # We are not covering any observed behaviour here, but if at this
                     # point the request is merged, our job is done, so no need to complain
                     log.info('Merge request is already merged, someone was faster!')
                     updated_into_up_to_date_target_branch = True
                 else:
-                    raise CannotMerge("GitLab refused to merge this request and I don't know why!")
+                    raise CannotMerge(
+                        "GitLab refused to merge this request and I don't know why!" + (
+                            " Maybe you have unresolved discussions?"
+                            if self._project.only_allow_merge_if_all_discussions_are_resolved else ""
+                        )
+                    )
             except gitlab.ApiError:
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
                 raise CannotMerge('Had some issue with GitLab, check my logs...')

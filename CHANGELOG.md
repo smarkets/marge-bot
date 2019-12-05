@@ -1,3 +1,33 @@
+  * 0.9.1:
+    - Feature: support passing a timezone with the embargo #228
+    - Fix: fix not checking the target project for MRs from forked projects #218
+  * 0.9.0:
+    - Feature: support rebasing through GitLab's API #160
+    - Feature: allow restrict source branches #206
+    - Fix: only fetch projects with min access level #166
+    - Fix: bump all dependencies (getting rid of vulnerable packages) #179
+    - Fix: support multiple assignees #186, #192
+    - Fix: fetch pipelines by merge request instead of branch #212
+    - Fix: fix unassign when author is Marge #211
+    - Enhancement: ignore archived projects #177
+    - Enhancement: add a timeout to all gitlab requests #200
+    - Enhancement: smaller docker image size  #199
+  * 0.8.1
+    - Feature: allow merging in order of last-update time #149
+  * 0.8.0
+    - Feature: allow reference repository in git clone #129
+    - Feature: add new stable/master tags for docker images #142
+    - Fix: fix TypeError when fetching source project #122
+    - Fix: handle CI status 'skipped' #127
+    - Fix: handle merging when source branch is master #127
+    - Fix: handle error on pushing to protected branches #127
+    - Enhancement: add appropriate error if unresolved discussions on merge request #136
+    - Enhancement: ensure reviewer and commit author aren't the same #137
+  * 0.7.0:
+    - Feature: add `--batch` to better support repos with many daily MRs and slow-ish CI (#84, #116)
+    - Fix: fix fuse() call when using experimental --use-merge-strategy to update source branch #102
+    - Fix: Get latest CI status of a commit filtered by branch #96 (thanks to benjamb)
+    - Enhancement: Check MR is mergeable before accepting MR #117 
   * 0.6.1:
     - Fix when target SHA is retrieved #92.
     - Replace word "gitlab" with "GitLab" #93.

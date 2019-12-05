@@ -14,7 +14,7 @@ from .project import AccessLevel, Project
 MergeRequest = merge_request_module.MergeRequest
 
 
-class Bot(object):
+class Bot:
     def __init__(self, *, api, config):
         self._api = api
         self._config = config
@@ -37,6 +37,7 @@ class Bot(object):
                 root_dir=root_dir,
                 ssh_key_file=self._config.ssh_key_file,
                 timeout=self._config.git_timeout,
+                reference=self._config.git_reference_repo,
             )
             self._run(repo_manager)
 
@@ -90,7 +91,7 @@ class Bot(object):
         for project in projects:
             project_name = project.path_with_namespace
 
-            if project.access_level.value < AccessLevel.reporter.value:
+            if project.access_level < AccessLevel.reporter:
                 log.warning("Don't have enough permissions to browse merge requests in %s!", project_name)
                 continue
             merge_requests = self._get_merge_requests(project, project_name)
@@ -102,7 +103,8 @@ class Bot(object):
         my_merge_requests = MergeRequest.fetch_all_open_for_user(
             project_id=project.id,
             user_id=self.user.id,
-            api=self._api
+            api=self._api,
+            merge_order=self._config.merge_order,
         )
         branch_regexp = self._config.branch_regexp
         filtered_mrs = [mr for mr in my_merge_requests
@@ -117,7 +119,20 @@ class Bot(object):
                 'MRs that do not match branch_regexp: %s',
                 [mr.web_url for mr in filtered_out]
             )
-        return filtered_mrs
+        source_branch_regexp = self._config.source_branch_regexp
+        source_filtered_mrs = [mr for mr in filtered_mrs
+                               if source_branch_regexp.match(mr.source_branch)]
+        log.debug(
+            'MRs that match source_branch_regexp: %s',
+            [mr.web_url for mr in source_filtered_mrs]
+        )
+        source_filtered_out = set(filtered_mrs) - set(source_filtered_mrs)
+        if filtered_out:
+            log.debug(
+                'MRs that do not match source_branch_regexp: %s',
+                [mr.web_url for mr in source_filtered_out]
+            )
+        return source_filtered_mrs
 
     def _process_merge_requests(self, repo_manager, project, merge_requests):
         if not merge_requests:
@@ -153,20 +168,28 @@ class Bot(object):
                 log.exception('BatchMergeJob failed: %s', err)
         log.info('Attempting to merge the oldest MR...')
         merge_request = merge_requests[0]
-        merge_job = single_merge_job.SingleMergeJob(
+        merge_job = self._get_single_job(
+            project=project, merge_request=merge_request, repo=repo,
+            options=self._config.merge_opts,
+        )
+        merge_job.execute()
+
+    def _get_single_job(self, project, merge_request, repo, options):
+        return single_merge_job.SingleMergeJob(
             api=self._api,
             user=self.user,
             project=project,
             merge_request=merge_request,
             repo=repo,
-            options=self._config.merge_opts,
+            options=options,
         )
-        merge_job.execute()
 
 
 class BotConfig(namedtuple('BotConfig',
-                           'user ssh_key_file project_regexp merge_opts git_timeout branch_regexp batch')):
+                           'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
+                           'git_reference_repo branch_regexp source_branch_regexp batch')):
     pass
 
 
 MergeJobOptions = job.MergeJobOptions
+Fusion = job.Fusion

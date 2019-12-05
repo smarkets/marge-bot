@@ -13,7 +13,7 @@ from marge.git import GIT_SSH_COMMAND
 
 # pylint: disable=attribute-defined-outside-init
 @mock.patch('marge.git._run')
-class TestRepo(object):
+class TestRepo:
 
     def setup_method(self, _method):
         self.repo = marge.git.Repo(
@@ -21,6 +21,7 @@ class TestRepo(object):
             local_path='/tmp/local/path',
             ssh_key_file=None,
             timeout=datetime.timedelta(seconds=1),
+            reference=None,
         )
 
     def test_clone(self, mocked_run):
@@ -76,10 +77,9 @@ class TestRepo(object):
         def fail_on_filter_branch(*args, **unused_kwargs):
             if 'filter-branch' in args:
                 raise subprocess.CalledProcessError(returncode=1, cmd='git rebase blah')
-            elif 'rev-parse' in args or 'reset' in args:
+            if 'rev-parse' in args or 'reset' in args:
                 return mock.Mock()
-            else:
-                raise Exception('Unexpected call:', args)
+            raise Exception('Unexpected call:', args)
 
         mocked_run.side_effect = fail_on_filter_branch
 
@@ -189,6 +189,14 @@ class TestRepo(object):
         assert get_calls(mocked_run) == [
             '%s git -C /tmp/local/path config user.email bart@gmail.com' % git_ssh,
             '%s git -C /tmp/local/path config user.name bart' % git_ssh,
+        ]
+
+    def test_passes_reference_repo(self, mocked_run):
+        repo = self.repo._replace(reference='/foo/reference_repo')
+        repo.clone()
+        assert get_calls(mocked_run) == [
+            'git clone --origin=origin --reference=/foo/reference_repo ssh://git@git.foo.com/some/repo.git ' +
+            '/tmp/local/path',
         ]
 
 
