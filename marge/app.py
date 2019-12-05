@@ -107,7 +107,16 @@ def _parse_config(args):
             'Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)\n'
             'If you need to use a strict no-rebase workflow (in most cases\n'
             'you don\'t want this, even if you configured gitlab to use merge requests\n'
-            'to use merge commits on the *target* branch (the default).)'
+            'to use merge commits on the *target* branch (the default).)\n'
+        ),
+    )
+    parser.add_argument(
+        '--rebase-remotely',
+        action='store_true',
+        help=(
+            "Instead of rebasing in a local clone of the repository, use GitLab's\n"
+            "built-in rebase functionality, via their API. Note that Marge can't add\n"
+            "information in the commits in this case.\n"
         ),
     )
     parser.add_argument(
@@ -134,6 +143,12 @@ def _parse_config(args):
         '--impersonate-approvers',
         action='store_true',
         help='Marge-bot pushes effectively don\'t change approval status.\n',
+    )
+    parser.add_argument(
+        '--merge-order',
+        default='created_at',
+        choices=('created_at', 'updated_at'),
+        help='Order marge merges assigned requests. created_at (default) or updated_at.\n',
     )
     parser.add_argument(
         '--approval-reset-timeout',
@@ -171,6 +186,12 @@ def _parse_config(args):
         help='How long a single git operation can take.\n'
     )
     parser.add_argument(
+        '--git-reference-repo',
+        type=str,
+        default=None,
+        help='A reference repo to be used when git cloning.\n'
+    )
+    parser.add_argument(
         '--branch-regexp',
         type=regexp,
         default='.*',
@@ -183,6 +204,12 @@ def _parse_config(args):
         help='Temporary branch name for external merge requests (disabled if empty).\n',
     )
     parser.add_argument(
+        '--source-branch-regexp',
+        type=regexp,
+        default='.*',
+        help='Only process MRs whose source branches match the given regular expression.\n',
+    )
+    parser.add_argument(
         '--debug',
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
@@ -193,6 +220,16 @@ def _parse_config(args):
         raise MargeBotCliArgError('--use-merge-strategy and --batch are currently mutually exclusive')
     if config.use_merge_strategy and config.add_tested:
         raise MargeBotCliArgError('--use-merge-strategy and --add-tested are currently mutually exclusive')
+    if config.rebase_remotely:
+        conflicting_flag = [
+            '--use-merge-strategy',
+            '--add-tested',
+            '--add-reviewers',
+            '--add-part-of',
+        ]
+        for flag in conflicting_flag:
+            if getattr(config, flag[2:].replace("-", "_")):
+                raise MargeBotCliArgError('--rebase-remotely and %s are mutually exclusive' % flag)
 
     cli_args = []
     # pylint: disable=protected-access
@@ -220,7 +257,7 @@ def _secret_auth_token_and_ssh_key(options):
 
 
 def main(args=None):
-    if not args:
+    if args is None:
         args = sys.argv[1:]
     logging.basicConfig()
 
@@ -244,12 +281,28 @@ def main(args=None):
         if options.batch:
             logging.warning('Experimental batch mode enabled')
 
+        if options.use_merge_strategy:
+            fusion = bot.Fusion.merge
+        elif options.rebase_remotely:
+            version = api.version()
+            if version.release < (11, 6):
+                raise Exception(
+                    "Need GitLab 11.6+ to use rebase through the API, "
+                    "but your instance is {}".format(version)
+                )
+            fusion = bot.Fusion.gitlab_rebase
+        else:
+            fusion = bot.Fusion.rebase
+
         config = bot.BotConfig(
             user=user,
             ssh_key_file=ssh_key_file,
             project_regexp=options.project_regexp,
             git_timeout=options.git_timeout,
+            git_reference_repo=options.git_reference_repo,
             branch_regexp=options.branch_regexp,
+            source_branch_regexp=options.source_branch_regexp,
+            merge_order=options.merge_order,
             merge_opts=bot.MergeJobOptions.default(
                 add_tested=options.add_tested,
                 add_part_of=options.add_part_of,
@@ -258,7 +311,7 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
-                use_merge_strategy=options.use_merge_strategy,
+                fusion=fusion,
                 temp_branch=options.temp_branch,
             ),
             batch=options.batch,

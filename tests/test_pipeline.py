@@ -13,7 +13,7 @@ INFO = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestPipeline(object):
+class TestPipeline:
 
     def setup_method(self, _method):
         self.api = Mock(Api)
@@ -29,6 +29,17 @@ class TestPipeline(object):
             {'ref': INFO['ref'], 'order_by': 'id', 'sort': 'desc'},
         ))
         assert [pl.info for pl in result] == [pl1, pl2]
+
+    def test_pipelines_by_merge_request(self):
+        api = self.api
+        pl1, pl2 = INFO, dict(INFO, id=48)
+        api.call = Mock(return_value=[pl1, pl2])
+
+        result = Pipeline.pipelines_by_merge_request(project_id=1234, merge_request_iid=1, api=api)
+        api.call.assert_called_once_with(GET(
+            '/projects/1234/merge_requests/1/pipelines',
+        ))
+        assert [pl.info for pl in result] == [pl2, pl1]
 
     def test_properties(self):
         pipeline = Pipeline(api=self.api, project_id=1234, info=INFO)

@@ -30,7 +30,7 @@ def find_weekday(string_or_day):
     raise ValueError('Not a week day: %r' % string_or_day)
 
 
-class WeeklyInterval(object):
+class WeeklyInterval:
     def __init__(self, from_weekday, from_time, to_weekday, to_time):
         from_weekday = find_weekday(from_weekday)
         to_weekday = find_weekday(to_weekday)
@@ -82,9 +82,12 @@ class WeeklyInterval(object):
 
         def parse_part(part):
             part = part.replace('@', ' ')
-            weekday, time = part.split()
+            parts = part.split()
+            weekday = parts[0]
+            time = parts[1]
+            timezone = parts[2] if len(parts) > 2 else 'UTC'
             weekday = find_weekday(weekday)
-            time = maya.parse(time).datetime().time()
+            time = maya.parse(time, timezone=timezone).datetime().time()
             return weekday, time
 
         from_weekday, from_time = parse_part(from_)
@@ -111,7 +114,7 @@ class WeeklyInterval(object):
         return True
 
 
-class IntervalUnion(object):
+class IntervalUnion:
     def __init__(self, iterable):
         self._intervals = list(iterable)
 

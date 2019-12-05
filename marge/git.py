@@ -30,9 +30,11 @@ def _filter_branch_script(trailer_name, trailer_values):
     return filter_script
 
 
-class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
+class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout reference')):
     def clone(self):
-        self.git('clone', '--origin=origin', self.remote_url, self.local_path, from_repo=False)
+        reference_flag = '--reference=' + self.reference if self.reference else ''
+        self.git('clone', '--origin=origin', reference_flag, self.remote_url,
+                 self.local_path, from_repo=False)
 
     def config_user_info(self, user_name, user_email):
         self.git('config', 'user.email', user_email)
@@ -159,7 +161,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout')):
         if self.ssh_key_file:
             env = os.environ.copy()
             # ssh's handling of identity files is infuriatingly dumb, to get it
-            # to actualy really use the IdentityFile we pass in via -i we also
+            # to actually really use the IdentityFile we pass in via -i we also
             # need to tell it to ignore ssh-agent (IdentitiesOnly=true) and not
             # read in any identities from ~/.ssh/config etc (-F /dev/null),
             # because they append and it tries them in order, starting with config file

@@ -1,18 +1,21 @@
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+import enum
 import logging as log
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
 
 from . import git, gitlab
+from .branch import Branch
 from .commit import Commit
 from .interval import IntervalUnion
+from .merge_request import MergeRequestRebaseFailed
 from .project import Project
 from .user import User
 from .pipeline import Pipeline
 
 
-class MergeJob(object):
+class MergeJob:
 
     def __init__(self, *, api, user, project, repo, options):
         self._api = api
@@ -57,13 +60,12 @@ class MergeJob(object):
         if state not in ('opened', 'reopened', 'locked'):
             if state in ('merged', 'closed'):
                 raise SkipMerge('The merge request is already {}!'.format(state))
-            else:
-                raise CannotMerge('The merge request is in an unknown state: {}'.format(state))
+            raise CannotMerge('The merge request is in an unknown state: {}'.format(state))
 
         if self.during_merge_embargo():
             raise SkipMerge('Merge embargo!')
 
-        if self._user.id != merge_request.assignee_id:
+        if self._user.id not in merge_request.assignee_ids:
             raise SkipMerge('It is not assigned to me anymore!')
 
     def add_trailers(self, merge_request):
@@ -71,11 +73,17 @@ class MergeJob(object):
         log.info('Adding trailers for MR !%s', merge_request.iid)
 
         # add Reviewed-by
+        should_add_reviewers = (
+            self._options.add_reviewers and
+            self._options.fusion is not Fusion.gitlab_rebase
+        )
         reviewers = (
             _get_reviewer_names_and_emails(
+                merge_request.fetch_commits(),
                 merge_request.fetch_approvals(),
                 self._api,
-            ) if self._options.add_reviewers else None
+            ) if should_add_reviewers
+            else None
         )
         sha = None
         if reviewers is not None:
@@ -87,12 +95,18 @@ class MergeJob(object):
             )
 
         # add Tested-by
-        should_add_tested = self._options.add_tested and self._project.only_allow_merge_if_pipeline_succeeds
+        should_add_tested = (
+            self._options.add_tested and
+            self._project.only_allow_merge_if_pipeline_succeeds and
+            self._options.fusion is Fusion.rebase
+        )
+
         tested_by = (
-            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)] if should_add_tested
+            ['{0._user.name} <{1.web_url}>'.format(self, merge_request)]
+            if should_add_tested
             else None
         )
-        if tested_by is not None and not self._options.use_merge_strategy:
+        if tested_by is not None:
             sha = self._repo.tag_with_trailer(
                 trailer_name='Tested-by',
                 trailer_values=tested_by,
@@ -101,8 +115,13 @@ class MergeJob(object):
             )
 
         # add Part-of
+        should_add_parts_of = (
+            self._options.add_part_of and
+            self._options.fusion is not Fusion.gitlab_rebase
+        )
         part_of = (
-            '<{0.web_url}>'.format(merge_request) if self._options.add_part_of
+            '<{0.web_url}>'.format(merge_request)
+            if should_add_parts_of
             else None
         )
         if part_of is not None:
@@ -118,17 +137,32 @@ class MergeJob(object):
         temp_branch = self.opts.temp_branch
         if commit_sha is None:
             commit_sha = merge_request.sha
-        if temp_branch and merge_request.source_project_id != self._project.id:
-            pid = self._project.id
+
+        if temp_branch and merge_request.source_project_id != merge_request.target_project.id:
             ref = temp_branch
             self.update_temp_branch(merge_request, commit_sha)
+            pipelines = Pipeline.pipelines_by_branch(
+                merge_request.target_project.id,
+                ref,
+                self._api,
+            )
+        elif self._api.version().release >= (10, 5, 0):
+            ref = merge_request.iid
+            pipelines = Pipeline.pipelines_by_merge_request(
+                merge_request.target_project_id,
+                ref,
+                self._api,
+            )
         else:
-            pid = merge_request.source_project_id
             ref = merge_request.source_branch
-        pipelines = Pipeline.pipelines_by_branch(pid, ref, self._api)
-        current_pipeline = next(iter(pipelines), None)
+            pipelines = Pipeline.pipelines_by_branch(
+                merge_request.source_project_id,
+                ref,
+                self._api,
+            )
+        current_pipeline = next(iter(pipeline for pipeline in pipelines if pipeline.sha == commit_sha), None)
 
-        if current_pipeline and current_pipeline.sha == commit_sha:
+        if current_pipeline:
             ci_status = current_pipeline.status
         else:
             log.warning('No pipeline listed for %s on branch %s', commit_sha, ref)
@@ -148,6 +182,10 @@ class MergeJob(object):
             ci_status = self.get_mr_ci_status(merge_request, commit_sha=commit_sha)
             if ci_status == 'success':
                 log.info('CI for MR !%s passed', merge_request.iid)
+                return
+
+            if ci_status == 'skipped':
+                log.info('CI for MR !%s skipped', merge_request.iid)
                 return
 
             if ci_status == 'failed':
@@ -184,12 +222,14 @@ class MergeJob(object):
             def sufficient_approvals():
                 return merge_request.fetch_approvals().sufficient
             # Make sure we don't race by ensuring approvals have reset since the push
-            time_0 = datetime.utcnow()
             waiting_time_in_secs = 5
+            approval_timeout_in_secs = self._options.approval_timeout.total_seconds()
+            iterations = round(approval_timeout_in_secs / waiting_time_in_secs)
             log.info('Checking if approvals have reset')
-            while sufficient_approvals() and datetime.utcnow() - time_0 < self._options.approval_timeout:
+            while sufficient_approvals() and iterations:
                 log.debug('Approvals haven\'t reset yet, sleeping for %s secs', waiting_time_in_secs)
                 time.sleep(waiting_time_in_secs)
+                iterations -= 1
             if not sufficient_approvals():
                 approvals.reapprove()
 
@@ -215,9 +255,18 @@ class MergeJob(object):
             )
         return source_project
 
+    def get_target_project(self, merge_request):
+        return Project.fetch_by_id(merge_request.target_project_id, api=self._api)
+
     def fuse(self, source, target, source_repo_url=None, local=False):
         # NOTE: this leaves git switched to branch_a
-        strategy = self._repo.merge if self._options.use_merge_strategy else self._repo.rebase
+        strategies = {
+            Fusion.rebase: self._repo.rebase,
+            Fusion.merge: self._repo.merge,
+            Fusion.gitlab_rebase: self._repo.rebase,  # we rebase locally to know sha
+        }
+
+        strategy = strategies[self._options.fusion]
         return strategy(
             source,
             target,
@@ -245,37 +294,32 @@ class MergeJob(object):
         if source_repo_url is None and source_branch == target_branch:
             raise CannotMerge('source and target branch seem to coincide!')
 
-        branch_updated = branch_rewritten = changes_pushed = False
+        branch_update_done = commits_rewrite_done = False
         try:
+            initial_mr_sha = merge_request.sha
             updated_sha = self.fuse(
                 source_branch,
                 target_branch,
                 source_repo_url=source_repo_url,
             )
-            branch_updated = True
+            branch_update_done = True
             # The fuse above fetches origin again, so we are now safe to fetch
             # the sha from the remote target branch.
             target_sha = repo.get_commit_hash('origin/' + target_branch)
             if updated_sha == target_sha:
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
-            rewritten_sha = self.add_trailers(merge_request) or updated_sha
-            branch_rewritten = True
-            repo.push(source_branch, source_repo_url=source_repo_url, force=True)
-            changes_pushed = True
+            final_sha = self.add_trailers(merge_request) or updated_sha
+            commits_rewrite_done = True
+            branch_was_modified = final_sha != initial_mr_sha
+            self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url)
         except git.GitError:
-            if not branch_updated:
+            if not branch_update_done:
                 raise CannotMerge('got conflicts while rebasing, your problem now...')
-            if not branch_rewritten:
+            if not commits_rewrite_done:
                 raise CannotMerge('failed on filter-branch; check my logs!')
-            if not changes_pushed:
-                if self.opts.use_merge_strategy:
-                    raise CannotMerge('failed to push merged changes, check my logs!')
-                else:
-                    raise CannotMerge('failed to push rebased changes, check my logs!')
-
             raise
         else:
-            return target_sha, updated_sha, rewritten_sha
+            return target_sha, updated_sha, final_sha
         finally:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
@@ -283,24 +327,58 @@ class MergeJob(object):
             if source_branch != 'master':
                 repo.checkout_branch('master')
                 repo.remove_branch(source_branch)
-            else:
-                assert source_repo_url is not None
+
+    def synchronize_mr_with_local_changes(
+        self,
+        merge_request,
+        branch_was_modified,
+        source_repo_url=None,
+    ):
+        if self._options.fusion is Fusion.gitlab_rebase:
+            self.synchronize_using_gitlab_rebase(merge_request)
+        else:
+            self.push_force_to_mr(
+                merge_request,
+                branch_was_modified,
+                source_repo_url=source_repo_url,
+            )
+
+    def push_force_to_mr(
+        self,
+        merge_request,
+        branch_was_modified,
+        source_repo_url=None,
+    ):
+        try:
+            self._repo.push(
+                merge_request.source_branch,
+                source_repo_url=source_repo_url,
+                force=True,
+            )
+        except git.GitError:
+            def fetch_remote_branch():
+                return Branch.fetch_by_name(
+                    merge_request.source_project_id,
+                    merge_request.source_branch,
+                    self._api,
+                )
+
+            if branch_was_modified and fetch_remote_branch().protected:
+                raise CannotMerge("Sorry, I can't modify protected branches!")
 
     def update_temp_branch(self, merge_request, commit_sha):
-        api = self._api
-        project_id = self._project.id
         temp_branch = self.opts.temp_branch
         waiting_time_in_secs = 30
 
         try:
-            sha_branch = Commit.last_on_branch(project_id, temp_branch, api).id
+            sha_branch = Commit.last_on_branch(self._project.id, temp_branch, self._api).id
         except gitlab.NotFound:
             sha_branch = None
         if sha_branch != commit_sha:
             log.info('Setting up %s in target project', temp_branch)
             self.delete_temp_branch(merge_request.source_project_id)
-            self._project.create_branch(temp_branch, commit_sha, api)
-            self._project.protect_branch(temp_branch, api)
+            self._project.create_branch(temp_branch, commit_sha, self._api)
+            self._project.protect_branch(temp_branch, self._api)
             merge_request.comment(
                 ('The temporary branch **{branch}** was updated to [{sha:.8}](../commit/{sha}) ' +
                  'and local pipelines will be used.').format(
@@ -323,12 +401,49 @@ class MergeJob(object):
             except gitlab.ApiError:
                 pass
 
+            change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
+            raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
 
-def _get_reviewer_names_and_emails(approvals, api):
+    def synchronize_using_gitlab_rebase(self, merge_request, expected_sha=None):
+        expected_sha = expected_sha or self._repo.get_commit_hash()
+        try:
+            merge_request.rebase()
+        except MergeRequestRebaseFailed as err:
+            raise CannotMerge("GitLab failed to rebase the branch saying: {0[0]}".format(err.args))
+        except TimeoutError:
+            raise CannotMerge("GitLab was taking too long to rebase the branch...")
+        except gitlab.ApiError:
+            branch = Branch.fetch_by_name(
+                        merge_request.source_project_id,
+                        merge_request.source_branch,
+                        self._api,
+                     )
+            if branch.protected:
+                raise CannotMerge("Sorry, I can't modify protected branches!")
+            raise
+        else:
+            if merge_request.sha != expected_sha:
+                raise GitLabRebaseResultMismatch(
+                    gitlab_sha=merge_request.sha,
+                    expected_sha=expected_sha,
+                )
+
+
+def _get_reviewer_names_and_emails(commits, approvals, api):
     """Return a list ['A. Prover <a.prover@example.com', ...]` for `merge_request.`"""
-
     uids = approvals.approver_ids
-    return ['{0.name} <{0.email}>'.format(User.fetch_by_id(uid, api)) for uid in uids]
+    users = [User.fetch_by_id(uid, api) for uid in uids]
+    self_reviewed = {commit['author_email'] for commit in commits} & {user.email for user in users}
+    if self_reviewed and len(users) <= 1:
+        raise CannotMerge('Commits require at least one independent reviewer.')
+    return ['{0.name} <{0.email}>'.format(user) for user in users]
+
+
+@enum.unique
+class Fusion(enum.Enum):
+    merge = 0
+    rebase = 1
+    gitlab_rebase = 2
 
 
 JOB_OPTIONS = [
@@ -339,7 +454,7 @@ JOB_OPTIONS = [
     'approval_timeout',
     'embargo',
     'ci_timeout',
-    'use_merge_strategy',
+    'fusion',
     'temp_branch',
 ]
 
@@ -355,7 +470,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, use_merge_strategy=False,
+            approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
             temp_branch=""
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
@@ -369,7 +484,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             approval_timeout=approval_timeout,
             embargo=embargo,
             ci_timeout=ci_timeout,
-            use_merge_strategy=use_merge_strategy,
+            fusion=fusion,
             temp_branch=temp_branch,
         )
 
@@ -386,3 +501,11 @@ class CannotMerge(Exception):
 
 class SkipMerge(CannotMerge):
     pass
+
+
+class GitLabRebaseResultMismatch(CannotMerge):
+    def __init__(self, gitlab_sha, expected_sha):
+        super(GitLabRebaseResultMismatch, self).__init__(
+            "GitLab rebase ended up with a different commit:"
+            "I expected %s but they got %s" % (expected_sha, gitlab_sha)
+        )

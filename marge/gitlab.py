@@ -5,7 +5,7 @@ from collections import namedtuple
 import requests
 
 
-class Api(object):
+class Api:
     def __init__(self, gitlab_url, auth_token):
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
@@ -17,12 +17,22 @@ class Api(object):
         if sudo:
             headers['SUDO'] = '%d' % sudo
         log.debug('REQUEST: %s %s %r %r', method.__name__.upper(), url, headers, command.call_args)
-        response = method(url, headers=headers, **command.call_args)
+        # Timeout to prevent indefinitely hanging requests. 60s is very conservative,
+        # but should be short enough to not cause any practical annoyances. We just
+        # crash rather than retry since marge-bot should be run in a restart loop anyway.
+        try:
+            response = method(url, headers=headers, timeout=60, **command.call_args)
+        except requests.exceptions.Timeout as err:
+            log.error('Request timeout: %s', err)
+            raise
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
 
+        if response.status_code == 202:
+            return True  # Accepted
+
         if response.status_code == 204:
-            return True
+            return True  # NoContent
 
         if response.status_code < 300:
             return command.extract(response.json()) if command.extract else response.json()
@@ -188,7 +198,7 @@ class UnexpectedError(ApiError):
     pass
 
 
-class Resource(object):
+class Resource:
     def __init__(self, api, info):
         self._info = info
         self._api = api
@@ -224,3 +234,6 @@ class Version(namedtuple('Version', 'release edition')):
     @property
     def is_ee(self):
         return self.edition == 'ee'
+
+    def __str__(self):
+        return '%s-%s' % ('.'.join(map(str, self.release)), self.edition)

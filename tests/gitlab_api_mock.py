@@ -23,8 +23,8 @@ def commit(commit_id, status):
     }
 
 
-class MockLab(object):  # pylint: disable=too-few-public-methods
-    def __init__(self, gitlab_url=None):
+class MockLab:  # pylint: disable=too-few-public-methods
+    def __init__(self, initial_master_sha='505e', gitlab_url=None, fork=False, merge_request_options=None):
         self.gitlab_url = gitlab_url = gitlab_url or 'http://git.example.com'
         self.api = api = Api(gitlab_url=gitlab_url, auth_token='no-token', initial_state='initial')
 
@@ -47,7 +47,7 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
             'title': 'a title',
             'project_id': 1234,
             'author': {'id': self.author_id},
-            'assignee': {'id': self.user_id},
+            'assignees': [{'id': self.user_id}],
             'approved_by': [],
             'state': 'opened',
             'sha': self.commit_info['id'],
@@ -58,9 +58,23 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
             'work_in_progress': False,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
         }
+        if merge_request_options is not None:
+            self.merge_request_info.update(merge_request_options)
+
+        if fork:
+            self.forked_project_info = dict(
+                self.project_info,
+                id=4321,
+                ssh_url_to_repo='ssh://some.other.project/stuff',
+            )
+            api.add_project(self.forked_project_info)
+            self.merge_request_info.update({'iid': 55, 'source_project_id': '4321'})
+        else:
+            self.forked_project_info = None
+
         api.add_merge_request(self.merge_request_info)
 
-        self.initial_master_sha = '505e'
+        self.initial_master_sha = initial_master_sha
         self.approvals_info = dict(
             test_approvals.INFO,
             id=self.merge_request_info['id'],
@@ -70,7 +84,11 @@ class MockLab(object):  # pylint: disable=too-few-public-methods
         )
         api.add_approvals(self.approvals_info)
         api.add_transition(
-            GET('/projects/1234/repository/branches/master'),
+            GET(
+                '/projects/1234/repository/branches/{target}'.format(
+                    target=self.merge_request_info['target_branch'],
+                ),
+            ),
             Ok({'commit': {'id': self.initial_master_sha}}),
         )
 
@@ -91,7 +109,7 @@ class Api(gitlab.Api):
             self.state,
         )
         try:
-            response, next_state = self._find(command, sudo)
+            response, next_state, side_effect = self._find(command, sudo)
         except KeyError:
             page = command.args.get('page')
             if page == 0:
@@ -114,13 +132,15 @@ class Api(gitlab.Api):
             if next_state:
                 self.state = next_state
 
+            if side_effect:
+                side_effect()
             return response()
 
     def _find(self, command, sudo):
         more_specific = self._transitions.get(_key(command, sudo, self.state))
         return more_specific or self._transitions[_key(command, sudo, None)]
 
-    def add_transition(self, command, response, sudo=None, from_state=None, to_state=None):
+    def add_transition(self, command, response, sudo=None, from_state=None, to_state=None, side_effect=None):
         from_states = from_state if isinstance(from_state, list) else [from_state]
 
         for _from_state in from_states:
@@ -132,7 +152,7 @@ class Api(gitlab.Api):
                 show_from,
                 show_from if to_state is None else repr(to_state),
             )
-            self._transitions[_key(command, sudo, _from_state)] = (response, to_state)
+            self._transitions[_key(command, sudo, _from_state)] = (response, to_state, side_effect)
 
     def add_resource(self, path, info, sudo=None, from_state=None, to_state=None):
         self.add_transition(GET(path.format(attrs(info))), Ok(info), sudo, from_state, to_state)

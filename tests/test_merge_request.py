@@ -1,7 +1,9 @@
-from unittest.mock import Mock
+from unittest.mock import call, Mock
+
+import pytest
 
 from marge.gitlab import Api, GET, POST, PUT, Version
-from marge.merge_request import MergeRequest
+from marge.merge_request import MergeRequest, MergeRequestRebaseFailed
 
 _MARGE_ID = 77
 
@@ -10,7 +12,7 @@ INFO = {
     'iid': 54,
     'title': 'a title',
     'project_id': 1234,
-    'assignee': {'id': _MARGE_ID},
+    'assignees': [{'id': _MARGE_ID}],
     'author': {'id': 88},
     'state': 'opened',
     'sha': 'dead4g00d',
@@ -23,7 +25,7 @@ INFO = {
 
 
 # pylint: disable=attribute-defined-outside-init
-class TestMergeRequest(object):
+class TestMergeRequest:
 
     def setup_method(self, _method):
         self.api = Mock(Api)
@@ -52,7 +54,7 @@ class TestMergeRequest(object):
         assert self.merge_request.project_id == 1234
         assert self.merge_request.iid == 54
         assert self.merge_request.title == 'a title'
-        assert self.merge_request.assignee_id == 77
+        assert self.merge_request.assignee_ids == [77]
         assert self.merge_request.author_id == 88
         assert self.merge_request.state == 'opened'
         assert self.merge_request.source_branch == 'useless_new_feature'
@@ -62,8 +64,8 @@ class TestMergeRequest(object):
         assert self.merge_request.target_project_id == 1234
         assert self.merge_request.work_in_progress is False
 
-        self._load({'assignee': {}})
-        assert self.merge_request.assignee_id is None
+        self._load({'assignees': []})
+        assert self.merge_request.assignee_ids == []
 
     def test_comment(self):
         self.merge_request.comment('blah')
@@ -80,7 +82,72 @@ class TestMergeRequest(object):
 
     def test_unassign(self):
         self.merge_request.unassign()
-        self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': None}))
+        self.api.call.assert_called_once_with(PUT('/projects/1234/merge_requests/54', {'assignee_id': 0}))
+
+    def test_rebase_was_not_in_progress_no_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                INFO
+            ),
+            (
+                PUT('/projects/1234/merge_requests/54/rebase'),
+                True
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                dict(INFO, rebase_in_progress=False)
+            ),
+        ]
+
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+        self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
+
+    def test_rebase_was_not_in_progress_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                INFO
+            ),
+            (
+                PUT('/projects/1234/merge_requests/54/rebase'),
+                True
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> BOOM
+                dict(INFO, rebase_in_progress=False, merge_error="Rebase failed. Please rebase locally")
+            ),
+        ]
+
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+
+        with pytest.raises(MergeRequestRebaseFailed):
+            self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
+
+    def test_rebase_was_in_progress_no_error(self):
+        expected = [
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                dict(INFO, rebase_in_progress=True)
+            ),
+            (
+                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                dict(INFO, rebase_in_progress=False)
+            ),
+        ]
+        self.api.call = Mock(side_effect=[resp for (req, resp) in expected])
+        self.merge_request.rebase()
+        self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
 
     def test_accept(self):
         self._load(dict(INFO, sha='badc0de'))
@@ -109,9 +176,11 @@ class TestMergeRequest(object):
 
     def test_fetch_all_opened_for_me(self):
         api = self.api
-        mr1, mr_not_me, mr2 = INFO, dict(INFO, assignee={'id': _MARGE_ID+1}, id=679), dict(INFO, id=678)
+        mr1, mr_not_me, mr2 = INFO, dict(INFO, assignees=[{'id': _MARGE_ID+1}], id=679), dict(INFO, id=678)
         api.collect_all_pages = Mock(return_value=[mr1, mr_not_me, mr2])
-        result = MergeRequest.fetch_all_open_for_user(1234, user_id=_MARGE_ID, api=api)
+        result = MergeRequest.fetch_all_open_for_user(
+            1234, user_id=_MARGE_ID, api=api, merge_order='created_at'
+        )
         api.collect_all_pages.assert_called_once_with(GET(
             '/projects/1234/merge_requests',
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
