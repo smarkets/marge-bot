@@ -50,7 +50,6 @@ def _pipeline(sha1, status, ref='useless_new_feature'):
         'status': status,
         'ref': ref,
         'sha': sha1,
-        'jobs': [{'name': 'job1'}, {'name': 'job2'}],
     }
 
 
@@ -647,7 +646,7 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             from_state='unresolved_discussions',
         )
         message = (
-            "Gitlab refused to merge this request and I don't know why! "
+            "GitLab refused to merge this request and I don't know why! "
             "Maybe you have unresolved discussions?"
         )
         with mocklab.expected_failure(message):

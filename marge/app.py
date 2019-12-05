@@ -206,7 +206,7 @@ def _parse_config(args):
     parser.add_argument(
         '--job-regexp',
         type=regexp,
-        default='.*',
+        default='',
         help='Require pipelines to have jobs matching the given regular expression.\n',
     )
     parser.add_argument(

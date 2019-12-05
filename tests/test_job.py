@@ -60,7 +60,6 @@ class TestJob:
             ]
             pipeline_class.pipelines_by_branch.return_value = pipeline_success
             pipeline_class.pipelines_by_merge_request.return_value = pipeline_success
-            pipeline_success[0].get_jobs.return_value = [{'name': 'job1'}]
             merge_job = self.get_merge_job()
             merge_job._api.version.return_value = marge.gitlab.Version.parse(version)
             merge_request = self._mock_merge_request(sha='abc')
@@ -202,7 +201,7 @@ class TestMergeJobOptions:
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
             fusion=Fusion.rebase,
-            job_regexp=re.compile('.*'),
+            job_regexp=re.compile(''),
             create_pipeline=False,
         )
 

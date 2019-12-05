@@ -156,14 +156,15 @@ class MergeJob:
 
         if current_pipeline:
             ci_status = current_pipeline.status
-            jobs = current_pipeline.get_jobs()
-            if not any(self.opts.job_regexp.match(j['name']) for j in jobs):
-                if create_pipeline:
-                    message = 'CI doesn\'t contain the required jobs.'
-                    log.warning(message)
-                    trigger = True
-                else:
-                    raise CannotMerge('CI doesn\'t contain the required jobs.')
+            if self.opts.job_regexp.pattern:
+                jobs = current_pipeline.get_jobs()
+                if not any(self.opts.job_regexp.match(j['name']) for j in jobs):
+                    if create_pipeline:
+                        message = 'CI doesn\'t contain the required jobs.'
+                        log.warning(message)
+                        trigger = True
+                    else:
+                        raise CannotMerge('CI doesn\'t contain the required jobs.')
         else:
             message = 'No pipeline listed for {sha} on branch {branch}.'.format(
                 sha=commit_sha, branch=merge_request.source_branch
@@ -472,7 +473,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
-            job_regexp=re.compile('.*'), create_pipeline=False
+            job_regexp=re.compile(''), create_pipeline=False
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()

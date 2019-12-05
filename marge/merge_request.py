@@ -8,6 +8,7 @@ from .approvals import Approvals
 GET, POST, PUT, DELETE = gitlab.GET, gitlab.POST, gitlab.PUT, gitlab.DELETE
 
 
+# pylint: disable=R0904
 class MergeRequest(gitlab.Resource):
 
     @classmethod
