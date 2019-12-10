@@ -81,6 +81,7 @@ class SingleMergeJob(MergeJob):
 
             try:
                 merge_request.accept(remove_branch=True, sha=actual_sha)
+                merge_request.delete_previous_comments(author_id=self._user.id)
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we updated, just try again
