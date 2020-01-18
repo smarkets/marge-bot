@@ -132,7 +132,7 @@ Here is a config file example
 add-part-of: true
 add-reviewers: true
 add-tested: true
-# chose one way of specifying the Auth token
+# choose one way of specifying the Auth token
 #auth-token: TOKEN
 auth-token-file: token.FILE
 branch-regexp: .*
@@ -143,7 +143,7 @@ git-timeout: 120s
 gitlab-url: "https://gitlab.example.com"
 impersonate-approvers: true
 project-regexp: .*
-# chose one way of specifying the SSH key
+# choose one way of specifying the SSH key
 #ssh-key: KEY
 ssh-key-file: token.FILE
 ```
