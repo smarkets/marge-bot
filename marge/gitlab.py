@@ -10,7 +10,7 @@ class Api:
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
 
-    def call(self, command, sudo=None):
+    def call_raw(self, command, sudo=None):
         method = command.method
         url = self._api_base_url + command.endpoint
         headers = {'PRIVATE-TOKEN': self._auth_token}
@@ -35,7 +35,7 @@ class Api:
             return True  # NoContent
 
         if response.status_code < 300:
-            return command.extract(response.json()) if command.extract else response.json()
+            return response
 
         if response.status_code == 304:
             return False  # Not Modified
@@ -63,6 +63,11 @@ class Api:
             err_message = response.reason
 
         raise error(response.status_code, err_message)
+
+    def call(self, command, sudo=None):
+        """call gitlab api and parse response json"""
+        response = self.call_raw(command, sudo)
+        return command.extract(response.json()) if command.extract else response.json()
 
     def collect_all_pages(self, get_command):
         result = []
