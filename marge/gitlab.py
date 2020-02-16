@@ -1,5 +1,6 @@
 import json
 import logging as log
+import urllib.parse
 from collections import namedtuple
 
 import requests
@@ -68,6 +69,35 @@ class Api:
         """call gitlab api and parse response json"""
         response = self.call_raw(command, sudo)
         return command.extract(response.json()) if command.extract else response.json()
+
+    def repo_file_get(self, project_id, file_path, ref):
+        """Get file from repository
+
+            The function returns a dict similar to the JSON except
+            that "encoding" is missing as the content is already
+            provided decoded as bytes.
+
+           See: https://docs.gitlab.com/ce/api/repository_files.html#get-file-from-repository
+        """
+        file_path = urllib.parse.quote(file_path, safe="")
+        url = '/projects/{id}/repository/files/{file_path}/raw?ref={ref}'
+        url = url.format(id=project_id, file_path=file_path, ref=ref)
+
+        try:
+            result = self.call_raw(GET(url))
+            return {
+                'file_name': result.headers['X-Gitlab-File-Name'],
+                'file_path': result.headers['X-Gitlab-File-Path'],
+                'size': result.headers['X-Gitlab-Size'],
+                'content_sha256': result.headers['X-Gitlab-Content-Sha256'],
+                'blob_id': result.headers['X-Gitlab-Blob-Id'],
+                'commit_id': result.headers['X-Gitlab-Commit-Id'],
+                'last_commit_id': result.headers['X-Gitlab-Last-Commit-Id'],
+                'content': result.text,
+                'ref': result.headers['X-Gitlab-Ref'],
+            }
+        except NotFound:
+            return None
 
     def collect_all_pages(self, get_command):
         result = []
