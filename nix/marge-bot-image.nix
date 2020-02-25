@@ -1,6 +1,6 @@
-{ pkgs, marge }:
+{ pkgs, marge-bot }:
 let
-  version = marge.version;
+  version = marge-bot.version;
   basicShadow =
     # minimal user setup, so ssh won't whine 'No user exists for uid 0'
     pkgs.runCommand "basic-shadow-setup" {}
@@ -24,7 +24,7 @@ in
 pkgs.dockerTools.buildImage {
   name = "smarkets/marge-bot";
   tag = "${version}";
-  contents = [ marge ] ++ (
+  contents = [ marge-bot ] ++ (
     with pkgs; [
       basicShadow
       busybox

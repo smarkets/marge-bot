@@ -18,11 +18,10 @@ PyYAML = "^5.1"
 requests = "^2.22"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
-pytest-cov = "^2.8"
-pytest-flake8 = "^1.0"
-pytest-pylint = "^0.14.1"
-pytest-runner = "^5.2"
+pytest = "*"
+pytest-cov = "*"
+pytest-flake8 = "*"
+pytest-runner = "*"
 
 [tool.flake8]
 max-line-length = 110

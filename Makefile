@@ -5,7 +5,7 @@ all: marge-bot dockerize
 
 .PHONY: marge-bot
 marge-bot:
-	nix-build --keep-failed --attr marge
+	nix-build --keep-failed --attr marge-bot
 
 .PHONY: clean
 clean:
@@ -17,7 +17,7 @@ bump-sources:
 
 .PHONY: dockerize
 dockerize:
-	docker load --input $$(nix-build --attr marge-image)
+	docker load --input $$(nix-build --attr marge-bot-image)
 
 .PHONY: docker-push
 docker-push:
