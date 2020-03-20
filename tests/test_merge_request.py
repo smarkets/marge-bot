@@ -150,7 +150,7 @@ class TestMergeRequest:
         self.merge_request.rebase()
         self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
 
-    def test_accept(self):
+    def test_accept_remove_branch(self):
         self._load(dict(INFO, sha='badc0de'))
 
         for boolean in (True, False):
@@ -165,6 +165,8 @@ class TestMergeRequest:
             ))
             self.api.call.reset_mock()
 
+    def test_accept_sha(self):
+        self._load(dict(INFO, sha='badc0de'))
         self.merge_request.accept(sha='g00dc0de')
         self.api.call.assert_called_once_with(PUT(
             '/projects/1234/merge_requests/54/merge',
@@ -172,6 +174,18 @@ class TestMergeRequest:
                 merge_when_pipeline_succeeds=True,
                 should_remove_source_branch=False,
                 sha='g00dc0de',
+            )
+        ))
+
+    def test_accept_merge_when_pipeline_succeeds(self):
+        self._load(dict(INFO, sha='badc0de'))
+        self.merge_request.accept(merge_when_pipeline_succeeds=False)
+        self.api.call.assert_called_once_with(PUT(
+            '/projects/1234/merge_requests/54/merge',
+            dict(
+                merge_when_pipeline_succeeds=False,
+                should_remove_source_branch=False,
+                sha='badc0de',
             )
         ))
 

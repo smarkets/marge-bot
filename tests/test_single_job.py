@@ -20,6 +20,7 @@ from marge.job import Fusion
 from marge.merge_request import MergeRequest
 from tests.git_repo_mock import RepoMock
 from tests.gitlab_api_mock import Error, Ok, MockLab
+from tests.test_project import INFO as TEST_PROJECT_INFO
 import tests.test_commit as test_commit
 
 
@@ -584,6 +585,33 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
         job.execute()
         assert api.state == 'someone_else_merged'
         assert api.notes == []
+
+    @pytest.mark.parametrize("only_allow_merge_if_pipeline_succeeds", [True, False])
+    def test_calculates_merge_when_pipeline_succeeds_correctly(
+        self, mocks, only_allow_merge_if_pipeline_succeeds
+    ):
+        mocklab, api, job = mocks
+        rewritten_sha = mocklab.rewritten_sha
+        project_info = dict(TEST_PROJECT_INFO)
+        project_info["only_allow_merge_if_pipeline_succeeds"] = only_allow_merge_if_pipeline_succeeds
+        api.add_project(project_info)
+        api.add_transition(
+            PUT(
+                '/projects/{pid}/merge_requests/{iid}/merge'.format(
+                    iid=mocklab.merge_request_info['iid'],
+                    pid=project_info["id"]
+                ),
+                dict(
+                    sha=rewritten_sha,
+                    should_remove_source_branch=True,
+                    merge_when_pipeline_succeeds=only_allow_merge_if_pipeline_succeeds
+                ),
+            ),
+            Ok(True),
+            to_state='merged',
+        )
+        job.execute()
+        assert api.state == 'merged'
 
     def test_handles_request_becoming_wip_after_push(self, mocks):
         mocklab, api, job = mocks
