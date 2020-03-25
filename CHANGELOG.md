@@ -1,3 +1,7 @@
+  * 0.9.2:
+    - Fix: ensure parameters are correct when merging with/without pipelines enabled #251
+    - Fix: only delete source branch if forced #193
+    - Fix: fix sandboxed build #250
   * 0.9.1:
     - Feature: support passing a timezone with the embargo #228
     - Fix: fix not checking the target project for MRs from forked projects #218
