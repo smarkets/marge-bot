@@ -7,10 +7,9 @@ import marge.git
 import marge.project
 import marge.user
 from marge.batch_job import BatchMergeJob, CannotBatch
-from marge.gitlab import GET
 from marge.job import CannotMerge, MergeJobOptions
 from marge.merge_request import MergeRequest
-from tests.gitlab_api_mock import MockLab, Ok, commit
+from tests.gitlab_api_mock import MockLab
 
 
 class TestBatchJob:
@@ -160,25 +159,3 @@ class TestBatchJob:
         with pytest.raises(CannotBatch) as exc_info:
             batch_merge_job.accept_mr(merge_request, 'abc')
         assert str(exc_info.value) == 'Someone was naughty and by-passed marge'
-
-    def test_fuse_mr_when_source_branch_was_moved(self, api, mocklab):
-        batch_merge_job = self.get_batch_merge_job(api, mocklab)
-        merge_request = self._mock_merge_request(
-            source_project_id=mocklab.merge_request_info['source_project_id'],
-            target_branch='master',
-            source_branch=mocklab.merge_request_info['source_branch'],
-        )
-
-        api.add_transition(
-            GET(
-                '/projects/{project_iid}/repository/branches/useless_new_feature'.format(
-                    project_iid=mocklab.merge_request_info['source_project_id'],
-                ),
-            ),
-            Ok({'commit': commit(commit_id='abc', status='running')}),
-        )
-
-        with pytest.raises(CannotMerge) as exc_info:
-            batch_merge_job.accept_mr(merge_request, mocklab.initial_master_sha)
-
-        assert str(exc_info.value) == 'Someone pushed to branch while we were trying to merge'
