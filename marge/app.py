@@ -208,6 +208,11 @@ def _parse_config(args):
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
     )
+    parser.add_argument(
+        '--use-no-ff-batches',
+        action='store_true',
+        help='Disable fast forwarding when merging MR batches'
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
