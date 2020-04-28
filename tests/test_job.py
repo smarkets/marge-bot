@@ -1,4 +1,5 @@
 # pylint: disable=protected-access
+import re
 from datetime import timedelta
 from unittest.mock import ANY, Mock, patch, create_autospec
 
@@ -200,6 +201,8 @@ class TestMergeJobOptions:
             embargo=marge.interval.IntervalUnion.empty(),
             ci_timeout=timedelta(minutes=15),
             fusion=Fusion.rebase,
+            job_regexp=re.compile(''),
+            create_pipeline=False,
         )
 
     def test_default_ci_time(self):

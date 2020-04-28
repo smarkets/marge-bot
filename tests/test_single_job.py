@@ -674,7 +674,7 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             from_state='unresolved_discussions',
         )
         message = (
-            "Gitlab refused to merge this request and I don't know why! "
+            "GitLab refused to merge this request and I don't know why! "
             "Maybe you have unresolved discussions?"
         )
         with mocklab.expected_failure(message):
@@ -715,7 +715,7 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             Error(marge.gitlab.MethodNotAllowed(405, {'message': '405 Method Not Allowed'})),
             from_state='passed', to_state='rejected_for_mysterious_reasons',
         )
-        message = "Gitlab refused to merge this request and I don't know why!"
+        message = "GitLab refused to merge this request and I don't know why!"
         with mocklab.expected_failure(message):
             job.execute()
         assert api.state == 'rejected_for_mysterious_reasons'
@@ -776,7 +776,7 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
         target_branch = mocklab.merge_request_info['target_branch']
 
         remote_target_repo.set_ref(target_branch, remote_source_repo.get_ref(source_branch))
-        expected_message = 'these changes already exist in branch `%s`' % target_branch
+        expected_message = 'These changes already exist in branch `%s`.' % target_branch
 
         with mocklab.expected_failure(expected_message):
             job.execute()

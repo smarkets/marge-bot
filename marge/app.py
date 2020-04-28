@@ -204,6 +204,17 @@ def _parse_config(args):
         help='Only process MRs whose source branches match the given regular expression.\n',
     )
     parser.add_argument(
+        '--job-regexp',
+        type=regexp,
+        default='',
+        help='Require pipelines to have jobs matching the given regular expression.\n',
+    )
+    parser.add_argument(
+        '--create-pipeline',
+        action='store_true',
+        help='Create new pipeline if not up to date or not matching job-regexp.\n',
+    )
+    parser.add_argument(
         '--debug',
         action='store_true',
         help='Debug logging (includes all HTTP requests etc).\n',
@@ -306,6 +317,8 @@ def main(args=None):
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 fusion=fusion,
+                job_regexp=options.job_regexp,
+                create_pipeline=options.create_pipeline,
             ),
             batch=options.batch,
         )

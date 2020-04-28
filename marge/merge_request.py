@@ -8,6 +8,7 @@ from .approvals import Approvals
 GET, POST, PUT, DELETE = gitlab.GET, gitlab.POST, gitlab.PUT, gitlab.DELETE
 
 
+# pylint: disable=R0904
 class MergeRequest(gitlab.Resource):
 
     @classmethod
@@ -192,6 +193,18 @@ class MergeRequest(gitlab.Resource):
 
     def fetch_commits(self):
         return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
+
+    def triggered(self, user_id):
+        if self._api.version().release >= (9, 2, 2):
+            notes_url = '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self)
+        else:
+            # GitLab botched the v4 api before 9.2.2
+            notes_url = '/projects/{0.project_id}/merge_requests/{0.id}/notes'.format(self)
+
+        comments = self._api.collect_all_pages(GET(notes_url))
+        message = 'I created a new pipeline for [{sha:.8s}]'.format(sha=self.sha)
+        my_comments = [c['body'] for c in comments if c['author']['id'] == user_id]
+        return any(message in c for c in my_comments)
 
 
 class MergeRequestRebaseFailed(Exception):

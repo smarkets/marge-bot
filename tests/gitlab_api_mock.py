@@ -102,7 +102,7 @@ class Api(gitlab.Api):
         self.state = initial_state
         self.notes = []
 
-    def call(self, command, sudo=None):
+    def call(self, command, sudo=None, response_json=None):
         log.info(
             'CALL: %s%s @ %s',
             'sudo %s ' % sudo if sudo is not None else '',

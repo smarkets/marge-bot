@@ -10,7 +10,7 @@ class Api:
         self._auth_token = auth_token
         self._api_base_url = gitlab_url.rstrip('/') + '/api/v4'
 
-    def call(self, command, sudo=None):
+    def call(self, command, sudo=None, response_json=None):
         method = command.method
         url = self._api_base_url + command.endpoint
         headers = {'PRIVATE-TOKEN': self._auth_token}
@@ -27,6 +27,9 @@ class Api:
             raise
         log.debug('RESPONSE CODE: %s', response.status_code)
         log.debug('RESPONSE BODY: %r', response.content)
+
+        if response_json is not None:
+            response_json.update(response.json())
 
         if response.status_code == 202:
             return True  # Accepted
