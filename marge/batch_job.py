@@ -114,7 +114,7 @@ class BatchMergeJob(MergeJob):
                     target_branch,
                     source_branch,
                     '--no-ff',
-                )
+            )
 
         return self._repo.fast_forward(
             target_branch,
@@ -155,9 +155,11 @@ class BatchMergeJob(MergeJob):
         self.maybe_reapprove(merge_request, approvals)
 
         # This switches git to <target_branch>
-        final_sha = self.merge_batch(merge_request.target_branch,
-                                     merge_request.source_branch,
-                                     self._options.use_no_ff_batches)
+        final_sha = self.merge_batch(
+            merge_request.target_branch,
+            merge_request.source_branch,
+            self._options.use_no_ff_batches,
+        )
 
         # Don't force push in case the remote has changed.
         self._repo.push(merge_request.target_branch, force=False)
