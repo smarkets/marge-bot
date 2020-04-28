@@ -108,6 +108,19 @@ class BatchMergeJob(MergeJob):
             if getattr(changed_mr, attr) != getattr(merge_request, attr):
                 raise CannotMerge(error_message.format(attr.replace('_', ' ')))
 
+    def merge_batch(self, target_branch, source_branch, no_ff=False):
+        if no_ff:
+            return self._repo.merge(
+                    target_branch,
+                    source_branch,
+                    '--no-ff',
+            )
+
+        return self._repo.fast_forward(
+            target_branch,
+            source_branch,
+        )
+
     def accept_mr(
         self,
         merge_request,
@@ -142,9 +155,10 @@ class BatchMergeJob(MergeJob):
         self.maybe_reapprove(merge_request, approvals)
 
         # This switches git to <target_branch>
-        final_sha = self._repo.fast_forward(
+        final_sha = self.merge_batch(
             merge_request.target_branch,
             merge_request.source_branch,
+            self._options.use_no_ff_batches,
         )
 
         # Don't force push in case the remote has changed.
