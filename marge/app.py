@@ -311,6 +311,7 @@ def main(args=None):
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
                 fusion=fusion,
+                use_no_ff_batches=options.use_no_ff_batches,
             ),
             batch=options.batch,
         )
