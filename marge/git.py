@@ -131,7 +131,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
     def checkout_branch(self, branch, start_point=''):
         self.git('checkout', '-B', branch, start_point, '--')
 
-    def push(self, branch, *, source_repo_url=None, force=False, skip_ci=False):
+    def push(self, branch, *, source_repo_url=None, force=False):
         self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
@@ -146,14 +146,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
         else:
             source = 'origin'
         force_flag = '--force' if force else ''
-        # The following needs to be split into 2 variables as any whitespace in the string
-        # causes it to be quoted which makes the string ignored by git
-        if skip_ci:
-            skip_1 = '-o'
-            skip_2 = 'ci.skip'
-        else:
-            skip_1, skip_2 = '', ''
-        self.git('push', force_flag, skip_1, skip_2, source, '%s:%s' % (branch, branch))
+        self.git('push', force_flag, source, '%s:%s' % (branch, branch))
 
     def get_commit_hash(self, rev='HEAD'):
         """Return commit hash for `rev` (default "HEAD")."""

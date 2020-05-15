@@ -381,21 +381,16 @@ extremely slow CI).
 ### How it works
 
 If marge-bot finds multiple merge requests to deal with, she attempts to create
-a batch job. This is initially a batch branch based on the latest master.
-She then filters the merge requests such that they have all have a
+a batch job. She filters the merge requests such that they have all have a
 common target branch, and eliminates those that have not yet passed CI (a
 heuristic to help guarantee the batch will pass CI later).
 
-Once the merge requests have been gathered, trailers are added to their branches one 
-by one, these changes are pushed to their remotes, they are rebased on the batch branch
-and the rebased version is also pushed to the remote of the individual MR. This
-is to ensure that the commit SHAs of the changes in the individual MRs match
-those in the batch branch. This is very important later. Any merge request that cannot be
+Once the merge requests have been gathered, a batch branch is created using the
+commits from each merge request in sequence. Any merge request that cannot be
 merged to this branch (e.g. due to a rebase conflict) is filtered out. A new
 merge request is then created for this branch, and tested in CI.
 
-If CI passes, the batch branch is merged which merges all individual constituent
-MRs (this is why the SHAs must match).
+If CI passes, the original merge requests will be merged one by one.
 
 If the batch job fails for any reason, we fall back to merging the first merge
 request, before attempting a new batch job.
@@ -411,10 +406,16 @@ request, before attempting a new batch job.
   each source branch, because we know the final linearization of all commits
   passes in that all MRs passed individually on their branches.
 
-* Because trailers are added during this process and pushed, this would trigger
-  CI pipelines for each branch to be merged. We use the `ci.skip` option to prevent
-  unnecessary CI runs which leaves skipped pipelines appearing on the Pipelines
-  page for the repo. However this is just a visual issue.
+* As trailers are added to the original merge requests only, their branches
+  would need to be pushed to in order to reflect this change. This would trigger
+  CI in each of the branches again that would have to be passed before merging,
+  which effectively defeats the point of batching. To workaround this, the
+  current implementation merges to the target branch through git, instead of the
+  GitLab API. GitLab will detect the merge request as having been merged, and
+  update the merge request status accordingly, regardless of whether it has
+  passed CI. This does still mean the triggered CI jobs will be running even
+  though the merge requests are merged. marge-bot will attempt to cancel these
+  pipelines, although this doesn't work too effectively if external CI is used.
 
 * There is what can be considered to be a flaw in this implementation that could
   potentially result in a non-green master; consider the following situation:
