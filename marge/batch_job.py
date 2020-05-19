@@ -16,8 +16,9 @@ class CannotBatch(Exception):
 class BatchMergeJob(MergeJob):
     BATCH_BRANCH_NAME = 'marge_bot_batch_merge_job'
 
-    def __init__(self, *, api, user, project, repo, options, merge_requests):
+    def __init__(self, *, api, user, project, repo, options, optimistic, merge_requests):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
+        self._optimistic = optimistic
         self._merge_requests = merge_requests
 
     def remove_batch_branch(self):
@@ -198,6 +199,11 @@ class BatchMergeJob(MergeJob):
                     merge_request.source_branch,
                     '%s/%s' % (merge_request_remote, merge_request.source_branch),
                 )
+
+                if self._optimistic:
+                    # Apply the trailers before running the batch MR
+                    self.add_trailers(merge_request)
+                    self.push_force_to_mr(merge_request, True, source_repo_url, skip_ci=True)
 
                 # Update <source_branch> on latest <batch> branch so it contains previous MRs
                 self.fuse(

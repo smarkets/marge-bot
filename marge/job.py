@@ -336,12 +336,14 @@ class MergeJob:
         merge_request,
         branch_was_modified,
         source_repo_url=None,
+        skip_ci=False,
     ):
         try:
             self._repo.push(
                 merge_request.source_branch,
                 source_repo_url=source_repo_url,
                 force=True,
+                skip_ci=skip_ci,
             )
         except git.GitError:
             def fetch_remote_branch():
