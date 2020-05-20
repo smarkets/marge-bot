@@ -146,7 +146,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
         else:
             source = 'origin'
         force_flag = '--force' if force else ''
-        skip_flag = ['-o', 'ci.skip'] if skip_ci else []
+        skip_flag = ['-o', 'ci.skip'] if skip_ci else ['', '']
         self.git('push', force_flag, *skip_flag, source, '%s:%s' % (branch, branch))
 
     def get_commit_hash(self, rev='HEAD'):

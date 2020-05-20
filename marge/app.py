@@ -287,7 +287,8 @@ def main(args=None):
 
         if options.optimistic_batch:
             logging.warning(
-                'Experimental optimistic batch mode enabled. This may cause undesirable behaviour with respect to MRs.'
+                'Experimental optimistic batch mode enabled. This may cause undesirable behaviour '
+                'with respect to MRs.'
             )
 
         if options.use_merge_strategy:
