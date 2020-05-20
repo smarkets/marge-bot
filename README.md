@@ -87,6 +87,8 @@ optional arguments:
                            [env var: MARGE_ADD_TESTED] (default: False)
   --batch               Enable processing MRs in batches
                            [env var: MARGE_BATCH] (default: False)
+  --use-no-ff-batches      Disable fast forwarding when merging MR batches.
+                           [env var: MARGE_USE_NO_FF_BATCHES] (default: False)
   --add-part-of         Add "Part-of: <$MR_URL>" to each commit in MR.
                            [env var: MARGE_ADD_PART_OF] (default: False)
   --add-reviewers       Add "Reviewed-by: $approver" for each approver of MR to each commit in MR.

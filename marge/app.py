@@ -209,6 +209,11 @@ def _parse_config(args):
         help='Debug logging (includes all HTTP requests etc).\n',
     )
     parser.add_argument(
+        '--use-no-ff-batches',
+        action='store_true',
+        help='Disable fast forwarding when merging MR batches'
+    )
+    parser.add_argument(
         '--optimistic-batch',
         action='store_true',
         help='Experimental optimistic batch (adds trailers to MRs before batching)\n',
