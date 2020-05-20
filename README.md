@@ -128,6 +128,11 @@ optional arguments:
                            [env var: MARGE_SOURCE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
+  --optimistic-batch    Optimistic batching enabled. This is similar to the above batch feature 
+                        but it will optimistically add trailers to each MR that will be merged. This will 
+                        ensure that the individual MR git hash matches up with the hash of the 
+                        equivalent changes that were added to the batch MR
+                           
 ```
 Here is a config file example
 ```yaml
