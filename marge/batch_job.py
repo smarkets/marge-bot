@@ -250,19 +250,46 @@ class BatchMergeJob(MergeJob):
                         ),
                     )
                 raise CannotBatch(err.reason) from err
-        for merge_request in working_merge_requests:
+        for mr in range(len(working_merge_requests)):
             try:
                 # FIXME: this should probably be part of the merge request
-                _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
-                self.ensure_mr_not_changed(merge_request)
-                self.ensure_mergeable_mr(merge_request)
-                remote_target_branch_sha = self.accept_mr(
-                    merge_request,
-                    remote_target_branch_sha,
-                    source_repo_url=source_repo_url,
-                )
+                _, source_repo_url, merge_request_remote = self.fetch_source_project(working_merge_requests[mr])
+                self.ensure_mr_not_changed(working_merge_requests[mr])
+                self.ensure_mergeable_mr(working_merge_requests[mr])
+                if self._optimistic:
+                    if mr == 0:
+                        continue
+                    elif mr == len(working_merge_requests) - 1:
+                        # Update <source_branch> so it contains previous MRs
+                        self.fuse(
+                            working_merge_requests[mr].source_branch,
+                            working_merge_requests[mr - 1],
+                            source_repo_url=source_repo_url,
+                            local=True,
+                        )
+                        self.push_force_to_mr(working_merge_requests[mr], True, source_repo_url, skip_ci=True)
+                        remote_target_branch_sha = self.accept_mr(
+                            working_merge_requests[mr],
+                            remote_target_branch_sha,
+                            source_repo_url=source_repo_url,
+                        )
+                    else:
+                        # Update <source_branch> so it contains previous MRs
+                        self.fuse(
+                            working_merge_requests[mr].source_branch,
+                            working_merge_requests[mr - 1],
+                            source_repo_url=source_repo_url,
+                            local=True,
+                        )
+                        self.push_force_to_mr(working_merge_requests[mr], True, source_repo_url, skip_ci=True)
+                else:
+                    remote_target_branch_sha = self.accept_mr(
+                        working_merge_requests[mr],
+                        remote_target_branch_sha,
+                        source_repo_url=source_repo_url,
+                    )
             except CannotBatch as err:
-                merge_request.comment(
+                working_merge_requests[mr].comment(
                     "I couldn't merge this branch: {error} I will retry later...".format(
                         error=str(err),
                     ),
@@ -272,6 +299,6 @@ class BatchMergeJob(MergeJob):
                 # Raise here to avoid being caught below - we don't want to be unassigned.
                 raise
             except CannotMerge as err:
-                self.unassign_from_mr(merge_request)
-                merge_request.comment("I couldn't merge this branch: %s" % err.reason)
+                self.unassign_from_mr(working_merge_requests[mr])
+                working_merge_requests[mr].comment("I couldn't merge this branch: %s" % err.reason)
                 raise
