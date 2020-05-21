@@ -438,6 +438,26 @@ request, before attempting a new batch job.
   guarantee that the subset will. However, this would only happen in a rather
   convoluted situation that can be considered to be very rare.
 
+## Optimistic batching
+
+This feature enables batching of MRs but optimistically adds the trailers to the
+individual MRs before the batch MR pipeline runs. This is to ensure that the final
+git commit hashes that make it into master, match up to the hashes of the commits
+that ran through the pipeline. Many users build artifacts/images in their pipelines
+and having the commit hashes match up allows them to deploy based on the git
+hashes in master.
+
+### Difference from regular batching
+
+- Trailers are added to each MR and pushed to remote before the batch MR pipeline
+runs
+- After the batch MR pipeline passes each MR is rebased onto the previous MR to make
+sure the git hashes match those in the branch MR. The branch MR is then merged, which
+merges all of the individual MRs
+- WARNING: Using this feature will cause individual MRs to be rebased on MRs with other
+changes in them. If the merge of the batch MR fails for any reason then it will leave the
+individual MRs in an undesirable state
+
 ## Restricting the list of projects marge-bot considers
 
 By default marge-bot will work on all projects that she is a member of.

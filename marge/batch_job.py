@@ -217,6 +217,9 @@ class BatchMergeJob(MergeJob):
                 )
 
                 if self._optimistic:
+                    #TODO REBASE ON THE SAME VERSION OF MASTER AS THE
+                    # BATCH MR WAS CREATED FROM HERE!!!
+
                     # Apply the trailers before running the batch MR
                     self.add_trailers(merge_request)
                     self.push_force_to_mr(merge_request, True, source_repo_url, skip_ci=True)
@@ -247,12 +250,12 @@ class BatchMergeJob(MergeJob):
                 working_merge_requests.append(merge_request)
         if len(working_merge_requests) <= 1:
             raise CannotBatch('not enough ready merge requests')
+        # This switches git to <batch> branch
+        self.push_batch()
+        batch_mr = self.create_batch_mr(
+            target_branch=target_branch,
+        )
         if self._project.only_allow_merge_if_pipeline_succeeds:
-            # This switches git to <batch> branch
-            self.push_batch()
-            batch_mr = self.create_batch_mr(
-                target_branch=target_branch,
-            )
             for merge_request in working_merge_requests:
                 merge_request.comment('I will attempt to batch this MR (!{})...'.format(batch_mr.iid))
             try:
