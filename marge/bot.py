@@ -146,7 +146,7 @@ class Bot:
             raise
 
         log.info('Got %s requests to merge;', len(merge_requests))
-        if self._config.batch and len(merge_requests) > 1:
+        if (self._config.batch or self._config.optimistic_batch) and len(merge_requests) > 1:
             log.info('Attempting to merge as many MRs as possible using BatchMergeJob...')
             batch_merge_job = batch_job.BatchMergeJob(
                 api=self._api,
@@ -155,6 +155,7 @@ class Bot:
                 merge_requests=merge_requests,
                 repo=repo,
                 options=self._config.merge_opts,
+                optimistic=self._config.optimistic_batch,
             )
             try:
                 batch_merge_job.execute()
@@ -187,7 +188,7 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user ssh_key_file project_regexp merge_order merge_opts git_timeout ' +
-                           'git_reference_repo branch_regexp source_branch_regexp batch')):
+                           'git_reference_repo branch_regexp source_branch_regexp batch optimistic_batch')):
     pass
 
 

@@ -178,9 +178,11 @@ class GitModel:
             self._local_repo.set_ref(self._branch, new_sha)
 
     def push(self, *args):
-        force_flag, remote_name, refspec = args
+        force_flag, skip_1, skip_2, remote_name, refspec = args
 
         assert force_flag in ('', '--force')
+        assert skip_1 in ('', '-o')
+        assert skip_2 in ('', 'ci.skip')
 
         branch, remote_branch = refspec.split(':')
         remote_url = self._remotes[remote_name]

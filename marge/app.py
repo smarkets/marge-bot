@@ -213,6 +213,11 @@ def _parse_config(args):
         action='store_true',
         help='Disable fast forwarding when merging MR batches'
     )
+    parser.add_argument(
+        '--optimistic-batch',
+        action='store_true',
+        help='Experimental optimistic batch (adds trailers to MRs before batching)\n',
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -280,6 +285,12 @@ def main(args=None):
         if options.batch:
             logging.warning('Experimental batch mode enabled')
 
+        if options.optimistic_batch:
+            logging.warning(
+                'Experimental optimistic batch mode enabled. This may cause undesirable behaviour '
+                'with respect to MRs.'
+            )
+
         if options.use_merge_strategy:
             fusion = bot.Fusion.merge
         elif options.rebase_remotely:
@@ -314,6 +325,7 @@ def main(args=None):
                 use_no_ff_batches=options.use_no_ff_batches,
             ),
             batch=options.batch,
+            optimistic_batch=options.optimistic_batch,
         )
 
         marge_bot = bot.Bot(api=api, config=config)

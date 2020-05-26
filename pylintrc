@@ -30,6 +30,7 @@ max-line-length=110
 [DESIGN]
 max-args=10
 max-attributes=15
+max-locals=16
 max-public-methods=35
 
 [REPORTS]

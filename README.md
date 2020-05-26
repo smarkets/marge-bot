@@ -128,6 +128,11 @@ optional arguments:
                            [env var: MARGE_SOURCE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
+  --optimistic-batch    Optimistic batching enabled. This is similar to the above batch feature 
+                        but it will optimistically add trailers to each MR that will be merged. This will 
+                        ensure that the individual MR git hash matches up with the hash of the 
+                        equivalent changes that were added to the batch MR
+                           
 ```
 Here is a config file example
 ```yaml
@@ -432,6 +437,26 @@ request, before attempting a new batch job.
   together with some extra merge requests they also pass CI, but this does not
   guarantee that the subset will. However, this would only happen in a rather
   convoluted situation that can be considered to be very rare.
+
+## Optimistic batching
+
+This feature enables batching of MRs but optimistically adds the trailers to the
+individual MRs before the batch MR pipeline runs. This is to ensure that the final
+git commit hashes that make it into master, match up to the hashes of the commits
+that ran through the pipeline. Many users build artifacts/images in their pipelines
+and having the commit hashes match up allows them to deploy based on the git
+hashes in master.
+
+### Difference from regular batching
+
+- Trailers are added to each MR and pushed to remote before the batch MR pipeline
+runs
+- After the batch MR pipeline passes each MR is rebased onto the previous MR to make
+sure the git hashes match those in the branch MR. The branch MR is then merged, which
+merges all of the individual MRs
+- WARNING: Using this feature will cause individual MRs to be rebased on MRs with other
+changes in them. If the merge of the batch MR fails for any reason then it will leave the
+individual MRs in an undesirable state
 
 ## Restricting the list of projects marge-bot considers
 
