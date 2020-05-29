@@ -144,17 +144,18 @@ class MergeRequest(gitlab.Resource):
             # We wanted to rebase and someone just happened to press the button for us!
             log.info('A rebase was already in progress on the merge request!')
 
-        max_attempts = 30
-        wait_between_attempts_in_secs = 1
+        # Wait for at most 2 minutes until giving up.
+        max_attempts = 24
+        wait_between_attempts_in_secs = 5
 
         for _ in range(max_attempts):
+            time.sleep(wait_between_attempts_in_secs)
+
             self.refetch_info()
             if not self.rebase_in_progress:
                 if self.merge_error:
                     raise MergeRequestRebaseFailed(self.merge_error)
                 return
-
-            time.sleep(wait_between_attempts_in_secs)
 
         raise TimeoutError('Waiting for merge request to be rebased by GitLab')
 
