@@ -224,6 +224,16 @@ def _parse_config(args):
         action='store_true',
         help='Skip CI when updating individual MRs when using batches'
     )
+    parser.add_argument(
+        '--ci-timeout-skip',
+        action='store_true',
+        help='Skip to next MR if CI timeout expires (otherwise, give up on MR)'
+    )
+    parser.add_argument(
+        '--skip-pending',
+        action='store_true',
+        help='Skip to next MR if oldest MR is not ready (otherwise, wait until it is)'
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -321,12 +331,14 @@ def main(args=None):
                 approval_timeout=options.approval_reset_timeout,
                 embargo=options.embargo,
                 ci_timeout=options.ci_timeout,
+                ci_timeout_skip=options.ci_timeout_skip,
                 fusion=fusion,
                 use_no_ff_batches=options.use_no_ff_batches,
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
             ),
             batch=options.batch,
+            skip_pending=options.skip_pending,
         )
 
         marge_bot = bot.Bot(api=api, config=config)
