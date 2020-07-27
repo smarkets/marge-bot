@@ -8,3 +8,6 @@ ENV/
 # nix stuff
 result
 result-*
+
+# Editor
+*.sw[po]

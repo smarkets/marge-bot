@@ -135,10 +135,10 @@ class BatchMergeJob(MergeJob):
         if new_target_sha != expected_remote_target_branch_sha:
             raise CannotBatch('Someone was naughty and by-passed marge')
 
-        # FIXME: we should only add tested-by for the last MR in the batch
         _, _, actual_sha = self.update_from_target_branch_and_push(
             merge_request,
             source_repo_url=source_repo_url,
+            add_trailers=False
         )
 
         sha_now = Commit.last_on_branch(
@@ -154,13 +154,13 @@ class BatchMergeJob(MergeJob):
         # it's a little weird to look at the merged MR to find it has no approvals, so let's do it anyway.
         self.maybe_reapprove(merge_request, approvals)
 
+        # Merge and push directly to avoid run pipelines again.
         # This switches git to <target_branch>
         final_sha = self.merge_batch(
             merge_request.target_branch,
             merge_request.source_branch,
             self._options.use_no_ff_batches,
         )
-
         # Don't force push in case the remote has changed.
         self._repo.push(merge_request.target_branch, force=False)
 
@@ -213,6 +213,10 @@ class BatchMergeJob(MergeJob):
                     '%s/%s' % (merge_request_remote, merge_request.source_branch),
                 )
 
+                # Apply the trailers before running the batch MR
+                actual_sha = self.add_trailers(merge_request)
+                self.push_force_to_mr(merge_request, branch_was_modified=True, source_repo_url=source_repo_url)
+
                 # Update <source_branch> on latest <batch> branch so it contains previous MRs
                 self.fuse(
                     merge_request.source_branch,
@@ -236,6 +240,8 @@ class BatchMergeJob(MergeJob):
                 log.warning('Skipping MR !%s, got conflicts while rebasing', merge_request.iid)
                 continue
             else:
+                # update merge_request with the latest sha
+                merge_request.refetch_info()
                 working_merge_requests.append(merge_request)
         if len(working_merge_requests) <= 1:
             raise CannotBatch('not enough ready merge requests')
