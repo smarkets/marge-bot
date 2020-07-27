@@ -265,10 +265,10 @@ class MergeJob:
     def update_from_target_branch_and_push(
             self,
             merge_request,
-            *,
             source_repo_url=None,
+            add_trailers=True,
     ):
-        """Updates `target_branch` with commits from `source_branch`, optionally add trailers and push.
+        """Updates `source_branch` on `target_branch`, optionally add trailers and push.
         The update strategy can either be rebase or merge. The default is rebase.
 
         Returns
@@ -296,7 +296,7 @@ class MergeJob:
             target_sha = repo.get_commit_hash('origin/' + target_branch)
             if updated_sha == target_sha:
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
-            final_sha = self.add_trailers(merge_request) or updated_sha
+            final_sha = add_trailers and self.add_trailers(merge_request) or updated_sha
             commits_rewrite_done = True
             branch_was_modified = final_sha != initial_mr_sha
             self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url)
