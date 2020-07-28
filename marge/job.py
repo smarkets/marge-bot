@@ -302,20 +302,19 @@ class MergeJob:
             branch_was_modified = final_sha != initial_mr_sha
             self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url, skip_ci=skip_ci)
         except git.GitError:
-            if not branch_update_done:
-                raise CannotMerge('got conflicts while rebasing, your problem now...')
-            if not commits_rewrite_done:
-                raise CannotMerge('failed on filter-branch; check my logs!')
-            raise
-        else:
-            return target_sha, updated_sha, final_sha
-        finally:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
             # raise a GitError
             if source_branch != 'master':
                 repo.checkout_branch('master')
                 repo.remove_branch(source_branch)
+
+            if not branch_update_done:
+                raise CannotMerge('got conflicts while rebasing, your problem now...')
+            if not commits_rewrite_done:
+                raise CannotMerge('failed on filter-branch; check my logs!')
+            raise
+        return target_sha, updated_sha, final_sha
 
     def synchronize_mr_with_local_changes(
         self,
