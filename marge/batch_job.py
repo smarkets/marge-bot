@@ -153,6 +153,7 @@ class BatchMergeJob(MergeJob):
         self,
         merge_request,
         expected_remote_target_branch_sha,
+        source_repo_url,
     ):
         log.info('Accept MR !%s', merge_request.iid)
 
@@ -161,7 +162,12 @@ class BatchMergeJob(MergeJob):
         if new_target_sha != expected_remote_target_branch_sha:
             raise CannotBatch('Someone was naughty and by-passed marge')
 
-        # Merge and push directly to avoid run pipelines again.
+        # Rebase and apply the trailers
+        self.update_merge_request(
+            merge_request,
+            source_repo_url=source_repo_url,
+        )
+
         # This switches git to <target_branch>
         final_sha = self.merge_batch(
             merge_request.target_branch,
@@ -224,13 +230,12 @@ class BatchMergeJob(MergeJob):
                     '%s/%s' % (merge_request_remote, merge_request.source_branch),
                 )
 
-                # Rebase and apply the trailers before running the batch MR
-                actual_sha = self.update_merge_request(
-                    merge_request,
-                    source_repo_url=source_repo_url,
-                )
-
                 if self._options.use_merge_commit_batches:
+                    # Rebase and apply the trailers before running the batch MR
+                    actual_sha = self.update_merge_request(
+                        merge_request,
+                        source_repo_url=source_repo_url,
+                    )
                     # Update <batch> branch with MR changes
                     batch_mr_sha = self._repo.merge(
                         BatchMergeJob.BATCH_BRANCH_NAME,
@@ -262,17 +267,18 @@ class BatchMergeJob(MergeJob):
                 continue
             else:
                 # update merge_request with the latest sha
-                _old_sha = merge_request.sha
-                tries = 5
-                while merge_request.sha == _old_sha and tries > 0:
-                    merge_request.refetch_info()
-                    tries -= 1
+                if self._options.use_merge_commit_batches:
+                    _old_sha = merge_request.sha
+                    tries = 5
+                    while merge_request.sha == _old_sha and tries > 0:
+                        merge_request.refetch_info()
+                        tries -= 1
 
-                # Make sure no-one managed to race and push to the branch in the
-                # meantime, because we're about to impersonate the approvers, and
-                # we don't want to approve unreviewed commits
-                if merge_request.sha != actual_sha:
-                    raise CannotMerge('Someone pushed to branch while we were trying to merge')
+                    # Make sure no-one managed to race and push to the branch in the
+                    # meantime, because we're about to impersonate the approvers, and
+                    # we don't want to approve unreviewed commits
+                    if merge_request.sha != actual_sha:
+                        raise CannotMerge('Someone pushed to branch while we were trying to merge')
 
                 working_merge_requests.append(merge_request)
 
@@ -308,6 +314,7 @@ class BatchMergeJob(MergeJob):
                     remote_target_branch_sha = self.accept_mr(
                         merge_request,
                         remote_target_branch_sha,
+                        source_repo_url=source_repo_url,
                     )
             except CannotBatch as err:
                 merge_request.comment(
