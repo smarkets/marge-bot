@@ -213,6 +213,17 @@ def _parse_config(args):
         action='store_true',
         help='Disable fast forwarding when merging MR batches'
     )
+    parser.add_argument(
+        '--use-merge-commit-batches',
+        action='store_true',
+        help='Use merge commit when creating batches, so that the commits in the batch MR '
+             'will be the same with in individual MRs\n',
+    )
+    parser.add_argument(
+        '--skip-ci-batches',
+        action='store_true',
+        help='Skip CI when updating individual MRs when using batches'
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -312,6 +323,8 @@ def main(args=None):
                 ci_timeout=options.ci_timeout,
                 fusion=fusion,
                 use_no_ff_batches=options.use_no_ff_batches,
+                use_merge_commit_batches=options.use_merge_commit_batches,
+                skip_ci_batches=options.skip_ci_batches,
             ),
             batch=options.batch,
         )
