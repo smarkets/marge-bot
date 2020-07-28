@@ -266,6 +266,7 @@ class MergeJob:
             self,
             merge_request,
             source_repo_url=None,
+            skip_ci=False,
             add_trailers=True,
     ):
         """Updates `source_branch` on `target_branch`, optionally add trailers and push.
@@ -299,7 +300,7 @@ class MergeJob:
             final_sha = add_trailers and self.add_trailers(merge_request) or updated_sha
             commits_rewrite_done = True
             branch_was_modified = final_sha != initial_mr_sha
-            self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url)
+            self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url, skip_ci=skip_ci)
         except git.GitError:
             if not branch_update_done:
                 raise CannotMerge('got conflicts while rebasing, your problem now...')
@@ -321,6 +322,7 @@ class MergeJob:
         merge_request,
         branch_was_modified,
         source_repo_url=None,
+        skip_ci=False,
     ):
         if self._options.fusion is Fusion.gitlab_rebase:
             self.synchronize_using_gitlab_rebase(merge_request)
@@ -329,6 +331,7 @@ class MergeJob:
                 merge_request,
                 branch_was_modified,
                 source_repo_url=source_repo_url,
+                skip_ci=skip_ci,
             )
 
     def push_force_to_mr(
