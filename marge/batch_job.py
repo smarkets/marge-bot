@@ -325,9 +325,13 @@ class BatchMergeJob(MergeJob):
 
         # accept the batch MR
         if self._options.use_merge_commit_batches:
-            ret = batch_mr.accept(
-                remove_branch=batch_mr.force_remove_source_branch,
-                sha=batch_mr_sha,
-                merge_when_pipeline_succeeds=bool(self._project.only_allow_merge_if_pipeline_succeeds),
-            )
-            log.info('batch_mr.accept result: %s', ret)
+            try:
+                ret = batch_mr.accept(
+                    remove_branch=batch_mr.force_remove_source_branch,
+                    sha=batch_mr_sha,
+                    merge_when_pipeline_succeeds=bool(self._project.only_allow_merge_if_pipeline_succeeds),
+                )
+                log.info('batch_mr.accept result: %s', ret)
+            except gitlab.ApiError as e:
+                log.exception('Gitlab API Error: %s', e)
+                raise CannotMerge('Gitlab API Error: %s' % e)
