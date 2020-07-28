@@ -77,6 +77,8 @@ class SingleMergeJob(MergeJob):
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
                 time.sleep(2)
 
+            self.wait_for_merge_status_to_resolve(merge_request)
+
             self.ensure_mergeable_mr(merge_request)
 
             try:

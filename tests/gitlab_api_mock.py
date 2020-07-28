@@ -50,6 +50,7 @@ class MockLab:  # pylint: disable=too-few-public-methods
             'assignees': [{'id': self.user_id}],
             'approved_by': [],
             'state': 'opened',
+            'merge_status': 'can_be_merged',
             'sha': self.commit_info['id'],
             'source_project_id': 1234,
             'target_project_id': 1234,
