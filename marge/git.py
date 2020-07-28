@@ -129,9 +129,10 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
         self.git('branch', '-D', branch)
 
     def checkout_branch(self, branch, start_point=''):
-        self.git('checkout', '-B', branch, start_point, '--')
+        create_and_reset = '-B' if start_point else ''
+        self.git('checkout', create_and_reset, branch, start_point, '--')
 
-    def push(self, branch, *, source_repo_url=None, force=False):
+    def push(self, branch, *, source_repo_url=None, force=False, skip_ci=False):
         self.git('checkout', branch, '--')
 
         self.git('diff-index', '--quiet', 'HEAD')  # check it is not dirty
@@ -146,7 +147,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
         else:
             source = 'origin'
         force_flag = '--force' if force else ''
-        self.git('push', force_flag, source, '%s:%s' % (branch, branch))
+        skip_flag = ('-o', 'ci.skip') if skip_ci else ()
+        self.git('push', force_flag, *skip_flag, source, '%s:%s' % (branch, branch))
 
     def get_commit_hash(self, rev='HEAD'):
         """Return commit hash for `rev` (default "HEAD")."""

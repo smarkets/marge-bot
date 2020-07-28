@@ -201,6 +201,8 @@ class TestMergeJobOptions:
             ci_timeout=timedelta(minutes=15),
             fusion=Fusion.rebase,
             use_no_ff_batches=False,
+            use_merge_commit_batches=False,
+            skip_ci_batches=False,
         )
 
     def test_default_ci_time(self):
