@@ -68,10 +68,10 @@ class BatchMergeJob(MergeJob):
             if merge_request.target_branch == target_branch
         ]
 
-    def ensure_mergeable_mr(self, merge_request):
+    def ensure_mergeable_mr(self, merge_request, skip_ci=False):
         super().ensure_mergeable_mr(merge_request)
 
-        if self._project.only_allow_merge_if_pipeline_succeeds:
+        if self._project.only_allow_merge_if_pipeline_succeeds and not skip_ci:
             ci_status = self.get_mr_ci_status(merge_request)
             if ci_status != 'success':
                 raise CannotBatch('This MR has not passed CI.')
@@ -132,6 +132,7 @@ class BatchMergeJob(MergeJob):
         _, _, actual_sha = self.update_from_target_branch_and_push(
             merge_request,
             source_repo_url=source_repo_url,
+            skip_ci=self._options.skip_ci_batches,
         )
 
         sha_now = Commit.last_on_branch(
@@ -300,7 +301,7 @@ class BatchMergeJob(MergeJob):
                 # FIXME: this should probably be part of the merge request
                 _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
                 self.ensure_mr_not_changed(merge_request)
-                self.ensure_mergeable_mr(merge_request)
+                self.ensure_mergeable_mr(merge_request, skip_ci=self._options.skip_ci_batches)
 
                 if not self._options.use_merge_commit_batches:
                     # accept each MRs
