@@ -1,8 +1,9 @@
-# pylint: disable=too-many-branches,too-many-statements
+# pylint: disable=too-many-branches,too-many-statements,arguments-differ
 import logging as log
 from time import sleep
 
 from . import git
+from . import gitlab
 from .commit import Commit
 from .job import MergeJob, CannotMerge, SkipMerge
 from .merge_request import MergeRequest
@@ -144,8 +145,9 @@ class BatchMergeJob(MergeJob):
         if sha_now != actual_sha:
             raise CannotMerge('Someone pushed to branch while we were trying to merge')
 
-        # As we're not using the API to merge the individual MR, we don't strictly need to reapprove it. However,
-        # it's a little weird to look at the merged MR to find it has no approvals, so let's do it anyway.
+        # As we're not using the API to merge the individual MR, we don't strictly need to reapprove it.
+        # However, it's a little weird to look at the merged MR to find it has no approvals,
+        # so let's do it anyway.
         self.maybe_reapprove(merge_request, approvals)
         return sha_now
 
@@ -241,7 +243,11 @@ class BatchMergeJob(MergeJob):
                         BatchMergeJob.BATCH_BRANCH_NAME,
                         merge_request.source_branch,
                         '-m',
-                        'Batch merge !%s into %s (!%s)' % (merge_request.iid, merge_request.target_branch, batch_mr.iid),
+                        'Batch merge !%s into %s (!%s)' % (
+                            merge_request.iid,
+                            merge_request.target_branch,
+                            batch_mr.iid
+                        ),
                         local=True,
                     )
                 else:
@@ -340,6 +346,6 @@ class BatchMergeJob(MergeJob):
                     merge_when_pipeline_succeeds=bool(self._project.only_allow_merge_if_pipeline_succeeds),
                 )
                 log.info('batch_mr.accept result: %s', ret)
-            except gitlab.ApiError as e:
-                log.exception('Gitlab API Error: %s', e)
-                raise CannotMerge('Gitlab API Error: %s' % e)
+            except gitlab.ApiError as err:
+                log.exception('Gitlab API Error: %s', err)
+                raise CannotMerge('Gitlab API Error: %s' % err)
