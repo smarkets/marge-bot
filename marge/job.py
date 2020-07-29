@@ -297,10 +297,16 @@ class MergeJob:
             target_sha = repo.get_commit_hash('origin/' + target_branch)
             if updated_sha == target_sha:
                 raise CannotMerge('these changes already exist in branch `{}`'.format(target_branch))
-            final_sha = add_trailers and self.add_trailers(merge_request) or updated_sha
+            final_sha = self.add_trailers(merge_request) if add_trailers else None
+            final_sha = final_sha or updated_sha
             commits_rewrite_done = True
             branch_was_modified = final_sha != initial_mr_sha
-            self.synchronize_mr_with_local_changes(merge_request, branch_was_modified, source_repo_url, skip_ci=skip_ci)
+            self.synchronize_mr_with_local_changes(
+                merge_request,
+                branch_was_modified,
+                source_repo_url,
+                skip_ci=skip_ci,
+            )
         except git.GitError:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
