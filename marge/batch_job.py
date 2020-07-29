@@ -153,7 +153,7 @@ class BatchMergeJob(MergeJob):
         self,
         merge_request,
         expected_remote_target_branch_sha,
-        source_repo_url,
+        source_repo_url=None,
     ):
         log.info('Accept MR !%s', merge_request.iid)
 
