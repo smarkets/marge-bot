@@ -275,27 +275,10 @@ class BatchMergeJob(MergeJob):
                 log.warning('Skipping MR !%s, got conflicts while rebasing', merge_request.iid)
                 continue
             else:
-                # update merge_request with the latest sha
                 if self._options.use_merge_commit_batches:
-                    _old_sha = merge_request.sha
-                    tries = 5
-                    while merge_request.sha == _old_sha and tries > 0:
-                        merge_request.refetch_info()
-                        tries -= 1
-                    log.info(
-                        'Updated merge_request(!%s): old_sha (%s), new_sha (%s), '
-                        'branch sha_after_rewrite (%s)',
-                        merge_request.iid, _old_sha, merge_request.sha, actual_sha
-                    )
-
-                    # Make sure no-one managed to race and push to the branch in the
-                    # meantime, because we're about to impersonate the approvers, and
-                    # we don't want to approve unreviewed commits
-                    if merge_request.sha != actual_sha:
-                        raise CannotMerge(
-                            'Someone pushed to branch while we were trying to merge, '
-                            'merge_request.sha (%s) != actual_sha (%s)' % (merge_request.sha, actual_sha)
-                        )
+                    # update merge_request with the current sha, we will compare it with
+                    # the actual sha later to make sure no one pushed this MR meanwhile
+                    merge_request.update_sha(actual_sha)
 
                 working_merge_requests.append(merge_request)
 
