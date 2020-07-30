@@ -47,6 +47,7 @@ class BatchMergeJob(MergeJob):
             batch_mr.close()
 
     def create_batch_mr(self, target_branch):
+        self.push_batch()
         log.info('Creating batch MR')
         params = {
             'source_branch': BatchMergeJob.BATCH_BRANCH_NAME,
@@ -139,6 +140,7 @@ class BatchMergeJob(MergeJob):
         sha_now = Commit.last_on_branch(
             merge_request.source_project_id, merge_request.source_branch, self._api,
         ).id
+        log.info('update_merge_request: sha_now (%s), actual_sha (%s)', sha_now, actual_sha)
         # Make sure no-one managed to race and push to the branch in the
         # meantime, because we're about to impersonate the approvers, and
         # we don't want to approve unreviewed commits
@@ -209,18 +211,19 @@ class BatchMergeJob(MergeJob):
             # Let's raise an error to do a basic job for these cases.
             raise CannotBatch('not enough ready merge requests')
 
-        batch_mr = self.create_batch_mr(
-            target_branch=target_branch,
-        )
         self._repo.fetch('origin')
 
         # Save the sha of remote <target_branch> so we can use it to make sure
         # the remote wasn't changed while we're testing against it
         remote_target_branch_sha = self._repo.get_commit_hash('origin/%s' % target_branch)
-        batch_mr_sha = batch_mr.sha
 
         self._repo.checkout_branch(target_branch, 'origin/%s' % target_branch)
         self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
+
+        batch_mr = self.create_batch_mr(
+            target_branch=target_branch,
+        )
+        batch_mr_sha = batch_mr.sha
 
         working_merge_requests = []
 
@@ -279,23 +282,32 @@ class BatchMergeJob(MergeJob):
                     while merge_request.sha == _old_sha and tries > 0:
                         merge_request.refetch_info()
                         tries -= 1
+                    log.info(
+                        'Updated merge_request(!%s): old_sha (%s), new_sha (%s), branch sha_after_rewrite (%s)',
+                        merge_request.iid, _old_sha, merge_request.sha, actual_sha
+                    )
 
                     # Make sure no-one managed to race and push to the branch in the
                     # meantime, because we're about to impersonate the approvers, and
                     # we don't want to approve unreviewed commits
                     if merge_request.sha != actual_sha:
-                        raise CannotMerge('Someone pushed to branch while we were trying to merge')
+                        raise CannotMerge(
+                            'Someone pushed to branch while we were trying to merge, ',
+                            'merge_request.sha (%s) != actual_sha (%s)' % (merge_request.sha, actual_sha)
+                        )
 
                 working_merge_requests.append(merge_request)
 
         if len(working_merge_requests) <= 1:
             raise CannotBatch('not enough ready merge requests')
 
+        # This switches git to <batch> branch
+        self.push_batch()
+        for merge_request in working_merge_requests:
+            merge_request.comment('I will attempt to batch this MR (!{})...'.format(batch_mr.iid))
+
+        # wait for the CI of the batch MR
         if self._project.only_allow_merge_if_pipeline_succeeds:
-            # This switches git to <batch> branch
-            self.push_batch()
-            for merge_request in working_merge_requests:
-                merge_request.comment('I will attempt to batch this MR (!{})...'.format(batch_mr.iid))
             try:
                 self.wait_for_ci_to_pass(batch_mr, commit_sha=batch_mr_sha)
             except CannotMerge as err:
@@ -308,6 +320,7 @@ class BatchMergeJob(MergeJob):
                     )
                 raise CannotBatch(err.reason) from err
 
+        # check each sub MR, and accept each sub MR if using the normal batch
         for merge_request in working_merge_requests:
             try:
                 # FIXME: this should probably be part of the merge request
