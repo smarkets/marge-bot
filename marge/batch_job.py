@@ -283,7 +283,8 @@ class BatchMergeJob(MergeJob):
                         merge_request.refetch_info()
                         tries -= 1
                     log.info(
-                        'Updated merge_request(!%s): old_sha (%s), new_sha (%s), branch sha_after_rewrite (%s)',
+                        'Updated merge_request(!%s): old_sha (%s), new_sha (%s), '
+                        'branch sha_after_rewrite (%s)',
                         merge_request.iid, _old_sha, merge_request.sha, actual_sha
                     )
 
@@ -292,7 +293,7 @@ class BatchMergeJob(MergeJob):
                     # we don't want to approve unreviewed commits
                     if merge_request.sha != actual_sha:
                         raise CannotMerge(
-                            'Someone pushed to branch while we were trying to merge, ',
+                            'Someone pushed to branch while we were trying to merge, '
                             'merge_request.sha (%s) != actual_sha (%s)' % (merge_request.sha, actual_sha)
                         )
 
