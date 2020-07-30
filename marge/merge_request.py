@@ -121,6 +121,10 @@ class MergeRequest(gitlab.Resource):
     def force_remove_source_branch(self):
         return self.info['force_remove_source_branch']
 
+    def update_sha(self, sha):
+        """record the updated sha. We don't use refetch_info instead as it may hit cache."""
+        self._info['sha'] = sha
+
     def refetch_info(self):
         self._info = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}'.format(self)))
 
