@@ -310,7 +310,8 @@ class BatchMergeJob(MergeJob):
                 # FIXME: this should probably be part of the merge request
                 _, source_repo_url, merge_request_remote = self.fetch_source_project(merge_request)
                 self.ensure_mr_not_changed(merge_request)
-                self.ensure_mergeable_mr(merge_request, skip_ci=self._options.skip_ci_batches)
+                # we know the batch MR's CI passed, so we skip CI for sub MRs this time
+                self.ensure_mergeable_mr(merge_request, skip_ci=True)
 
                 if not self._options.use_merge_commit_batches:
                     # accept each MRs
