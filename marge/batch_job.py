@@ -335,7 +335,11 @@ class BatchMergeJob(MergeJob):
                 merge_request.comment("I couldn't merge this branch: %s" % err.reason)
                 raise
 
-        # accept the batch MR
+        # Approve the batch MR using the last sub MR's approvers
+        if not batch_mr.fetch_approvals().sufficient:
+            approvals = working_merge_requests[-1].fetch_approvals()
+            approvals.approve(batch_mr)
+        # Accept the batch MR
         if self._options.use_merge_commit_batches:
             try:
                 ret = batch_mr.accept(
