@@ -335,12 +335,16 @@ class BatchMergeJob(MergeJob):
                 merge_request.comment("I couldn't merge this branch: %s" % err.reason)
                 raise
 
-        # Approve the batch MR using the last sub MR's approvers
-        if not batch_mr.fetch_approvals().sufficient:
-            approvals = working_merge_requests[-1].fetch_approvals()
-            approvals.approve(batch_mr)
         # Accept the batch MR
         if self._options.use_merge_commit_batches:
+            # Approve the batch MR using the last sub MR's approvers
+            if not batch_mr.fetch_approvals().sufficient:
+                approvals = working_merge_requests[-1].fetch_approvals()
+                try:
+                    approvals.approve(batch_mr)
+                except (gitlab.Forbidden, gitlab.Unauthorized):
+                    log.exception('Failed to approve MR:')
+
             try:
                 ret = batch_mr.accept(
                     remove_branch=batch_mr.force_remove_source_branch,
@@ -349,5 +353,5 @@ class BatchMergeJob(MergeJob):
                 )
                 log.info('batch_mr.accept result: %s', ret)
             except gitlab.ApiError as err:
-                log.exception('Gitlab API Error: %s', err)
+                log.exception('Gitlab API Error:')
                 raise CannotMerge('Gitlab API Error: %s' % err)

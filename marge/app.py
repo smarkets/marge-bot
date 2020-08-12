@@ -217,7 +217,7 @@ def _parse_config(args):
         '--use-merge-commit-batches',
         action='store_true',
         help='Use merge commit when creating batches, so that the commits in the batch MR '
-             'will be the same with in individual MRs\n',
+             'will be the same with in individual MRs. Requires sudo scope in the access token.\n',
     )
     parser.add_argument(
         '--skip-ci-batches',
