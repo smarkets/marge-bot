@@ -4,6 +4,9 @@ import pytest
 
 from marge.gitlab import Api, GET, POST, PUT, Version
 from marge.merge_request import MergeRequest, MergeRequestRebaseFailed
+import marge.user
+
+from tests.test_user import INFO as USER_INFO
 
 _MARGE_ID = 77
 
@@ -22,6 +25,14 @@ INFO = {
     'force_remove_source_branch': True,
     'target_branch': 'master',
     'work_in_progress': False,
+}
+
+DISCUSSION = {
+    'id': 'aabbcc0044',
+    'notes': [
+        {'id': 12, "body": "assigned to @john_smith", "created_at": "2020-08-04T06:56:11.854Z"},
+        {'id': 13, "body": "assigned to @john_smith", "created_at": "2020-08-18T06:52:58.093Z"}
+    ],
 }
 
 
@@ -192,15 +203,30 @@ class TestMergeRequest:
     def test_fetch_all_opened_for_me(self):
         api = self.api
         mr1, mr_not_me, mr2 = INFO, dict(INFO, assignees=[{'id': _MARGE_ID+1}], id=679), dict(INFO, id=678)
+        user = marge.user.User(api=None, info=dict(USER_INFO, id=_MARGE_ID))
         api.collect_all_pages = Mock(return_value=[mr1, mr_not_me, mr2])
         result = MergeRequest.fetch_all_open_for_user(
-            1234, user_id=_MARGE_ID, api=api, merge_order='created_at'
+            1234, user=user, api=api, merge_order='created_at'
         )
         api.collect_all_pages.assert_called_once_with(GET(
             '/projects/1234/merge_requests',
             {'state': 'opened', 'order_by': 'created_at', 'sort': 'asc'},
         ))
         assert [mr.info for mr in result] == [mr1, mr2]
+
+    def test_fetch_assigned_at(self):
+        api = self.api
+        dis1, dis2 = DISCUSSION, dict(DISCUSSION, id=679)
+        mr1 = INFO
+        user = marge.user.User(api=None, info=dict(USER_INFO, id=_MARGE_ID))
+        api.collect_all_pages = Mock(return_value=[dis1, dis2])
+        result = MergeRequest.fetch_assigned_at(
+            user=user, api=api, merge_request=mr1
+        )
+        api.collect_all_pages.assert_called_once_with(GET(
+            '/projects/1234/merge_requests/54/discussions',
+        ))
+        assert result == 1597733578
 
     def _load(self, json):
         old_mock = self.api.call

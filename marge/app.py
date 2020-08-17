@@ -147,8 +147,8 @@ def _parse_config(args):
     parser.add_argument(
         '--merge-order',
         default='created_at',
-        choices=('created_at', 'updated_at'),
-        help='Order marge merges assigned requests. created_at (default) or updated_at.\n',
+        choices=('created_at', 'updated_at', 'assigned_at'),
+        help='Order marge merges assigned requests. created_at (default), updated_at or assigned_at.\n',
     )
     parser.add_argument(
         '--approval-reset-timeout',
