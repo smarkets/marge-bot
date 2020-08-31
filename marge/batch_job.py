@@ -20,16 +20,17 @@ class BatchMergeJob(MergeJob):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_requests = merge_requests
 
-    def remove_batch_branch(self):
+    def remove_batch_branch(self, target_branch):
         log.info('Removing local batch branch')
         try:
-            self._repo.remove_branch(BatchMergeJob.BATCH_BRANCH_NAME)
+            self._repo.remove_branch(f'{BatchMergeJob.BATCH_BRANCH_NAME}/{target_branch}')
         except git.GitError:
             pass
 
-    def close_batch_mr(self):
+    def close_batch_mr(self, target_branch):
         log.info('Closing batch MRs')
         params = {
+            'target_branch': target_branch,
             'author_id': self._user.id,
             'labels': BatchMergeJob.BATCH_BRANCH_NAME,
             'state': 'opened',
@@ -48,7 +49,7 @@ class BatchMergeJob(MergeJob):
     def create_batch_mr(self, target_branch):
         log.info('Creating batch MR')
         params = {
-            'source_branch': BatchMergeJob.BATCH_BRANCH_NAME,
+            'source_branch': f'{BatchMergeJob.BATCH_BRANCH_NAME}/{target_branch}',
             'target_branch': target_branch,
             'title': 'Marge Bot Batch MR - DO NOT TOUCH',
             'labels': BatchMergeJob.BATCH_BRANCH_NAME,
@@ -92,9 +93,9 @@ class BatchMergeJob(MergeJob):
                 mergeable_mrs.append(merge_request)
         return mergeable_mrs
 
-    def push_batch(self):
+    def push_batch(self, target_branch):
         log.info('Pushing batch branch')
-        self._repo.push(BatchMergeJob.BATCH_BRANCH_NAME, force=True)
+        self._repo.push(f'{BatchMergeJob.BATCH_BRANCH_NAME}/{target_branch}', force=True)
 
     def ensure_mr_not_changed(self, merge_request):
         log.info('Ensuring MR !%s did not change', merge_request.iid)
@@ -181,11 +182,13 @@ class BatchMergeJob(MergeJob):
         return final_sha
 
     def execute(self):
-        # Cleanup previous batch work
-        self.remove_batch_branch()
-        self.close_batch_mr()
 
         target_branch = self._merge_requests[0].target_branch
+
+        # Cleanup previous batch work
+        self.remove_batch_branch(target_branch)
+        self.close_batch_mr(target_branch)
+
         merge_requests = self.get_mrs_with_common_target_branch(target_branch)
         merge_requests = self.get_mergeable_mrs(merge_requests)
 
@@ -201,7 +204,8 @@ class BatchMergeJob(MergeJob):
         remote_target_branch_sha = self._repo.get_commit_hash('origin/%s' % target_branch)
 
         self._repo.checkout_branch(target_branch, 'origin/%s' % target_branch)
-        self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
+        self._repo.checkout_branch(f'{BatchMergeJob.BATCH_BRANCH_NAME}/{target_branch}',
+                                   'origin/%s' % target_branch)
 
         working_merge_requests = []
 
@@ -241,7 +245,7 @@ class BatchMergeJob(MergeJob):
             raise CannotBatch('not enough ready merge requests')
         if self._project.only_allow_merge_if_pipeline_succeeds:
             # This switches git to <batch> branch
-            self.push_batch()
+            self.push_batch(target_branch)
             batch_mr = self.create_batch_mr(
                 target_branch=target_branch,
             )

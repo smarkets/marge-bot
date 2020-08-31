@@ -49,9 +49,9 @@ class TestBatchJob:
     def test_remove_batch_branch(self, api, mocklab):
         repo = create_autospec(marge.git.Repo, spec_set=True)
         batch_merge_job = self.get_batch_merge_job(api, mocklab, repo=repo)
-        batch_merge_job.remove_batch_branch()
+        batch_merge_job.remove_batch_branch('master')
         repo.remove_branch.assert_called_once_with(
-            BatchMergeJob.BATCH_BRANCH_NAME,
+            f'{BatchMergeJob.BATCH_BRANCH_NAME}/master',
         )
 
     def test_close_batch_mr(self, api, mocklab):
@@ -60,9 +60,10 @@ class TestBatchJob:
             mr_class.search.return_value = [batch_mr]
 
             batch_merge_job = self.get_batch_merge_job(api, mocklab)
-            batch_merge_job.close_batch_mr()
+            batch_merge_job.close_batch_mr('master')
 
             params = {
+                'target_branch': 'master',
                 'author_id': batch_merge_job._user.id,
                 'labels': BatchMergeJob.BATCH_BRANCH_NAME,
                 'state': 'opened',
@@ -86,7 +87,7 @@ class TestBatchJob:
             r_batch_mr = batch_merge_job.create_batch_mr(target_branch)
 
             params = {
-                'source_branch': BatchMergeJob.BATCH_BRANCH_NAME,
+                'source_branch': f'{BatchMergeJob.BATCH_BRANCH_NAME}/{target_branch}',
                 'target_branch': target_branch,
                 'title': 'Marge Bot Batch MR - DO NOT TOUCH',
                 'labels': BatchMergeJob.BATCH_BRANCH_NAME,
@@ -132,9 +133,9 @@ class TestBatchJob:
 
     def test_push_batch(self, api, mocklab):
         batch_merge_job = self.get_batch_merge_job(api, mocklab)
-        batch_merge_job.push_batch()
+        batch_merge_job.push_batch('master')
         batch_merge_job._repo.push.assert_called_once_with(
-            BatchMergeJob.BATCH_BRANCH_NAME,
+            f'{BatchMergeJob.BATCH_BRANCH_NAME}/master',
             force=True,
         )
 
