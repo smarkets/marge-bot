@@ -1,3 +1,7 @@
+  * 0.9.3:
+    - Feature: allow merge commits in batch MRs, to make the commits be exactly the same in
+      the sub MRs and the batch MR. Add `--use-merge-commit-batches` and `--skip-ci-batches` options #264
+    - Feature: add `--use-no-ff-batches` to disable fast forwarding of batch merges (#256, #259)
   * 0.9.2:
     - Fix: ensure parameters are correct when merging with/without pipelines enabled #251
     - Fix: only delete source branch if forced #193
