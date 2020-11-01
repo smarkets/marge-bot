@@ -262,7 +262,7 @@ class BatchMergeJob(MergeJob):
                         local=True,
                     )
                     # Update <batch> branch with MR changes
-                    self._repo.fast_forward(
+                    batch_mr_sha = self._repo.fast_forward(
                         BatchMergeJob.BATCH_BRANCH_NAME,
                         merge_request.source_branch,
                         local=True,
