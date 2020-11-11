@@ -64,6 +64,10 @@ class MergeRequest(gitlab.Resource):
         return self.info['state']
 
     @property
+    def merge_status(self):
+        return self.info['merge_status']
+
+    @property
     def rebase_in_progress(self):
         return self.info.get('rebase_in_progress', False)
 

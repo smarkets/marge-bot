@@ -190,6 +190,28 @@ class MergeJob:
 
         raise CannotMerge('CI is taking too long.')
 
+    def wait_for_merge_status_to_resolve(self, merge_request):
+        attempts = 3
+        waiting_time_in_secs = 5
+
+        log.info('Waiting for MR !%s to have merge_status can_be_merged', merge_request.iid)
+        for attempt in range(attempts):
+            merge_request.refetch_info()
+            merge_status = merge_request.merge_status
+
+            if merge_status == 'can_be_merged':
+                log.info('MR !%s can be merged on attempt %d', merge_request.iid, attempt)
+                return
+
+            if merge_status == 'cannot_be_merged':
+                log.info('MR !%s cannot be merged on attempt %d', merge_request.iid, attempt)
+                raise CannotMerge('GitLab believes this MR cannot be merged.')
+
+            if merge_status == 'unchecked':
+                log.info('MR !%s merge status currently unchecked on attempt %d.', merge_request.iid, attempt)
+
+            time.sleep(waiting_time_in_secs)
+
     def unassign_from_mr(self, merge_request):
         log.info('Unassigning from MR !%s', merge_request.iid)
         author_id = merge_request.author_id
