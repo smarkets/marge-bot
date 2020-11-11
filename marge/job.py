@@ -193,10 +193,11 @@ class MergeJob:
     def wait_for_merge_status_to_resolve(self, merge_request):
         """
         This function is for polling the async `merge_status` field in merge_request API response.
-        We suspected that the lag `merge_status` prevents MRs to be merged, and the fix did work for some users.
+        We suspected that the lag `merge_status` prevents MRs to be merged, and the fix did work
+        for some users.
 
-        But we are not sure if this is the root cause and if this is a proper fix. As there're some evidence that
-        suggest gitlab will always check the mergeability synchronously while merging MRs.
+        But we are not sure if this is the root cause and if this is a proper fix. As there're some
+        evidence that suggest gitlab will always check the mergeability synchronously while merging MRs.
         See more https://github.com/smarkets/marge-bot/pull/265#issuecomment-724147901
         """
         attempts = 3
