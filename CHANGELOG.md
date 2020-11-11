@@ -1,3 +1,6 @@
+  * 0.9.4:
+    - Fix: handle `CannotMerge` which could be raised from `update_merge_request` #275
+    - Fix: maintain `batch_mr_sha` value when batch merging with fast forward commits #276
   * 0.9.3:
     - Feature: allow merge commits in batch MRs, to make the commits be exactly the same in
       the sub MRs and the batch MR. Add `--use-merge-commit-batches` and `--skip-ci-batches` options #264
