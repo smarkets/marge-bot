@@ -158,7 +158,7 @@ First, create a user for Marge-bot on your GitLab. We'll use `marge-bot` as
 username here as well. GitLab sorts users by Name, so we recommend you pick one
 that starts with a space, e.g. ` Marge Bot`, so it is quicker to assign to (our
 code strips trailing whitespace in the name, so it won't show up elsewhere).
-Then add `marge-bot` to your projects as `Developer` or `Master`, the latter
+Then add `marge-bot` to your projects as `Developer` or `Maintainer`, the latter
 being required if she will merge to protected branches.
 
 For certain features, namely, `--impersonate-approvers`, and `--add-reviewers`,
