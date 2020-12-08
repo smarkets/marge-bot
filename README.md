@@ -266,6 +266,34 @@ ktmpl ./deploy.yml \
 Once running, the bot will continuously monitor all projects that have its user as a member and
 will pick up any changes in membership at runtime.
 
+### Running marge-bot in Swarm
+Or you can run marge in Docker Swarm, e.g. here's how you use a compose file:
+
+```yaml
+version: '3.8'
+services:
+  marge-bot:
+    image: smarkets/marge-bot:latest
+    configs:
+      - source: marge_bot_config
+        target: /configuration/marge-bot-config.yaml
+    command:
+      - "--config-file=/configuration/marge-bot-config.yaml"
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+
+configs:
+  marge_bot_config:
+    file: ./marge-bot-config.yaml
+    name: marge_bot_config
+```
+
 ### Running marge-bot as a plain python app
 
 #### Installing marge-bot with nix
