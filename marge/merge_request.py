@@ -1,5 +1,6 @@
 import logging as log
 import time
+import datetime
 
 from . import gitlab
 from .approvals import Approvals
@@ -34,16 +35,40 @@ class MergeRequest(gitlab.Resource):
         return merge_request
 
     @classmethod
-    def fetch_all_open_for_user(cls, project_id, user_id, api, merge_order):
+    def fetch_assigned_at(cls, user, api, merge_request):
+        assigned_at = 0
+        all_discussions = api.collect_all_pages(
+            GET('/projects/{project_id}/merge_requests/{merge_requests_id}/discussions'.format(
+                project_id=merge_request.get('project_id'),
+                merge_requests_id=merge_request.get('iid')
+            )))
+        match_body = 'assigned to @{username}'.format(username=user.username)
+        for discussion in all_discussions:
+            for note in discussion.get('notes'):
+                if match_body in note.get('body'):
+                    assigned = datetime.datetime.strptime(
+                        note.get('created_at')[0:19], "%Y-%m-%dT%H:%M:%S"
+                        ).timestamp()
+                    if assigned > assigned_at:
+                        assigned_at = assigned
+        return assigned_at
+
+    @classmethod
+    def fetch_all_open_for_user(cls, project_id, user, api, merge_order):
+        request_merge_order = 'created_at' if merge_order == 'assigned_at' else merge_order
+
         all_merge_request_infos = api.collect_all_pages(GET(
             '/projects/{project_id}/merge_requests'.format(project_id=project_id),
-            {'state': 'opened', 'order_by': merge_order, 'sort': 'asc'},
+            {'state': 'opened', 'order_by': request_merge_order, 'sort': 'asc'},
         ))
         my_merge_request_infos = [
             mri for mri in all_merge_request_infos
-            if ((mri.get('assignee', {}) or {}).get('id') == user_id) or
-               (user_id in [assignee.get('id') for assignee in (mri.get('assignees', []) or [])])
+            if ((mri.get('assignee', {}) or {}).get('id') == user.id) or
+               (user.id in [assignee.get('id') for assignee in (mri.get('assignees', []) or [])])
         ]
+
+        if merge_order == 'assigned_at':
+            my_merge_request_infos.sort(key=lambda mri: cls.fetch_assigned_at(user, api, mri))
 
         return [cls(api, merge_request_info) for merge_request_info in my_merge_request_infos]
 

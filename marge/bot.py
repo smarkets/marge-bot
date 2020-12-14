@@ -102,7 +102,7 @@ class Bot:
         log.info('Fetching merge requests assigned to me in %s...', project_name)
         my_merge_requests = MergeRequest.fetch_all_open_for_user(
             project_id=project.id,
-            user_id=self.user.id,
+            user=self.user,
             api=self._api,
             merge_order=self._config.merge_order,
         )

@@ -228,10 +228,16 @@ def test_git_reference_repo():
             assert bot.config.git_reference_repo == '/foo/reference_repo'
 
 
-def test_merge_order():
+def test_merge_order_updated():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main("--merge-order='updated_at'") as bot:
             assert bot.config.merge_order == 'updated_at'
+
+
+def test_merge_order_assigned():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main("--merge-order='assigned_at'") as bot:
+            assert bot.config.merge_order == 'assigned_at'
 
 
 # FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
