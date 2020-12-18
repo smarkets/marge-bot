@@ -41,6 +41,10 @@ message on the merge-request, so you'll get notified. Marge-bot can handle an
 adversarial environment where some developers prefer to merge their own changes,
 so the barrier for adoption is really low.
 
+Whether marge-bot will or not wait for pipeline to succeed depends on the value of "✓
+Pipelines must succeed" checkbox in your repo. It is available in all Gitlab
+versions, so should not be a barrier.
+
 Since she is at it, she can optionally provide some other goodies like tagging
 of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
@@ -240,7 +244,7 @@ docker run --restart=on-failure \
   --config-file=/configuration/marge-bot-config.yaml
 ```
 
-By default docker will use the `latest` tag, which corresponds to the latest 
+By default docker will use the `latest` tag, which corresponds to the latest
 stable version. You can also use the `stable` tag to make this more explicit.
 If you want a development version, you can use the `master` tag to obtain an
 image built from the HEAD commit of the `master` branch. Note that this image
