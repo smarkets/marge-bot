@@ -105,6 +105,7 @@ class Project(gitlab.Resource):
         return AccessLevel(effective_access['access_level'])
 
 
+# pylint: disable=invalid-name
 @unique
 class AccessLevel(IntEnum):
     # See https://docs.gitlab.com/ce/api/access_requests.html

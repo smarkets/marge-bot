@@ -1,3 +1,4 @@
+import sys
 import logging as log
 import time
 import datetime
@@ -46,9 +47,13 @@ class MergeRequest(gitlab.Resource):
         for discussion in all_discussions:
             for note in discussion.get('notes'):
                 if match_body in note.get('body'):
-                    assigned = datetime.datetime.strptime(
-                        note.get('created_at')[0:19], "%Y-%m-%dT%H:%M:%S"
-                        ).timestamp()
+                    date_string = note.get('created_at')
+                    date_format = "%Y-%m-%dT%H:%M:%S.%f%z"
+                    if (sys.version_info.major, sys.version_info.minor) <= (3, 6):
+                        assigned = datetime.datetime.strptime(date_string[:-1], date_format[:-2]) \
+                                .replace(tzinfo=datetime.timezone.utc).timestamp()
+                    else:
+                        assigned = datetime.datetime.strptime(date_string, date_format).timestamp()
                     if assigned > assigned_at:
                         assigned_at = assigned
         return assigned_at

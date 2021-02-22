@@ -101,10 +101,10 @@ class SingleMergeJob(MergeJob):
                 # unexpected went wrong in either case, we expect the user to
                 # explicitly re-assign to marge (after resolving potential
                 # problems)
-                raise CannotMerge('Merge request was rejected by GitLab: %r' % err.error_message)
-            except gitlab.Unauthorized:
+                raise CannotMerge('Merge request was rejected by GitLab: %r' % err.error_message) from err
+            except gitlab.Unauthorized as err:
                 log.warning('Unauthorized!')
-                raise CannotMerge('My user cannot accept merge requests!')
+                raise CannotMerge('My user cannot accept merge requests!') from err
             except gitlab.NotFound as ex:
                 log.warning('Not Found!: %s', ex)
                 merge_request.refetch_info()
@@ -122,14 +122,16 @@ class SingleMergeJob(MergeJob):
                 if merge_request.work_in_progress:
                     raise CannotMerge(
                         'The request was marked as WIP as I was processing it (maybe a WIP commit?)'
-                    )
+                    ) from ex
                 if merge_request.state == 'reopened':
                     raise CannotMerge(
                         'GitLab refused to merge this branch. I suspect that a Push Rule or a git-hook '
                         'is rejecting my commits; maybe my email needs to be white-listed?'
-                    )
+                    ) from ex
                 if merge_request.state == 'closed':
-                    raise CannotMerge('Someone closed the merge request while I was attempting to merge it.')
+                    raise CannotMerge(
+                        'Someone closed the merge request while I was attempting to merge it.'
+                    ) from ex
                 if merge_request.state == 'merged':
                     # We are not covering any observed behaviour here, but if at this
                     # point the request is merged, our job is done, so no need to complain
@@ -141,10 +143,10 @@ class SingleMergeJob(MergeJob):
                             " Maybe you have unresolved discussions?"
                             if self._project.only_allow_merge_if_all_discussions_are_resolved else ""
                         )
-                    )
-            except gitlab.ApiError:
+                    ) from ex
+            except gitlab.ApiError as err:
                 log.exception('Unanticipated ApiError from GitLab on merge attempt')
-                raise CannotMerge('had some issue with GitLab, check my logs...')
+                raise CannotMerge('had some issue with GitLab, check my logs...') from err
             else:
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True

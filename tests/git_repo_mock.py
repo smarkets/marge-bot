@@ -105,8 +105,8 @@ class GitModel:
             _, remote = args
             try:
                 self._remotes.pop(remote)
-            except KeyError:
-                raise git.GitError('No such remote: %s' % remote)
+            except KeyError as err:
+                raise git.GitError('No such remote: %s' % remote) from err
 
         elif action == 'add':
             _, remote, url = args

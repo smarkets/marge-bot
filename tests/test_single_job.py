@@ -268,7 +268,7 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             on_push=None
         ):
             options = options_factory(**(extra_opts or {}))
-            initial_master_sha = initial_master_sha or'505050505e'
+            initial_master_sha = initial_master_sha or '505050505e'
 
             if not rewritten_sha:
                 rewritten_sha = rewrite_sha(update_sha(INITIAL_MR_SHA, initial_master_sha))

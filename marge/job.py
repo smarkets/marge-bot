@@ -338,7 +338,7 @@ class MergeJob:
                 source_repo_url,
                 skip_ci=skip_ci,
             )
-        except git.GitError:
+        except git.GitError as err:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
             # raise a GitError
@@ -347,9 +347,9 @@ class MergeJob:
                 repo.remove_branch(source_branch)
 
             if not branch_update_done:
-                raise CannotMerge('got conflicts while rebasing, your problem now...')
+                raise CannotMerge('got conflicts while rebasing, your problem now...') from err
             if not commits_rewrite_done:
-                raise CannotMerge('failed on filter-branch; check my logs!')
+                raise CannotMerge('failed on filter-branch; check my logs!') from err
             raise
         return target_sha, updated_sha, final_sha
 
@@ -384,7 +384,7 @@ class MergeJob:
                 force=True,
                 skip_ci=skip_ci,
             )
-        except git.GitError:
+        except git.GitError as err:
             def fetch_remote_branch():
                 return Branch.fetch_by_name(
                     merge_request.source_project_id,
@@ -393,27 +393,27 @@ class MergeJob:
                 )
 
             if branch_was_modified and fetch_remote_branch().protected:
-                raise CannotMerge("Sorry, I can't modify protected branches!")
+                raise CannotMerge("Sorry, I can't modify protected branches!") from err
 
             change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
-            raise CannotMerge('Failed to push %s changes, check my logs!' % change_type)
+            raise CannotMerge('Failed to push %s changes, check my logs!' % change_type) from err
 
     def synchronize_using_gitlab_rebase(self, merge_request, expected_sha=None):
         expected_sha = expected_sha or self._repo.get_commit_hash()
         try:
             merge_request.rebase()
         except MergeRequestRebaseFailed as err:
-            raise CannotMerge("GitLab failed to rebase the branch saying: {0[0]}".format(err.args))
-        except TimeoutError:
-            raise CannotMerge("GitLab was taking too long to rebase the branch...")
-        except gitlab.ApiError:
+            raise CannotMerge("GitLab failed to rebase the branch saying: {0[0]}".format(err.args)) from err
+        except TimeoutError as err:
+            raise CannotMerge("GitLab was taking too long to rebase the branch...") from err
+        except gitlab.ApiError as err:
             branch = Branch.fetch_by_name(
                         merge_request.source_project_id,
                         merge_request.source_branch,
                         self._api,
                      )
             if branch.protected:
-                raise CannotMerge("Sorry, I can't modify protected branches!")
+                raise CannotMerge("Sorry, I can't modify protected branches!") from err
             raise
         else:
             if merge_request.sha != expected_sha:
@@ -433,6 +433,7 @@ def _get_reviewer_names_and_emails(commits, approvals, api):
     return ['{0.name} <{0.email}>'.format(user) for user in users]
 
 
+# pylint: disable=invalid-name
 @enum.unique
 class Fusion(enum.Enum):
     merge = 0
@@ -503,7 +504,7 @@ class SkipMerge(CannotMerge):
 
 class GitLabRebaseResultMismatch(CannotMerge):
     def __init__(self, gitlab_sha, expected_sha):
-        super(GitLabRebaseResultMismatch, self).__init__(
+        super().__init__(
             "GitLab rebase ended up with a different commit:"
             "I expected %s but they got %s" % (expected_sha, gitlab_sha)
         )
