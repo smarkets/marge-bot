@@ -1,6 +1,6 @@
 # pylint: disable=too-many-branches,too-many-statements,arguments-differ
 import logging as log
-from time import sleep
+import time
 
 from . import git
 from . import gitlab
@@ -110,17 +110,19 @@ class BatchMergeJob(MergeJob):
             if getattr(changed_mr, attr) != getattr(merge_request, attr):
                 raise CannotMerge(error_message.format(attr.replace('_', ' ')))
 
-    def merge_batch(self, target_branch, source_branch, no_ff=False):
+    def merge_batch(self, target_branch, source_branch, no_ff=False, source_repo_url=None, local=False):
         if no_ff:
             return self._repo.merge(
                     target_branch,
                     source_branch,
                     '--no-ff',
+                    source_repo_url,
             )
 
         return self._repo.fast_forward(
             target_branch,
             source_branch,
+            local=local
         )
 
     def update_merge_request(
@@ -166,22 +168,29 @@ class BatchMergeJob(MergeJob):
         if new_target_sha != expected_remote_target_branch_sha:
             raise CannotBatch('Someone was naughty and by-passed marge')
 
+        log.debug("batch: accept_mr: self.update_merge_request")
         # Rebase and apply the trailers
         self.update_merge_request(
             merge_request,
             source_repo_url=source_repo_url,
         )
 
-        # This switches git to <target_branch>
+        log.debug("batch: accept_mr: self.merge_batch")
         final_sha = self.merge_batch(
             merge_request.target_branch,
             merge_request.source_branch,
             self._options.use_no_ff_batches,
+            source_repo_url,
+            local=True  # since we're merging multiple MRs from forks, local needs to be used
         )
+        log.debug("batch: accept_mr: self._repo.push")
         # Don't force push in case the remote has changed.
         self._repo.push(merge_request.target_branch, force=False)
 
-        sleep(2)
+        # delay in case Gitlab is slow to respond
+        waiting_time_in_secs = 10
+        log.debug('Waiting for %s secs for Gitlab to start CI after push', waiting_time_in_secs)
+        time.sleep(waiting_time_in_secs)
 
         # At this point Gitlab should have recognised the MR as being accepted.
         log.info('Successfully merged MR !%s', merge_request.iid)
@@ -192,6 +201,9 @@ class BatchMergeJob(MergeJob):
             branch=merge_request.source_branch,
             status='running',
         )
+
+        log.debug("batch: accept_mr: canceling pipelines in Gitlab")
+        # NOTE: this might not abort the pipeline running in external CI, it merely disconnects the pipeline
         for pipeline in pipelines:
             pipeline.cancel()
 
@@ -224,6 +236,11 @@ class BatchMergeJob(MergeJob):
             target_branch=target_branch,
         )
         batch_mr_sha = batch_mr.sha
+
+        # delay in case Gitlab is slow to respond
+        waiting_time_in_secs = 20
+        log.debug('Waiting for %s secs for MR !%s to get status update', waiting_time_in_secs, batch_mr.iid)
+        time.sleep(waiting_time_in_secs)
 
         working_merge_requests = []
 
@@ -289,6 +306,11 @@ class BatchMergeJob(MergeJob):
         self.push_batch()
         for merge_request in working_merge_requests:
             merge_request.comment('I will attempt to batch this MR (!{})...'.format(batch_mr.iid))
+
+        # delay in case Gitlab is slow to respond
+        waiting_time_in_secs = 10
+        log.debug('Waiting for %s secs for Gitlab to start CI after push', waiting_time_in_secs)
+        time.sleep(waiting_time_in_secs)
 
         # wait for the CI of the batch MR
         if self._project.only_allow_merge_if_pipeline_succeeds:
