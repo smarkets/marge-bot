@@ -133,6 +133,9 @@ optional arguments:
                            [env var: MARGE_SOURCE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
+  --cli                 Run marge-bot as a single CLI command, not as a long-running service.
+                        This may be used to run marge-bot in scheduled CI pipelines or cronjobs.
+                           [env var: MARGE_CLI] (default: False)
 ```
 Here is a config file example
 ```yaml
@@ -297,6 +300,43 @@ configs:
   marge_bot_config:
     file: ./marge-bot-config.yaml
     name: marge_bot_config
+```
+
+### Running marge-bot in CI
+
+You can also run marge-bot directly in your existing CI via scheduled pipelines
+if you'd like to avoid setting up any additional infrastructure.
+
+This way, you can inject secrets for marge-bot's credentials at runtime
+inside the ephemeral container for each run by adding them to protected CI/CD
+variables in a dedicated marge-bot runner project, as well as store execution
+logs as artifacts for evidence.
+
+You can also configure multiple setups in different CI schedules by supplying
+`MARGE_*` environment variables per-schedule, such as running a different set
+of projects or settings at different times.
+
+Note that in this case, marge-bot will be slower than when run as a service,
+depending on the frequency of your pipeline schedules.
+
+Create a marge-bot runner project, and add the variables `MARGE_AUTH_TOKEN`
+(of type Variable) and `MARGE_SSH_KEY_FILE` (of type File) in your CI/CD
+Variables settings.
+
+Then add a scheduled pipeline run to your project with the following minimal
+`.gitlab-ci.yml` config:
+
+```yaml
+run:
+  image:
+    name: smarkets/marge-bot:latest
+    entrypoint: [""]
+  only:
+    - schedules
+  variables:
+    MARGE_CLI: "true"
+    MARGE_GITLAB_URL: "$CI_SERVER_URL"
+  script: marge.app
 ```
 
 ### Running marge-bot as a plain python app
