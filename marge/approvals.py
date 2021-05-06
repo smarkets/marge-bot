@@ -1,3 +1,6 @@
+import yaml
+import logging as log
+
 from . import gitlab
 
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
@@ -17,7 +20,28 @@ class Approvals(gitlab.Resource):
         if gitlab_version.is_ee:
             self._info = self._api.call(GET(approver_url))
         else:
-            self._info = dict(self._info, approvals_left=0, approved_by=[])
+            self.get_approvers_ce()
+
+    def get_approvers_ce(self):
+        """get approvers status using thumbs on merge request
+        """
+
+        config_file = self._api.repo_file_get(self.project_id, ".marge-bot.yml", "master")
+        if config_file is None:
+            log.info('Project id %s missing .marge-bot.yaml', self.project_id)
+            config = {}
+        else:
+            config = yaml.load(config_file["content"])
+
+
+        emoji_url = '/projects/{0.project_id}/merge_requests/{0.iid}/award_emoji'
+        emoji_url = emoji_url.format(self)
+        emoji = self._api.call(GET(emoji_url))
+
+        up_votes = [e  for e in emoji if e['name'] == 'thumbsup']
+        approver_count = config.get('approver_count', 1)
+        approvals_left = max(approver_count - len(up_votes), 0)
+        self._info = dict(self._info, approvals_left=approvals_left, approved_by=up_votes)
 
     @property
     def iid(self):
