@@ -48,7 +48,7 @@ class TestWeekly:
         now = pendulum.datetime(2019, 8, 30, tz='Europe/London')
         set_test_now(now)
         assert WeeklyInterval.from_human(
-               "Mon 10:00 Europe/London - Fri 18:00 Europe/London"
+                "Mon 10:00 Europe/London - Fri 18:00 Europe/London"
         ) == working_hours
 
         # Outside summer time

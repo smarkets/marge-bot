@@ -226,7 +226,7 @@ class TestMergeRequest:
         api.collect_all_pages.assert_called_once_with(GET(
             '/projects/1234/merge_requests/54/discussions',
         ))
-        assert result == 1597733578
+        assert result == 1597733578.093
 
     def _load(self, json):
         old_mock = self.api.call
