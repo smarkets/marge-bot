@@ -1,0 +1,26 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+    branches:
+      - master
+
+jobs:
+  dockerhub:
+    runs-on: ubuntu-20.04
+    if: github.repository == "smarkets/marge-bot"  # Only run from main repo
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+    - uses: cachix/install-nix-action@v13
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+    - name: Dockerize
+      run: make dockerize
+    - name: Deploy to DockerHub
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      # GitHub Actions have GITHUB_REF as `refs/heads/<branch-or-tag>`, clean it up
+      run: make docker-push VERSION="${GITHUB_REF#refs/heads/}"
