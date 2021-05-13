@@ -9,7 +9,7 @@ on:
 jobs:
   dockerhub:
     runs-on: ubuntu-20.04
-    if: github.repository == "smarkets/marge-bot"  # Only run from main repo
+    if: ${{ github.repository == 'smarkets/marge-bot' }}  # Only run from main repo
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
