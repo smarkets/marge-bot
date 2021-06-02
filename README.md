@@ -1,6 +1,4 @@
-[![build status](https://travis-ci.org/smarkets/marge-bot.svg?branch=master)](https://travis-ci.org/smarkets/marge-bot)
-
-# Marge-bot
+# Marge-bot [![Test](https://github.com/smarkets/marge-bot/actions/workflows/test.yml/badge.svg)](https://github.com/smarkets/marge-bot/actions/workflows/test.yml)
 
 Marge-bot is a merge-bot for GitLab that, beside other goodies,
 implements
