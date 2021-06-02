@@ -23,5 +23,5 @@ jobs:
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      # GitHub Actions have GITHUB_REF as `refs/heads/<branch-or-tag>`, clean it up
-      run: make docker-push VERSION="${GITHUB_REF#refs/heads/}"
+      # GitHub Actions have GITHUB_REF as `refs/heads/<branch>` or `refs/tags/<tag>`, clean it up
+      run: make docker-push VERSION="$(echo $GITHUB_REF | sed 's!^refs/\(heads\|tags\)/!!')"
