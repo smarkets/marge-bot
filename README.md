@@ -49,8 +49,8 @@ of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 ## Configuring
 
-Args that start with '--' (eg. --auth-token) can also be set in a config file
-(specified via --config-file). The config file uses YAML syntax and must
+Args that start with '--' (eg. `--auth-token`) can also be set in a config file
+(specified via `--config-file`). The config file uses YAML syntax and must
 represent a YAML 'mapping' (for details, see
 http://learn.getgrav.org/advanced/yaml). If an arg is specified in more than one
 place, then commandline values override environment variables which override
@@ -467,7 +467,7 @@ embargoes are over.
 
 ## Batching Merge Requests
 
-The flag --batch enables testing and merging merge requests in batches. This can
+The flag `--batch` enables testing and merging merge requests in batches. This can
 significantly speed up the rate at which marge-bot processes jobs - not just
 because merge requests can be tested together, but because marge-bot will ensure
 the whole set of merge requests is mergeable first. This includes, for example,
