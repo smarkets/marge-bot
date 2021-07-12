@@ -354,4 +354,4 @@ class BatchMergeJob(MergeJob):
                 log.info('batch_mr.accept result: %s', ret)
             except gitlab.ApiError as err:
                 log.exception('Gitlab API Error:')
-                raise CannotMerge('Gitlab API Error: %s' % err)
+                raise CannotMerge('Gitlab API Error: %s' % err) from err

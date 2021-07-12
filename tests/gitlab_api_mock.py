@@ -97,7 +97,7 @@ class MockLab:  # pylint: disable=too-few-public-methods
 
 class Api(gitlab.Api):
     def __init__(self, gitlab_url, auth_token, initial_state):
-        super(Api, self).__init__(gitlab_url, auth_token)
+        super().__init__(gitlab_url, auth_token)
 
         self._transitions = {}
         self.state = initial_state
@@ -112,7 +112,7 @@ class Api(gitlab.Api):
         )
         try:
             response, next_state, side_effect = self._find(command, sudo)
-        except KeyError:
+        except KeyError as err:
             page = command.args.get('page')
             if page == 0:
                 no_page_args = dict((k, v) for k, v in command.args.items() if k not in ['page', 'per_page'])
@@ -129,7 +129,7 @@ class Api(gitlab.Api):
                 else:
                     return []
 
-            raise MockedEndpointNotFound(command, sudo, self.state)
+            raise MockedEndpointNotFound(command, sudo, self.state) from err
         else:
             if next_state:
                 self.state = next_state

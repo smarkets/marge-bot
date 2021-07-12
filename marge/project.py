@@ -78,6 +78,10 @@ class Project(gitlab.Resource):
         return self.info['ssh_url_to_repo']
 
     @property
+    def http_url_to_repo(self):
+        return self.info['http_url_to_repo']
+
+    @property
     def merge_requests_enabled(self):
         return self.info['merge_requests_enabled']
 
@@ -105,11 +109,14 @@ class Project(gitlab.Resource):
         return AccessLevel(effective_access['access_level'])
 
 
+# pylint: disable=invalid-name
 @unique
 class AccessLevel(IntEnum):
     # See https://docs.gitlab.com/ce/api/access_requests.html
+    none = 0
+    minimal = 5
     guest = 10
     reporter = 20
     developer = 30
-    master = 40
+    maintainer = 40
     owner = 50

@@ -23,7 +23,6 @@ def config_file():
 add-part-of: true
 add-reviewers: true
 add-tested: true
-auth-token: ADMIN-TOKEN
 branch-regexp: foo.*bar
 ci-timeout: 5min
 embargo: Friday 1pm - Monday 7am
@@ -263,27 +262,28 @@ def test_disabled_ssh_key_cli_arg():
 
 def test_config_file():
     with config_file() as config_file_name:
-        with main('--config-file=%s' % config_file_name) as bot:
-            admin_user_info = dict(**user_info)
-            admin_user_info['is_admin'] = True
-            assert bot.user.info == admin_user_info
-            assert bot.config.merge_opts != job.MergeJobOptions.default()
-            assert bot.config.merge_opts == job.MergeJobOptions.default(
-                embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
-                add_tested=True,
-                add_part_of=True,
-                add_reviewers=True,
-                reapprove=True,
-                ci_timeout=datetime.timedelta(seconds=5*60),
-            )
-            assert bot.config.project_regexp == re.compile('foo.*bar')
-            assert bot.config.git_timeout == datetime.timedelta(seconds=150)
-            assert bot.config.branch_regexp == re.compile('foo.*bar')
+        with env(MARGE_AUTH_TOKEN="ADMIN-TOKEN"):
+            with main('--config-file=%s' % config_file_name) as bot:
+                admin_user_info = dict(**user_info)
+                admin_user_info['is_admin'] = True
+                assert bot.user.info == admin_user_info
+                assert bot.config.merge_opts != job.MergeJobOptions.default()
+                assert bot.config.merge_opts == job.MergeJobOptions.default(
+                    embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
+                    add_tested=True,
+                    add_part_of=True,
+                    add_reviewers=True,
+                    reapprove=True,
+                    ci_timeout=datetime.timedelta(seconds=5*60),
+                )
+                assert bot.config.project_regexp == re.compile('foo.*bar')
+                assert bot.config.git_timeout == datetime.timedelta(seconds=150)
+                assert bot.config.branch_regexp == re.compile('foo.*bar')
 
 
 def test_config_overwrites():
     with config_file() as config_file_name:
-        with env(MARGE_CI_TIMEOUT='20min'):
+        with env(MARGE_CI_TIMEOUT='20min', MARGE_AUTH_TOKEN="ADMIN-TOKEN"):
             with main('--git-timeout=100s --config-file=%s' % config_file_name) as bot:
                 admin_user_info = dict(**user_info)
                 admin_user_info['is_admin'] = True

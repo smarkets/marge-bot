@@ -26,8 +26,10 @@ def time_interval(str_interval):
         quant, unit = re.match(r'\A([\d.]+) ?(h|m(?:in)?|s)?\Z', str_interval).groups()
         translate = {'h': 'hours', 'm': 'minutes', 'min': 'minutes', 's': 'seconds'}
         return timedelta(**{translate[unit or 's']: float(quant)})
-    except (AttributeError, ValueError):
-        raise configargparse.ArgumentTypeError('Invalid time interval (e.g. 12[s|min|h]): %s' % str_interval)
+    except (AttributeError, ValueError) as err:
+        raise configargparse.ArgumentTypeError(
+                'Invalid time interval (e.g. 12[s|min|h]): %s' % str_interval
+        ) from err
 
 
 def _parse_config(args):
@@ -76,8 +78,14 @@ def _parse_config(args):
         metavar='URL',
         help='Your GitLab instance, e.g. "https://gitlab.example.com".\n',
     )
-    ssh_key_group = parser.add_mutually_exclusive_group(required=True)
-    ssh_key_group.add_argument(
+    repo_access = parser.add_mutually_exclusive_group(required=True)
+    repo_access.add_argument(
+        '--use-https',
+        env_var='MARGE_USE_HTTPS',
+        action='store_true',
+        help='use HTTP(S) instead of SSH for GIT repository access\n',
+    )
+    repo_access.add_argument(
         '--ssh-key',
         type=str,
         metavar='KEY',
@@ -87,7 +95,7 @@ def _parse_config(args):
             'You can still set it via ENV variable or config file, or use "--ssh-key-file" flag.\n'
         ),
     )
-    ssh_key_group.add_argument(
+    repo_access.add_argument(
         '--ssh-key-file',
         type=str,  # because we want a file location, not the content
         metavar='FILE',
@@ -224,6 +232,11 @@ def _parse_config(args):
         action='store_true',
         help='Skip CI when updating individual MRs when using batches'
     )
+    parser.add_argument(
+        '--cli',
+        action='store_true',
+        help='Run marge-bot as a single CLI command, not a service'
+    )
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -246,7 +259,7 @@ def _parse_config(args):
     for _, (_, value) in parser._source_to_settings.get(configargparse._COMMAND_LINE_SOURCE_KEY, {}).items():
         cli_args.extend(value)
     for bad_arg in ['--auth-token', '--ssh-key']:
-        if bad_arg in cli_args:
+        if any(bad_arg in arg for arg in cli_args):
             raise MargeBotCliArgError('"%s" can only be set via ENV var or config file.' % bad_arg)
     return config
 
@@ -254,7 +267,9 @@ def _parse_config(args):
 @contextlib.contextmanager
 def _secret_auth_token_and_ssh_key(options):
     auth_token = options.auth_token or options.auth_token_file.readline().strip()
-    if options.ssh_key_file:
+    if options.use_https:
+        yield auth_token, None
+    elif options.ssh_key_file:
         yield auth_token, options.ssh_key_file
     else:
         with tempfile.NamedTemporaryFile(mode='w', prefix='ssh-key-') as tmp_ssh_key_file:
@@ -306,6 +321,8 @@ def main(args=None):
 
         config = bot.BotConfig(
             user=user,
+            use_https=options.use_https,
+            auth_token=auth_token,
             ssh_key_file=ssh_key_file,
             project_regexp=options.project_regexp,
             git_timeout=options.git_timeout,
@@ -327,6 +344,7 @@ def main(args=None):
                 skip_ci_batches=options.skip_ci_batches,
             ),
             batch=options.batch,
+            cli=options.cli,
         )
 
         marge_bot = bot.Bot(api=api, config=config)

@@ -4,6 +4,7 @@ from enum import Enum, unique
 import maya
 
 
+# pylint: disable=invalid-name
 @unique
 class WeekDay(Enum):
     Monday = 0

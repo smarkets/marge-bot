@@ -187,7 +187,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
             log.warning('git returned %s', err.returncode)
             log.warning('stdout: %r', err.stdout)
             log.warning('stderr: %r', err.stderr)
-            raise GitError(err)
+            raise GitError(err) from err
 
 
 def _run(*args, env=None, check=False, timeout=None):
@@ -195,12 +195,12 @@ def _run(*args, env=None, check=False, timeout=None):
     with subprocess.Popen(encoded_args, env=env, stdout=PIPE, stderr=PIPE) as process:
         try:
             stdout, stderr = process.communicate(input, timeout=timeout)
-        except TimeoutExpired:
+        except TimeoutExpired as err:
             process.kill()
             stdout, stderr = process.communicate()
             raise TimeoutExpired(
                 process.args, timeout, output=stdout, stderr=stderr,
-            )
+            ) from err
         except Exception:
             process.kill()
             process.wait()
