@@ -152,6 +152,10 @@ class MergeRequest(gitlab.Resource):
         return self.info['web_url']
 
     @property
+    def blocking_discussions_resolved(self):
+        return self.info['blocking_discussions_resolved']
+
+    @property
     def force_remove_source_branch(self):
         return self.info['force_remove_source_branch']
 
