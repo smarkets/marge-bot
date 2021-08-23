@@ -139,7 +139,7 @@ class Bot:
             [mr.web_url for mr in source_filtered_mrs]
         )
         source_filtered_out = set(filtered_mrs) - set(source_filtered_mrs)
-        if filtered_out:
+        if source_filtered_out:
             log.debug(
                 'MRs that do not match source_branch_regexp: %s',
                 [mr.web_url for mr in source_filtered_out]
