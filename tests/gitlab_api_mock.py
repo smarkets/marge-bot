@@ -58,6 +58,7 @@ class MockLab:  # pylint: disable=too-few-public-methods
             'force_remove_source_branch': True,
             'target_branch': 'master',
             'work_in_progress': False,
+            'blocking_discussions_resolved': True,
             'web_url': 'http://git.example.com/group/project/merge_request/666',
         }
         if merge_request_options is not None:

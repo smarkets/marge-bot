@@ -55,6 +55,9 @@ class MergeJob:
                 '(have: {0.approver_usernames} missing: {0.approvals_left})'.format(approvals)
             )
 
+        if not merge_request.blocking_discussions_resolved:
+            raise CannotMerge("Sorry, I can't merge requests which have unresolved discussions!")
+
         state = merge_request.state
         if state not in ('opened', 'reopened', 'locked'):
             if state in ('merged', 'closed'):
