@@ -70,6 +70,10 @@ class Project(gitlab.Resource):
         return projects
 
     @property
+    def default_branch(self):
+        return self.info['default_branch']
+
+    @property
     def path_with_namespace(self):
         return self.info['path_with_namespace']
 
