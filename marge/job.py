@@ -29,6 +29,10 @@ class MergeJob:
         return self._repo
 
     @property
+    def project(self):
+        return self._project
+
+    @property
     def opts(self):
         return self._options
 
@@ -345,8 +349,8 @@ class MergeJob:
             # A failure to clean up probably means something is fucked with the git repo
             # and likely explains any previous failure, so it will better to just
             # raise a GitError
-            if source_branch != 'master':
-                repo.checkout_branch('master')
+            if source_branch != self.project.default_branch:
+                repo.checkout_branch(self.project.default_branch)
                 repo.remove_branch(source_branch)
 
             if not branch_update_done:

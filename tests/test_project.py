@@ -10,6 +10,7 @@ INFO = {
     'path_with_namespace': 'cool/project',
     'ssh_url_to_repo': 'ssh://blah.com/cool/project.git',
     'merge_requests_enabled': True,
+    'default_branch': 'master',
     'only_allow_merge_if_pipeline_succeeds': True,
     'only_allow_merge_if_all_discussions_are_resolved': False,
     'permissions': {
