@@ -1,4 +1,5 @@
 # pylint: disable=too-many-locals
+import re
 import contextlib
 from collections import namedtuple
 from datetime import timedelta
@@ -27,12 +28,13 @@ import tests.test_commit as test_commit
 INITIAL_MR_SHA = test_commit.INFO['id']
 
 
-def _commit(commit_id, status):
+def _commit(commit_id, status, title=""):
     return {
         'id': commit_id,
         'short_id': commit_id,
         'author_name': 'J. Bond',
         'author_email': 'jbond@mi6.gov.uk',
+        'title': title,
         'message': 'Shaken, not stirred',
         'status': status,
     }
@@ -138,6 +140,17 @@ class SingleJobMockLab(MockLab):
             from_state=['passed', 'skipped'], to_state='merged',
         )
         api.add_merge_request(dict(self.merge_request_info, state='merged'), from_state='merged')
+
+        api.add_merge_request_commits(
+            self.merge_request_info["project_id"],
+            self.merge_request_info['iid'],
+            [_commit(
+                commit_id=self.rewritten_sha,
+                title="Sanitize for network graph",
+                status="success"
+            )]
+        )
+
         api.add_transition(
             GET('/projects/1234/repository/branches/{}'.format(self.merge_request_info['target_branch'])),
             Ok({'commit': {'id': self.rewritten_sha}}),
@@ -783,3 +796,59 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
 
         assert api.state == 'initial'
         assert api.notes == ["I couldn't merge this branch: {}".format(expected_message)]
+
+    def test_succeeds_with_ok_commit_messages(self, mocks_factory):
+        _, _, job = mocks_factory(
+            extra_opts=dict(forbid_commit_message=[re.compile("fixup!.*")])
+        )
+
+        job.execute()
+
+    def test_fails_with_forbidden_commit_messages(self, mocks_factory):
+        mocklab, api, job = mocks_factory(
+            extra_opts=dict(forbid_commit_message=[re.compile("fixup!.*")])
+        )
+
+        api.add_merge_request_commits(
+            mocklab.merge_request_info["project_id"],
+            mocklab.merge_request_info['iid'],
+            [_commit(
+                commit_id=mocklab.rewritten_sha,
+                title="fixup! Sanitize for network graph",
+                status="success"
+            )]
+        )
+
+        expected_message = (
+            "I couldn't merge this branch: Sorry, I "
+            + "can't merge requests with forbidden commit titles: "
+            + "'fixup! Sanitize for network graph' "
+            + "(pattern /fixup!.*/)")
+
+        with mocklab.expected_failure(expected_message):
+            job.execute()
+
+        assert api.state == "initial"
+        assert api.notes == [
+            "I couldn't merge this branch: {}".format(expected_message)
+        ]
+
+    def test_succeeds_with_ok_commit_messages_full_match(
+            self,
+            mocks_factory
+    ):
+        mocklab, api, job = mocks_factory(
+            extra_opts=dict(forbid_commit_message=[re.compile("fixup!.*")])
+        )
+
+        api.add_merge_request_commits(
+            mocklab.merge_request_info["project_id"],
+            mocklab.merge_request_info['iid'],
+            [_commit(
+                commit_id=mocklab.rewritten_sha,
+                title="Sanitize for network graph fixup!",
+                status="success"
+            )]
+        )
+
+        job.execute()

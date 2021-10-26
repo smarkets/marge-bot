@@ -107,6 +107,13 @@ def _parse_config(args):
         metavar='INTERVAL[,..]',
         help='Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".\n',
     )
+    parser.add_argument(
+        "--forbid-commit-message",
+        type=regexp,
+        nargs="*",
+        default=[],
+        help="Forbid commits matching; e.g. 'Fixup! .*' or '.*suggestion.*'.\n",
+    )
     experimental_group = parser.add_mutually_exclusive_group(required=False)
     experimental_group.add_argument(
         '--use-merge-strategy',
@@ -342,6 +349,7 @@ def main(args=None):
                 use_no_ff_batches=options.use_no_ff_batches,
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
+                forbid_commit_message=options.forbid_commit_message,
             ),
             batch=options.batch,
             cli=options.cli,

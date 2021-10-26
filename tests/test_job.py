@@ -1,5 +1,6 @@
 # pylint: disable=protected-access
 from datetime import timedelta
+import re
 from unittest.mock import ANY, Mock, patch, create_autospec
 
 import pytest
@@ -161,6 +162,32 @@ class TestJob:
                                      "would ruin my commit tagging!"
         )
 
+    def test_ensure_mergeable_commit_messages(self):
+        merge_job = self.get_merge_job(
+            options=MergeJobOptions.default(
+                forbid_commit_message=[re.compile("fixup!.*")]
+            )
+        )
+        merge_request = self._mock_merge_request(
+            assignee_ids=[merge_job._user.id],
+            state="opened",
+            work_in_progress=False,
+        )
+        merge_request.fetch_approvals.return_value.sufficient = True
+
+        commit1 = {"title": "Sanitize for network graph"}
+        commit2 = {"title": "fixup! Sanitize for network graph"}
+        merge_request.fetch_commits.return_value = [commit1, commit2]
+
+        with pytest.raises(CannotMerge) as exc_info:
+            merge_job.ensure_mergeable_mr(merge_request)
+
+        assert (
+            exc_info.value.reason
+            == "Sorry, I can't merge requests with forbidden commit titles: "
+            + "'fixup! Sanitize for network graph' (pattern /fixup!.*/)"
+        )
+
     def test_unassign_from_mr(self):
         merge_job = self.get_merge_job()
         merge_request = self._mock_merge_request()
@@ -217,6 +244,7 @@ class TestMergeJobOptions:
             use_no_ff_batches=False,
             use_merge_commit_batches=False,
             skip_ci_batches=False,
+            forbid_commit_message=[]
         )
 
     def test_default_ci_time(self):
