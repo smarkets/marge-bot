@@ -74,6 +74,22 @@ class MergeJob:
         if self._user.id not in merge_request.assignee_ids:
             raise SkipMerge('It is not assigned to me anymore!')
 
+        commits = merge_request.fetch_commits()
+        forbidden_commits = [
+            (commit, pattern)
+            for commit in commits
+            for pattern in self._options.forbid_commit_message
+            if pattern.match(commit['title'])
+        ]
+        if forbidden_commits:
+            forbidden_titles = ', '.join([
+                f"'{commit['title']}' (pattern /{p.pattern}/)"
+                for (commit, p) in forbidden_commits
+            ])
+            raise CannotMerge(
+                f"Sorry, I can't merge requests with forbidden commit titles: {forbidden_titles}"
+            )
+
     def add_trailers(self, merge_request):
 
         log.info('Adding trailers for MR !%s', merge_request.iid)
@@ -460,6 +476,7 @@ JOB_OPTIONS = [
     'use_no_ff_batches',
     'use_merge_commit_batches',
     'skip_ci_batches',
+    'forbid_commit_message'
 ]
 
 
@@ -476,6 +493,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
             use_no_ff_batches=False, use_merge_commit_batches=False, skip_ci_batches=False,
+            forbid_commit_message=[]
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -492,6 +510,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             use_no_ff_batches=use_no_ff_batches,
             use_merge_commit_batches=use_merge_commit_batches,
             skip_ci_batches=skip_ci_batches,
+            forbid_commit_message=forbid_commit_message
         )
 
 

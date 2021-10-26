@@ -31,6 +31,9 @@ gitlab-url: "http://foo.com"
 impersonate-approvers: true
 project-regexp: foo.*bar
 ssh-key: KEY
+forbid-commit-message:
+  - fixup!.*
+  - foobar
 '''
     with tempfile.NamedTemporaryFile(mode='w', prefix='config-file-') as tmp_config_file:
         try:
@@ -100,6 +103,18 @@ def test_embargo():
         with main('--embargo="Fri 1pm-Mon 7am"') as bot:
             assert bot.config.merge_opts == job.MergeJobOptions.default(
                 embargo=interval.IntervalUnion.from_human('Fri 1pm-Mon 7am'),
+            )
+
+
+def test_forbidden_commit_messages():
+    with env(
+            MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN",
+            MARGE_SSH_KEY="KEY",
+            MARGE_GITLAB_URL="http://foo.com",
+    ):
+        with main('--forbid-commit-message "test" "foo"') as bot:
+            assert bot.config.merge_opts == job.MergeJobOptions.default(
+                forbid_commit_message=[re.compile('test'), re.compile('foo')]
             )
 
 
@@ -275,6 +290,7 @@ def test_config_file():
                     add_reviewers=True,
                     reapprove=True,
                     ci_timeout=datetime.timedelta(seconds=5*60),
+                    forbid_commit_message=[re.compile('fixup!.*'), re.compile('foobar')]
                 )
                 assert bot.config.project_regexp == re.compile('foo.*bar')
                 assert bot.config.git_timeout == datetime.timedelta(seconds=150)
@@ -296,6 +312,7 @@ def test_config_overwrites():
                     add_reviewers=True,
                     reapprove=True,
                     ci_timeout=datetime.timedelta(seconds=20*60),
+                    forbid_commit_message=[re.compile('fixup!.*'), re.compile('foobar')]
                 )
                 assert bot.config.project_regexp == re.compile('foo.*bar')
                 assert bot.config.git_timeout == datetime.timedelta(seconds=100)

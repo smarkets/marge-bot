@@ -180,6 +180,17 @@ class Api(gitlab.Api):
         path = '/projects/%s/repository/commits/{0.id}' % project_id
         self.add_resource(path, info, sudo, from_state, to_state)
 
+    def add_merge_request_commits(self, project_id, mr_iid, info, sudo=None, from_state=None, to_state=None):
+        path = "/projects/%s/merge_requests/%d/commits" % (project_id, mr_iid)
+
+        self.add_transition(
+            GET(path),
+            Ok(info),
+            sudo,
+            from_state,
+            to_state,
+        )
+
     def add_approvals(self, info, sudo=None, from_state=None, to_state=None):
         path = '/projects/{0.project_id}/merge_requests/{0.iid}/approvals'
         self.add_resource(path, info, sudo, from_state, to_state)
