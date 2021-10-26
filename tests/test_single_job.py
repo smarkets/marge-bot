@@ -819,7 +819,11 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             )]
         )
 
-        expected_message = "I couldn't merge this branch: Sorry, I can't merge requests with forbidden commit titles: 'fixup! Sanitize for network graph' (pattern /fixup!.*/)"
+        expected_message = (
+            "I couldn't merge this branch: Sorry, I "
+            + "can't merge requests with forbidden commit titles: "
+            + "'fixup! Sanitize for network graph' "
+            + "(pattern /fixup!.*/)")
 
         with mocklab.expected_failure(expected_message):
             job.execute()
@@ -829,7 +833,10 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             "I couldn't merge this branch: {}".format(expected_message)
         ]
 
-    def test_succeeds_with_ok_commit_messages(self, mocks_factory):
+    def test_succeeds_with_ok_commit_messages_full_match(
+            self,
+            mocks_factory
+    ):
         mocklab, api, job = mocks_factory(
             extra_opts=dict(forbid_commit_message=[re.compile("fixup!.*")])
         )
