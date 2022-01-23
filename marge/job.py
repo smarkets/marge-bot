@@ -460,6 +460,7 @@ JOB_OPTIONS = [
     'use_no_ff_batches',
     'use_merge_commit_batches',
     'skip_ci_batches',
+    'batch_branch_suffixing',
 ]
 
 
@@ -476,6 +477,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
             use_no_ff_batches=False, use_merge_commit_batches=False, skip_ci_batches=False,
+            batch_branch_suffixing=False
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -492,6 +494,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             use_no_ff_batches=use_no_ff_batches,
             use_merge_commit_batches=use_merge_commit_batches,
             skip_ci_batches=skip_ci_batches,
+            batch_branch_suffixing=batch_branch_suffixing,
         )
 
 

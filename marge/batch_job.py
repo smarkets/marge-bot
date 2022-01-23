@@ -20,11 +20,15 @@ class BatchMergeJob(MergeJob):
     def __init__(self, *, api, user, project, repo, options, merge_requests):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_requests = merge_requests
+        self._batch_branch_name = BatchMergeJob.BATCH_BRANCH_NAME
+        if options.batch_branch_suffixing:
+            suffix = self._merge_requests[0].target_branch
+            self._batch_branch_name += "/" + suffix
 
     def remove_batch_branch(self):
         log.info('Removing local batch branch')
         try:
-            self._repo.remove_branch(BatchMergeJob.BATCH_BRANCH_NAME)
+            self._repo.remove_branch(self._batch_branch_name)
         except git.GitError:
             pass
 
@@ -32,7 +36,7 @@ class BatchMergeJob(MergeJob):
         log.info('Closing batch MRs')
         params = {
             'author_id': self._user.id,
-            'labels': BatchMergeJob.BATCH_BRANCH_NAME,
+            'labels': self._batch_branch_name,
             'state': 'opened',
             'order_by': 'created_at',
             'sort': 'desc',
@@ -50,10 +54,10 @@ class BatchMergeJob(MergeJob):
         self.push_batch()
         log.info('Creating batch MR')
         params = {
-            'source_branch': BatchMergeJob.BATCH_BRANCH_NAME,
+            'source_branch': self._batch_branch_name,
             'target_branch': target_branch,
             'title': 'Marge Bot Batch MR - DO NOT TOUCH',
-            'labels': BatchMergeJob.BATCH_BRANCH_NAME,
+            'labels': self._batch_branch_name,
         }
         batch_mr = MergeRequest.create(
             api=self._api,
@@ -96,7 +100,7 @@ class BatchMergeJob(MergeJob):
 
     def push_batch(self):
         log.info('Pushing batch branch')
-        self._repo.push(BatchMergeJob.BATCH_BRANCH_NAME, force=True)
+        self._repo.push(self._batch_branch_name, force=True)
 
     def ensure_mr_not_changed(self, merge_request):
         log.info('Ensuring MR !%s did not change', merge_request.iid)
@@ -218,7 +222,7 @@ class BatchMergeJob(MergeJob):
         remote_target_branch_sha = self._repo.get_commit_hash('origin/%s' % target_branch)
 
         self._repo.checkout_branch(target_branch, 'origin/%s' % target_branch)
-        self._repo.checkout_branch(BatchMergeJob.BATCH_BRANCH_NAME, 'origin/%s' % target_branch)
+        self._repo.checkout_branch(self._batch_branch_name, 'origin/%s' % target_branch)
 
         batch_mr = self.create_batch_mr(
             target_branch=target_branch,
@@ -243,7 +247,7 @@ class BatchMergeJob(MergeJob):
                     )
                     # Update <batch> branch with MR changes
                     batch_mr_sha = self._repo.merge(
-                        BatchMergeJob.BATCH_BRANCH_NAME,
+                        self._batch_branch_name,
                         merge_request.source_branch,
                         '-m',
                         'Batch merge !%s into %s (!%s)' % (
@@ -257,13 +261,13 @@ class BatchMergeJob(MergeJob):
                     # Update <source_branch> on latest <batch> branch so it contains previous MRs
                     self.fuse(
                         merge_request.source_branch,
-                        BatchMergeJob.BATCH_BRANCH_NAME,
+                        self._batch_branch_name,
                         source_repo_url=source_repo_url,
                         local=True,
                     )
                     # Update <batch> branch with MR changes
                     batch_mr_sha = self._repo.fast_forward(
-                        BatchMergeJob.BATCH_BRANCH_NAME,
+                        self._batch_branch_name,
                         merge_request.source_branch,
                         local=True,
                     )

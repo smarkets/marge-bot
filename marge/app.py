@@ -228,6 +228,11 @@ def _parse_config(args):
              'will be the same with in individual MRs. Requires sudo scope in the access token.\n',
     )
     parser.add_argument(
+        '--batch-branch-suffixing',
+        action='store_true',
+        help='Add target branch identifier of first pull request to batch request name',
+    )
+    parser.add_argument(
         '--skip-ci-batches',
         action='store_true',
         help='Skip CI when updating individual MRs when using batches'
@@ -342,6 +347,7 @@ def main(args=None):
                 use_no_ff_batches=options.use_no_ff_batches,
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
+                batch_branch_suffixing=options.batch_branch_suffixing
             ),
             batch=options.batch,
             cli=options.cli,
