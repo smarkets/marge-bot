@@ -182,6 +182,10 @@ class MergeJob:
             if ci_status == 'skipped':
                 log.info('CI for MR !%s skipped', merge_request.iid)
                 return
+            
+            if ci_status == 'manual':
+                log.info('CI for MR !%s has manual jobs', merge_request.iid)
+                return
 
             if ci_status == 'failed':
                 raise CannotMerge('CI failed!')
