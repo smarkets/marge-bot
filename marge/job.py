@@ -460,6 +460,7 @@ JOB_OPTIONS = [
     'use_no_ff_batches',
     'use_merge_commit_batches',
     'skip_ci_batches',
+    'wait_for_sast',
 ]
 
 
@@ -474,8 +475,9 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
     def default(
             cls, *,
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
-            approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
-            use_no_ff_batches=False, use_merge_commit_batches=False, skip_ci_batches=False,
+            approval_timeout=None, embargo=None, ci_timeout=None, wait_for_sast=False,
+            fusion=Fusion.rebase, use_no_ff_batches=False, use_merge_commit_batches=False,
+            skip_ci_batches=False,
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -488,6 +490,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             approval_timeout=approval_timeout,
             embargo=embargo,
             ci_timeout=ci_timeout,
+            wait_for_sast=wait_for_sast,
             fusion=fusion,
             use_no_ff_batches=use_no_ff_batches,
             use_merge_commit_batches=use_merge_commit_batches,

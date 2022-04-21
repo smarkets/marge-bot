@@ -13,6 +13,7 @@ class SingleMergeJob(MergeJob):
     def __init__(self, *, api, user, project, repo, options, merge_request):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_request = merge_request
+        self._options = options
 
     def execute(self):
         merge_request = self._merge_request
@@ -46,6 +47,12 @@ class SingleMergeJob(MergeJob):
         updated_into_up_to_date_target_branch = False
 
         while not updated_into_up_to_date_target_branch:
+
+            if self._options.wait_for_sast:
+                if 'Vulnerability-Check' in approvals.approval_rules_left:
+                    log.info('SAST CI Still running')
+                    self.wait_for_ci_to_pass(merge_request)
+
             self.ensure_mergeable_mr(merge_request)
             source_project, source_repo_url, _ = self.fetch_source_project(merge_request)
             target_project = self.get_target_project(merge_request)

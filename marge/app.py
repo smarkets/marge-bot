@@ -233,6 +233,12 @@ def _parse_config(args):
         help='Skip CI when updating individual MRs when using batches'
     )
     parser.add_argument(
+        '--wait-for-sast',
+        env_var='WAIT_FOR_SAST',
+        action='store_true',
+        help='Wait for SAST jobs to complete before trying to merge'
+    )
+    parser.add_argument(
         '--cli',
         action='store_true',
         help='Run marge-bot as a single CLI command, not a service'
@@ -342,6 +348,7 @@ def main(args=None):
                 use_no_ff_batches=options.use_no_ff_batches,
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
+                wait_for_sast=options.wait_for_sast,
             ),
             batch=options.batch,
             cli=options.cli,

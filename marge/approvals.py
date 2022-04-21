@@ -40,6 +40,10 @@ class Approvals(gitlab.Resource):
         return [who['user']['username'] for who in self.info['approved_by']]
 
     @property
+    def approval_rules_left(self):
+        return [rule['name'] for rule in self.info['approval_rules_left']]
+
+    @property
     def approver_ids(self):
         """Return the uids of the approvers."""
         return [who['user']['id'] for who in self.info['approved_by']]

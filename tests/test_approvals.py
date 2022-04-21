@@ -43,7 +43,8 @@ INFO = {
                 "state": "active",
             }
         }
-    ]
+    ],
+    'approval_rules_left': [],
 }
 USERS = {
     1: {
