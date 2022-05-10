@@ -13,6 +13,7 @@ class SingleMergeJob(MergeJob):
     def __init__(self, *, api, user, project, repo, options, merge_request):
         super().__init__(api=api, user=user, project=project, repo=repo, options=options)
         self._merge_request = merge_request
+        self._options = options
 
     def execute(self):
         merge_request = self._merge_request
@@ -61,7 +62,17 @@ class SingleMergeJob(MergeJob):
                 merge_request.comment("Someone skipped the queue! Will have to try again...")
                 continue
 
-            log.info('Commit id to merge %r (into: %r)', actual_sha, target_sha)
+            if _updated_sha == actual_sha and self._options.guarantee_final_pipeline:
+                log.info('No commits on target branch to fuse, triggering pipeline...')
+                merge_request.comment("jenkins retry")
+                time.sleep(30)
+
+            log.info(
+                'Commit id to merge %r into: %r (updated sha: %r)',
+                actual_sha,
+                target_sha,
+                _updated_sha
+            )
             time.sleep(5)
 
             sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id

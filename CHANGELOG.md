@@ -1,3 +1,5 @@
+  * 0.10.1:
+    - Feature: Guarantee pipeline before merging
   * 0.10.0:
     - Feature: implement HTTPS support for cloning (#225) #283
     - Feature: Make CI work with GitHub Actions #308

@@ -32,7 +32,7 @@ def time_interval(str_interval):
         ) from err
 
 
-def _parse_config(args):
+def _parse_config(args):  # pylint: disable=too-many-statements
 
     def regexp(str_regex):
         try:
@@ -237,6 +237,12 @@ def _parse_config(args):
         action='store_true',
         help='Run marge-bot as a single CLI command, not a service'
     )
+    parser.add_argument(
+        '--guarantee-final-pipeline',
+        action='store_true',
+        help='Guaranteed final pipeline when assigned to marge-bot'
+    )
+
     config = parser.parse_args(args)
 
     if config.use_merge_strategy and config.batch:
@@ -342,6 +348,7 @@ def main(args=None):
                 use_no_ff_batches=options.use_no_ff_batches,
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
+                guarantee_final_pipeline=options.guarantee_final_pipeline,
             ),
             batch=options.batch,
             cli=options.cli,
