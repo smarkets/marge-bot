@@ -43,7 +43,7 @@ class TestRepo:
         assert get_calls(mocked_run) == [
             'git -C /tmp/local/path fetch --prune origin',
             'git -C /tmp/local/path checkout -B feature_branch origin/feature_branch --',
-            'git -C /tmp/local/path rebase origin/master_of_the_universe',
+            'git -C /tmp/local/path rebase origin/master_of_the_universe --rebase-merges',
             'git -C /tmp/local/path rev-parse HEAD'
         ]
 

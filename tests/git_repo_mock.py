@@ -162,8 +162,8 @@ class GitModel:
         remote, branch = arg.split('/')
         return self._remote_refs[remote].get_ref(branch)
 
-    def rebase(self, arg):
-        remote, branch = arg.split('/')
+    def rebase(self, *args):
+        remote, branch = args[0].split('/')
         new_base = self._remote_refs[remote].get_ref(branch)
         if new_base != self._head:
             new_sha = 'rebase(%s onto %s)' % (self._head, new_base)
