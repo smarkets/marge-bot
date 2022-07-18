@@ -99,7 +99,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
 
         Throws a `GitError` if the rebase fails. Will also try to --abort it.
         """
-        return self._fuse_branch('rebase', branch, new_base, '--rebase-merges', source_repo_url=source_repo_url, local=local)
+        return self._fuse_branch('rebase', branch, new_base, '--rebase-merges',
+                                 source_repo_url=source_repo_url, local=local)
 
     def _fuse_branch(self, strategy, branch, target_branch, *fuse_args, source_repo_url=None, local=False):
         assert source_repo_url or branch != target_branch, branch
