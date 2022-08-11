@@ -376,7 +376,7 @@ want to use docker we recommend you give nix a try.
 #### Installing marge-bot the old-fashioned way
 
 Finally, although this is our least preferred alternative, you can always do
-`python3 setup.py install` (note that you will need python3.6).
+`python3 setup.py install` (note that you can use python3.6 to python3.9).
 
 Afterwards, the minimal way to run marge is as follows.
 
