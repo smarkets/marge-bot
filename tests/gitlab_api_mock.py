@@ -175,6 +175,14 @@ class Api(gitlab.Api):
 
     def add_merge_request(self, info, sudo=None, from_state=None, to_state=None):
         self.add_resource('/projects/{0.project_id}/merge_requests/{0.iid}', info, sudo, from_state, to_state)
+        self.add_transition(
+            GET(
+                '/projects/{0.project_id}/merge_requests/{0.iid}'.format(attrs(info)),
+                args={'include_rebase_in_progress': 'true'},
+            ),
+            Ok(info),
+            sudo, from_state, to_state,
+        )
 
     def add_commit(self, project_id, info, sudo=None, from_state=None, to_state=None):
         path = '/projects/%s/repository/commits/{0.id}' % project_id

@@ -60,7 +60,10 @@ class SingleMergeJob(MergeJob):
                 )
             except GitLabRebaseResultMismatch:
                 if first_iteration:
-                    log.info("Gitlab rebase didn't give expected result. Expected immediately after rebase. Retrying.")
+                    log.info(
+                        "Gitlab rebase didn't give expected result."
+                        "This is expected immediately after rebase. Retrying."
+                    )
                     first_iteration = False
                 else:
                     log.info("Gitlab rebase didn't give expected result")
