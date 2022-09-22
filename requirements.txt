@@ -2,6 +2,7 @@ ConfigArgParse
 maya
 PyYAML
 requests
+retry
 
 # testing
 pytest
