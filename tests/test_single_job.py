@@ -15,7 +15,7 @@ import marge.job
 import marge.project
 import marge.single_merge_job
 import marge.user
-from marge.gitlab import GET, PUT
+from marge.gitlab import GET, POST, PUT
 from marge.job import Fusion
 from marge.merge_request import MergeRequest
 from tests.git_repo_mock import RepoMock
@@ -64,6 +64,7 @@ class SingleJobMockLab(MockLab):
         fork=False,
         expect_gitlab_rebase=False,
         merge_request_options=None,
+        guarantee_final_pipeline=False,
     ):
         super().__init__(
             initial_master_sha,
@@ -98,6 +99,24 @@ class SingleJobMockLab(MockLab):
                ),
                from_state='rebase-finished',
                to_state='pushed',
+            )
+
+        if guarantee_final_pipeline:
+            # Corresponds to the `merge_request.trigger_pipeline()` call.
+            api.add_transition(
+                POST(
+                    '/projects/1234/merge_requests/{}/pipelines'.format(
+                        self.merge_request_info['iid'],
+                    ),
+                ),
+                Ok({}),
+                to_state='final_pipeline_triggered',
+            )
+            # Corresponds to `pipelines_by_branch()` by `wait_for_ci_to_pass`.
+            api.add_pipelines(
+                self.merge_request_info['source_project_id'],
+                _pipeline(sha1=rewritten_sha, status='success', ref=self.merge_request_info['source_branch']),
+                from_state=['final_pipeline_triggered'], to_state='pushed'
             )
 
         api.add_pipelines(
@@ -208,14 +227,19 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
     def add_reviewers(self, request):
         return request.param
 
+    @pytest.fixture(params=[True, False])
+    def guarantee_final_pipeline(self, request):
+        return request.param
+
     @pytest.fixture()
-    def options_factory(self, fusion, add_tested, add_reviewers, add_part_of):
+    def options_factory(self, fusion, add_tested, add_reviewers, add_part_of, guarantee_final_pipeline):
         def make_options(**kwargs):
             fixture_opts = {
                 'fusion': fusion,
                 'add_tested': add_tested,
                 'add_part_of': add_part_of,
                 'add_reviewers': add_reviewers,
+                'guarantee_final_pipeline': guarantee_final_pipeline,
             }
             assert not set(fixture_opts).intersection(kwargs)
             kwargs.update(fixture_opts)
@@ -255,9 +279,14 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             yield
 
     @pytest.fixture()
-    def mocklab_factory(self, fork, fusion):
+    def mocklab_factory(self, fork, fusion, guarantee_final_pipeline):
         expect_rebase = fusion is Fusion.gitlab_rebase
-        return partial(SingleJobMockLab, fork=fork, expect_gitlab_rebase=expect_rebase)
+        return partial(
+            SingleJobMockLab,
+            fork=fork,
+            expect_gitlab_rebase=expect_rebase,
+            guarantee_final_pipeline=guarantee_final_pipeline,
+        )
 
     @pytest.fixture()
     def mocks_factory(self, mocklab_factory, options_factory, update_sha, rewrite_sha):
@@ -352,6 +381,16 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             _pipeline(sha1=mocklab.rewritten_sha, status='skipped'),
             from_state=['skipped', 'merged'],
         )
+        # `pipelines_by_branch()` by `wait_for_ci_to_pass`.
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(
+                sha1=mocklab.rewritten_sha,
+                status='skipped',
+                ref=mocklab.merge_request_info['source_branch'],
+            ),
+            from_state=['final_pipeline_triggered'], to_state='passed'
+        )
         job.execute()
 
         assert api.state == 'merged'
@@ -390,6 +429,15 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             _pipeline(sha1=mocklab.rewritten_sha, status='failed'),
             from_state=['failed'],
         )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(
+                sha1=mocklab.rewritten_sha,
+                status='failed',
+                ref=mocklab.merge_request_info['source_branch'],
+            ),
+            from_state=['final_pipeline_triggered'], to_state='failed',
+        )
 
         with mocklab.expected_failure("CI failed!"):
             job.execute()
@@ -407,6 +455,15 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             mocklab.merge_request_info['source_project_id'],
             _pipeline(sha1=mocklab.rewritten_sha, status='canceled'),
             from_state=['canceled'],
+        )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(
+                sha1=mocklab.rewritten_sha,
+                status='canceled',
+                ref=mocklab.merge_request_info['source_branch'],
+            ),
+            from_state=['final_pipeline_triggered'], to_state='canceled',
         )
 
         with mocklab.expected_failure("Someone canceled the CI."):
@@ -426,6 +483,16 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             Ok({'commit': _commit(commit_id=new_branch_head_sha, status='success')}),
             from_state='pushed', to_state='pushed_but_head_changed'
         )
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(
+                sha1=new_branch_head_sha,
+                status='success',
+                ref=mocklab.merge_request_info['source_branch'],
+            ),
+            from_state=['pushed_but_head_changed']
+        )
+
         with mocklab.expected_failure("Someone pushed to branch while we were trying to merge"):
             job.execute()
 
@@ -540,6 +607,27 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
             GET('/projects/1234/repository/branches/master'),
             Ok({'commit': _commit(commit_id=moved_master_sha, status='success')}),
             from_state='merge_rejected'
+        )
+        # Overwrite original `guarantee_final_pipeline` transition: no need in
+        # the state changing here.
+        api.add_transition(
+            POST(
+                '/projects/1234/merge_requests/{}/pipelines'.format(
+                    mocklab.merge_request_info['iid'],
+                ),
+            ),
+            Ok({}),
+        )
+        # Register additional pipeline check introduced by
+        # `guarantee_final_pipeline`.
+        api.add_pipelines(
+            mocklab.merge_request_info['source_project_id'],
+            _pipeline(
+                sha1=first_rewritten_sha,
+                status='success',
+                ref=mocklab.merge_request_info['source_branch']
+            ),
+            from_state=['pushed_but_master_moved', 'merge_rejected'],
         )
         if fusion is Fusion.gitlab_rebase:
             rebase_url = '/projects/{project_id}/merge_requests/{iid}/rebase'.format(

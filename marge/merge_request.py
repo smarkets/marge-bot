@@ -235,6 +235,27 @@ class MergeRequest(gitlab.Resource):
     def fetch_commits(self):
         return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
 
+    def trigger_pipeline(self):
+        """
+        Triggers a pipeline for the merge request.
+
+        At first, try to trigger a merge request pipeline, which is different
+        from a normal Gitlab CI pipeline and should be configured[0].
+        If this fails due to unavailable merge request job definitions, trigger
+        a normal pipeline for the source branch.
+
+        [0]: https://docs.gitlab.com/ee/ci/pipelines/merge_request_pipelines.html
+        """
+        try:
+            return self._api.call(POST(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/pipelines'.format(self)))
+        except gitlab.BadRequest as exc:
+            if 'No stages / jobs for this pipeline.' in exc.error_message.get('base', []):
+                log.info('The pipeline is not configured for MR jobs, triggering a usual pipeline.')
+                return self._api.call(POST(
+                    '/projects/{0.project_id}/pipeline?ref={0.source_branch}'.format(self)))
+            raise
+
 
 class MergeRequestRebaseFailed(Exception):
     pass

@@ -64,8 +64,9 @@ class SingleMergeJob(MergeJob):
 
             if _updated_sha == actual_sha and self._options.guarantee_final_pipeline:
                 log.info('No commits on target branch to fuse, triggering pipeline...')
-                merge_request.comment("jenkins retry")
-                time.sleep(30)
+                pipeline_info = merge_request.trigger_pipeline()
+                log.info('Pipeline %s is triggered, waiting for it to finish...', pipeline_info.get('id'))
+                self.wait_for_ci_to_pass(merge_request, actual_sha)
 
             log.info(
                 'Commit id to merge %r into: %r (updated sha: %r)',
