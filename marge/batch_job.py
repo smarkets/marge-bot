@@ -1,6 +1,7 @@
 # pylint: disable=too-many-branches,too-many-statements,arguments-differ
 import logging as log
 from time import sleep
+from requests.utils import quote
 
 from . import git
 from . import gitlab
@@ -8,6 +9,8 @@ from .commit import Commit
 from .job import MergeJob, CannotMerge, SkipMerge
 from .merge_request import MergeRequest
 from .pipeline import Pipeline
+
+DELETE = gitlab.DELETE
 
 
 class CannotBatch(Exception):
@@ -194,6 +197,16 @@ class BatchMergeJob(MergeJob):
         )
         for pipeline in pipelines:
             pipeline.cancel()
+
+        if merge_request.force_remove_source_branch:
+            self._api.call(
+                DELETE(
+                    'projects/{}/repository/branches/{}'.format(
+                        merge_request.source_project_id,
+                        quote(merge_request.source_branch, safe='')
+                    )
+                )
+            )
 
         return final_sha
 
