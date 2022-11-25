@@ -12,7 +12,7 @@ class User(gitlab.Resource):
 
         if info.get('is_admin') is None:  # WORKAROUND FOR BUG IN 9.2.2
             try:
-                # sudoing succeeds iff we are admin
+                # sudoing succeeds if we are admin
                 api.call(GET('/user'), sudo=info['id'])
                 info['is_admin'] = True
             except gitlab.Forbidden:

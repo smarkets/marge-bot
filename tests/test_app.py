@@ -124,7 +124,7 @@ def test_add_tested():
             assert bot.config.merge_opts == job.MergeJobOptions.default(add_tested=True)
 
 
-def test_use_merge_strategy_and_add_tested_are_mutualy_exclusive():
+def test_use_merge_strategy_and_add_tested_are_mutually_exclusive():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with pytest.raises(app.MargeBotCliArgError):
             with main('--use-merge-strategy --add-tested'):
@@ -239,7 +239,7 @@ def test_merge_order_assigned():
             assert bot.config.merge_order == 'assigned_at'
 
 
-# FIXME: I'd reallly prefer this to be a doctest, but adding --doctest-modules
+# FIXME: I'd really prefer this to be a doctest, but adding --doctest-modules
 # seems to seriously mess up the test run
 def test_time_interval():
     _900s = datetime.timedelta(0, 900)

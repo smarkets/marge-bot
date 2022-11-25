@@ -77,7 +77,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
     def merge(self, source_branch, target_branch, *merge_args, source_repo_url=None, local=False):
         """Merge `target_branch` into `source_branch` and return the new HEAD commit id.
 
-        By default `source_branch` and `target_branch` are assumed to reside in the same
+        By default, `source_branch` and `target_branch` are assumed to reside in the same
         repo as `self`. However, if `source_repo_url` is passed and not `None`,
         `source_branch` is taken from there.
 
@@ -93,7 +93,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
     def rebase(self, branch, new_base, source_repo_url=None, local=False):
         """Rebase `new_base` into `branch` and return the new HEAD commit id.
 
-        By default `branch` and `new_base` are assumed to reside in the same
+        By default, `branch` and `new_base` are assumed to reside in the same
         repo as `self`. However, if `source_repo_url` is passed and not `None`,
         `branch` is taken from there.
 
@@ -166,7 +166,7 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
             # to actually really use the IdentityFile we pass in via -i we also
             # need to tell it to ignore ssh-agent (IdentitiesOnly=true) and not
             # read in any identities from ~/.ssh/config etc (-F /dev/null),
-            # because they append and it tries them in order, starting with config file
+            # because they append, and it tries them in order, starting with config file
             env['GIT_SSH_COMMAND'] = " ".join([
                 GIT_SSH_COMMAND,
                 "-F", "/dev/null",

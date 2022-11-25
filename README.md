@@ -49,7 +49,7 @@ of commits (e.g. `Reviewed-by: ...`) or preventing merges during certain hours.
 
 ## Configuring
 
-Args that start with '--' (eg. `--auth-token`) can also be set in a config file
+Args that start with '--' (e.g. `--auth-token`) can also be set in a config file
 (specified via `--config-file`). The config file uses YAML syntax and must
 represent a YAML 'mapping' (for details, see
 http://learn.getgrav.org/advanced/yaml). If an arg is specified in more than one
@@ -188,7 +188,7 @@ to select the `api` and `read_user` scopes in all cases.
 
 If marge-bot was made an admin to handle approver impersonation and/or adding a
 reviewed-by field, then you will also need to add **`sudo`** scope under
-`Impersonation Tokens` in the User Settings. Assuming your GitLab install is
+`Impersonation Tokens` in the User Settings. Assuming your GitLab
 install is `https://your-gitlab.example.com` the link will be at
 `https://your-gitlab.example.com/admin/users/marge-bot/impersonation_tokens`).
 
@@ -201,7 +201,7 @@ marge-bot user via the admin UI to get the private token, it should then be at
 
 Once you have the token, put it in a file, e.g. `marge-bot.token`.
 
-Finally, create a new ssh key-pair, e.g like so
+Finally, create a new ssh key-pair, e.g. like so
 
 ```bash
 ssh-keygen -t ed25519 -C marge-bot@invalid -f marge-bot-ssh-key -P ''
@@ -254,7 +254,7 @@ docker run --restart=on-failure \
   --config-file=/configuration/marge-bot-config.yaml
 ```
 
-By default docker will use the `latest` tag, which corresponds to the latest
+By default, docker will use the `latest` tag, which corresponds to the latest
 stable version. You can also use the `stable` tag to make this more explicit.
 If you want a development version, you can use the `master` tag to obtain an
 image built from the HEAD commit of the `master` branch. Note that this image
@@ -277,7 +277,7 @@ docker run --restart=on-failure \ # restart if marge crashes because GitLab is f
   --gitlab-url='http://your.gitlab.instance.com'
 ```
 
-HTTPS can be used using any other deployment technique as well.
+HTTPS can be used and any other deployment technique as well.
 
 ### Running marge-bot in kubernetes
 It's also possible to run marge in kubernetes, e.g. here's how you use a ktmpl
@@ -411,7 +411,7 @@ two [standardized git commit trailers](https://www.kernel.org/doc/html/v4.11/pro
 <$MERGE_REQUEST_URL>` as a slight abuse of the convention (here `Marge Bot` is
 the name of the `marge-bot` user in GitLab).
 
-If you pass `--add-reviewers` and the list of approvers is non-empty and you
+If you pass `--add-reviewers` and the list of approvers is non-empty, and you
 have enough approvers to meet the required approver count, Marge will add the
 following header to each commit message and each reviewer as it rebases the
 target branch into your PR branch:
@@ -431,13 +431,13 @@ If you pass `--add-tested` the final commit message in a PR will be tagged with
 two reasons:
 
 1. Seeing where stuff "came from" in a rebase-based workflow
-2. Knowing that a commit has been tested, which is e.g. important for bisection
+2. Knowing that a commit has been tested, which is e.g. important for bisection,
    so you can easily and automatically `git bisect --skip` untested commits.
 
 Additionally, by using `--add-part-of`, all commit messages will be tagged with
 a `Part-of: <$MERGE_REQUEST_URL>` trailer to the merge request on which they
 were merged. This is useful, for example, to go from a commit shown in `git
-blame` to the merge request on which it was introduced or to easily revert a all
+blame` to the merge request on which it was introduced or to easily revert all
 commits introduced by a single Merge Request when using a fast-forward/rebase
 based merge workflow.
 
@@ -495,7 +495,7 @@ request, before attempting a new batch job.
 
 ### Limitations
 
-* Currently we still add the tested-by trailer for each merge request's final
+* Currently, we still add the tested-by trailer for each merge request's final
   commit in the batch, but it would probably be more correct to add the trailer
   only to the last commit in the whole batch request (since that's the only one
   we know passed for sure in that combination). We might change this in the
@@ -531,7 +531,7 @@ request, before attempting a new batch job.
 
 ## Restricting the list of projects marge-bot considers
 
-By default marge-bot will work on all projects that she is a member of.
+By default, marge-bot will work on all projects that she is a member of.
 Sometimes it is useful to restrict a specific instance of marge-bot to a subset
 of projects. You can specify a regexp that projects must match (anchored at the
 start of the string) with `--project-regexp`.
@@ -596,7 +596,7 @@ please include a relevant section of the log, ideally ran with `--debug` enabled
 
 The most common source of issues is the presence of git-hooks that reject
 Marge-bot as a committer. These may have been explicitly installed by someone in
-your organization or they may come from the project configuration. E.g., if you
+your organization, or they may come from the project configuration. E.g., if you
 are using `Settings -> Repository -> Commit author's email`, you may need to
 whitelist `marge-bot`'s email.
 

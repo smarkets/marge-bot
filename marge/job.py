@@ -347,7 +347,7 @@ class MergeJob:
             )
         except git.GitError as err:
             # A failure to clean up probably means something is fucked with the git repo
-            # and likely explains any previous failure, so it will better to just
+            # and likely explains any previous failure, so it will be better to just
             # raise a GitError
             if source_branch != self.project.default_branch:
                 repo.checkout_branch(self.project.default_branch)

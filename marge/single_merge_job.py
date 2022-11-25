@@ -108,7 +108,7 @@ class SingleMergeJob(MergeJob):
                         "My job would be easier if people didn't jump the queue and push directly... *sigh*"
                     )
                     continue
-                # otherwise the source branch has been pushed to or something
+                # otherwise, the source branch has been pushed to or something
                 # unexpected went wrong in either case, we expect the user to
                 # explicitly re-assign to marge (after resolving potential
                 # problems)
@@ -121,7 +121,7 @@ class SingleMergeJob(MergeJob):
                 merge_request.refetch_info()
                 if merge_request.state == 'merged':
                     # someone must have hit "merge when build succeeds" and we lost the race,
-                    # the branch is gone and we got a 404. Anyway, our job here is done.
+                    # the branch is gone, and we got a 404. Anyway, our job here is done.
                     # (see #33)
                     updated_into_up_to_date_target_branch = True
                 else:
