@@ -59,23 +59,28 @@ class Bot:
         return self._api
 
     def _run(self, repo_manager):
-        time_to_sleep_between_projects_in_secs = 1
-        min_time_to_sleep_after_iterating_all_projects_in_secs = 30
+        big_sleep = 30
         while True:
-            projects = self._get_projects()
-            self._process_projects(
-                repo_manager,
-                time_to_sleep_between_projects_in_secs,
-                projects,
-            )
+            pending_mrs = self._get_assigned_mr()
+            for project, mr in pending_mrs:
+                self._process_merge_requests(repo_manager, project, [mr, ])
             if self._config.cli:
                 return
 
-            big_sleep = max(0,
-                            min_time_to_sleep_after_iterating_all_projects_in_secs -
-                            time_to_sleep_between_projects_in_secs * len(projects))
             log.info('Sleeping for %s seconds...', big_sleep)
             time.sleep(big_sleep)
+
+    def _get_assigned_mr(self):
+        from . import gitlab
+        pending_mrs = self.api.call(gitlab.GET('/merge_requests?scope=assigned_to_me&state=opened'))
+        pending = []
+        for mr in pending_mrs:
+            project = Project.fetch_by_id(mr['project_id'], self.api)
+            mr_obj = merge_request_module.MergeRequest.fetch_by_iid(mr['project_id'], mr['iid'], self.api)
+            pending.append((project, mr_obj))
+
+        log.info('Found %i MRs assigned to me', len(pending))
+        return pending
 
     def _get_projects(self):
         log.info('Finding out my current projects...')
