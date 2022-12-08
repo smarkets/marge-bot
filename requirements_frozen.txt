@@ -3,7 +3,7 @@ ConfigArgParse==1.3
 PyYAML==5.4.1
 astroid==2.5
 attrs==20.3.0
-certifi==2020.12.5
+certifi==2022.12.7
 chardet==4.0.0
 coverage==5.4
 dateparser==1.0.0
