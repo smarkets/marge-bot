@@ -138,6 +138,12 @@ def _parse_config(args):  # pylint: disable=too-many-statements
         help='Enable processing MRs in batches\n',
     )
     parser.add_argument(
+        '--batch-branch-name',
+        type=str,
+        default="marge_bot_batch_merge_job",
+        help='Branch name when batching is enabled\n',
+    )
+    parser.add_argument(
         '--add-part-of',
         action='store_true',
         help='Add "Part-of: <$MR_URL>" to each commit in MR.\n',
@@ -351,6 +357,7 @@ def main(args=None):
                 guarantee_final_pipeline=options.guarantee_final_pipeline,
             ),
             batch=options.batch,
+            batch_branch_name=options.batch_branch_name,
             cli=options.cli,
         )
 

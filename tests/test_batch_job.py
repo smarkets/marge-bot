@@ -41,7 +41,8 @@ class TestBatchJob:
             'project': marge.project.Project.fetch_by_id(project_id, api),
             'repo': create_autospec(marge.git.Repo, spec_set=True),
             'options': MergeJobOptions.default(),
-            'merge_requests': [merge_request]
+            'merge_requests': [merge_request],
+            'batch_branch_name': 'test_branch_name',
         }
         params.update(batch_merge_kwargs)
         return BatchMergeJob(**params)
@@ -51,7 +52,7 @@ class TestBatchJob:
         batch_merge_job = self.get_batch_merge_job(api, mocklab, repo=repo)
         batch_merge_job.remove_batch_branch()
         repo.remove_branch.assert_called_once_with(
-            BatchMergeJob.BATCH_BRANCH_NAME,
+            batch_merge_job.batch_branch_name,
         )
 
     def test_close_batch_mr(self, api, mocklab):
@@ -64,7 +65,7 @@ class TestBatchJob:
 
             params = {
                 'author_id': batch_merge_job._user.id,
-                'labels': BatchMergeJob.BATCH_BRANCH_NAME,
+                'labels': batch_merge_job.batch_branch_name,
                 'state': 'opened',
                 'order_by': 'created_at',
                 'sort': 'desc',
@@ -86,10 +87,10 @@ class TestBatchJob:
             r_batch_mr = batch_merge_job.create_batch_mr(target_branch)
 
             params = {
-                'source_branch': BatchMergeJob.BATCH_BRANCH_NAME,
+                'source_branch': batch_merge_job.batch_branch_name,
                 'target_branch': target_branch,
                 'title': 'Marge Bot Batch MR - DO NOT TOUCH',
-                'labels': BatchMergeJob.BATCH_BRANCH_NAME,
+                'labels': batch_merge_job.batch_branch_name,
             }
             mr_class.create.assert_called_once_with(
                 api=ANY,
@@ -134,7 +135,7 @@ class TestBatchJob:
         batch_merge_job = self.get_batch_merge_job(api, mocklab)
         batch_merge_job.push_batch()
         batch_merge_job._repo.push.assert_called_once_with(
-            BatchMergeJob.BATCH_BRANCH_NAME,
+            batch_merge_job.batch_branch_name,
             force=True,
         )
 
