@@ -23,7 +23,7 @@ let
       '';
 in
   pkgs.dockerTools.buildImage {
-    name = "smarkets/marge-bot";
+    name = "hiboxsystems/marge-bot";
     tag = "${version}";
     contents =
       with pkgs; [

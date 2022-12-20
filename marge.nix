@@ -28,7 +28,7 @@ in
       ConfigArgParse maya PyYAML requests
     ];
     meta = {
-      homepage = "https://github.com/smarkets/marge-bot";
+      homepage = "https://github.com/hiboxsystems/marge-bot";
       description = "A build bot for GitLab";
       license = lib.licenses.bsd3;
       maintainers =  [
