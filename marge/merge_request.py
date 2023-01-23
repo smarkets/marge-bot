@@ -203,7 +203,7 @@ class MergeRequest(gitlab.Resource):
 
         raise TimeoutError('Waiting for merge request to be rebased by GitLab')
 
-    def accept(self, remove_branch=False, sha=None, merge_when_pipeline_succeeds=True, auto_squash=False):
+    def accept(self, remove_branch=False, sha=None, merge_when_pipeline_succeeds=True, auto_squash=None):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
             dict(

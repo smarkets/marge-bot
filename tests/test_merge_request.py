@@ -172,6 +172,7 @@ class TestMergeRequest:
                     merge_when_pipeline_succeeds=True,
                     should_remove_source_branch=boolean,
                     sha='badc0de',
+                    squash=None,
                 )
             ))
             self.api.call.reset_mock()
@@ -185,6 +186,7 @@ class TestMergeRequest:
                 merge_when_pipeline_succeeds=True,
                 should_remove_source_branch=False,
                 sha='g00dc0de',
+                squash=None,
             )
         ))
 
@@ -197,6 +199,7 @@ class TestMergeRequest:
                 merge_when_pipeline_succeeds=False,
                 should_remove_source_branch=False,
                 sha='badc0de',
+                squash=None,
             )
         ))
 

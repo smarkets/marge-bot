@@ -13,6 +13,7 @@ INFO = {
     'default_branch': 'master',
     'only_allow_merge_if_pipeline_succeeds': True,
     'only_allow_merge_if_all_discussions_are_resolved': False,
+    'squash_option': 'never',
     'permissions': {
         'project_access': {
             'access_level': AccessLevel.developer.value,
