@@ -90,6 +90,10 @@ class Project(gitlab.Resource):
         return self.info['merge_requests_enabled']
 
     @property
+    def squash_option(self):
+        return self.info['squash_option']
+
+    @property
     def only_allow_merge_if_pipeline_succeeds(self):
         return self.info['only_allow_merge_if_pipeline_succeeds']
 
