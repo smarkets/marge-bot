@@ -39,6 +39,9 @@ class MergeJob:
     def execute(self):
         raise NotImplementedError
 
+    def is_auto_squash_enabled(self, merge_request):
+        return self._project.squash_option == "always" or merge_request.squash
+
     def ensure_mergeable_mr(self, merge_request):
         merge_request.refetch_info()
         log.info('Ensuring MR !%s is mergeable', merge_request.iid)
@@ -47,7 +50,7 @@ class MergeJob:
         if merge_request.work_in_progress:
             raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
 
-        if merge_request.squash and self._options.requests_commit_tagging:
+        if self.is_auto_squash_enabled(merge_request) and self._options.requests_commit_tagging:
             raise CannotMerge(
                 "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
             )

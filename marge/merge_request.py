@@ -159,6 +159,9 @@ class MergeRequest(gitlab.Resource):
     def force_remove_source_branch(self):
         return self.info['force_remove_source_branch']
 
+    def auto_squash(self, project):
+        return project.squash_option == "always" or self.squash
+
     def update_sha(self, sha):
         """record the updated sha. We don't use refetch_info instead as it may hit cache."""
         self._info['sha'] = sha
@@ -200,13 +203,14 @@ class MergeRequest(gitlab.Resource):
 
         raise TimeoutError('Waiting for merge request to be rebased by GitLab')
 
-    def accept(self, remove_branch=False, sha=None, merge_when_pipeline_succeeds=True):
+    def accept(self, remove_branch=False, sha=None, merge_when_pipeline_succeeds=True, auto_squash=False):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}/merge'.format(self),
             dict(
                 should_remove_source_branch=remove_branch,
                 merge_when_pipeline_succeeds=merge_when_pipeline_succeeds,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
+                squash=auto_squash
             ),
         ))
 

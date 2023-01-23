@@ -97,6 +97,7 @@ class SingleMergeJob(MergeJob):
                     remove_branch=merge_request.force_remove_source_branch,
                     sha=actual_sha,
                     merge_when_pipeline_succeeds=bool(target_project.only_allow_merge_if_pipeline_succeeds),
+                    auto_squash=self.is_auto_squash_enabled(merge_request)
                 )
                 log.info('merge_request.accept result: %s', ret)
             except gitlab.NotAcceptable as err:
