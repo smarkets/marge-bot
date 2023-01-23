@@ -92,9 +92,7 @@ class SingleMergeJob(MergeJob):
 
             self.ensure_mergeable_mr(merge_request)
 
-            auto_squash = None
-            if self.is_auto_squash_enabled(merge_request):
-                auto_squash = True
+            auto_squash = True if target_project.squash_enforced else None
 
             try:
                 ret = merge_request.accept(

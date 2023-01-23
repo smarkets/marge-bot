@@ -91,7 +91,7 @@ class Project(gitlab.Resource):
 
     @property
     def squash_option(self):
-        return self.info['squash_option']
+        return self.info.get('squash_option', None)
 
     @property
     def only_allow_merge_if_pipeline_succeeds(self):
@@ -115,6 +115,10 @@ class Project(gitlab.Resource):
         )
         assert effective_access is not None, "GitLab failed to provide user permissions on project"
         return AccessLevel(effective_access['access_level'])
+
+    @property
+    def squash_enforced(self):
+        return self.squash_option == 'always'
 
 
 # pylint: disable=invalid-name
