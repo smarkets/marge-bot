@@ -23,6 +23,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install requirements
-        run: pip install -r requirements_frozen.txt
+        run: pip install -c constraints.txt -r requirements_frozen.txt
       - name: Run tests
         run: pytest
