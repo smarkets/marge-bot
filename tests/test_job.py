@@ -165,7 +165,7 @@ class TestJob:
             project=create_autospec(
                 marge.project.Project,
                 spec_set=True,
-                squash_option="always",
+                squash_option=marge.project.SquashOption.always,
             ),
             options=MergeJobOptions.default(add_reviewers=True),
         )
