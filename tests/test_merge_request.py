@@ -161,6 +161,32 @@ class TestMergeRequest:
         self.merge_request.rebase()
         self.api.call.assert_has_calls([call(req) for (req, resp) in expected])
 
+    @pytest.mark.parametrize('squash_wanted', [True, False])
+    def test_accept_auto_squash_is_boolean(self, squash_wanted):
+        self._load(dict(INFO, sha='badc0de'))
+        self.merge_request.accept(auto_squash=squash_wanted)
+        self.api.call.assert_called_once_with(PUT(
+            '/projects/1234/merge_requests/54/merge',
+            dict(
+                merge_when_pipeline_succeeds=True,
+                should_remove_source_branch=False,
+                sha='badc0de',
+                squash=squash_wanted,
+            )
+        ))
+
+    def test_accept_auto_squash_is_none(self):
+        self._load(dict(INFO, sha='badc0de'))
+        self.merge_request.accept(auto_squash=None)
+        self.api.call.assert_called_once_with(PUT(
+            '/projects/1234/merge_requests/54/merge',
+            dict(
+                merge_when_pipeline_succeeds=True,
+                should_remove_source_branch=False,
+                sha='badc0de',
+            )
+        ))
+
     def test_accept_remove_branch(self):
         self._load(dict(INFO, sha='badc0de'))
 
