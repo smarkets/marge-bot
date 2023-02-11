@@ -144,8 +144,16 @@ class TestJob:
 
         assert exc_info.value.reason == "Sorry, I can't merge requests which have unresolved discussions!"
 
-    def test_ensure_mergeable_mr_squash_and_trailers(self):
-        merge_job = self.get_merge_job(options=MergeJobOptions.default(add_reviewers=True))
+    @pytest.mark.parametrize('squash_option', marge.project.SquashOption)
+    def test_ensure_mergeable_mr_squash_wanted_and_trailers(self, squash_option):
+        merge_job = self.get_merge_job(
+            project=create_autospec(
+                marge.project.Project,
+                spec_set=True,
+                squash_option=squash_option,
+            ),
+            options=MergeJobOptions.default(add_reviewers=True)
+        )
         merge_request = self._mock_merge_request(
             assignee_ids=[merge_job._user.id],
             state='opened',
