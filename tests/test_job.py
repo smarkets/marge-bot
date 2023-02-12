@@ -152,7 +152,6 @@ class TestJob:
             work_in_progress=False,
             squash=True,
         )
-        merge_request.fetch_approvals.return_value.sufficient = True
         with pytest.raises(CannotMerge) as exc_info:
             merge_job.ensure_mergeable_mr(merge_request)
 
