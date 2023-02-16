@@ -144,15 +144,45 @@ class TestJob:
 
         assert exc_info.value.reason == "Sorry, I can't merge requests which have unresolved discussions!"
 
-    def test_ensure_mergeable_mr_squash_and_trailers(self):
-        merge_job = self.get_merge_job(options=MergeJobOptions.default(add_reviewers=True))
+    @pytest.mark.parametrize('squash_option', marge.project.SquashOption)
+    def test_ensure_mergeable_mr_squash_wanted_and_trailers(self, squash_option):
+        merge_job = self.get_merge_job(
+            project=create_autospec(
+                marge.project.Project,
+                spec_set=True,
+                squash_option=squash_option,
+            ),
+            options=MergeJobOptions.default(add_reviewers=True)
+        )
         merge_request = self._mock_merge_request(
             assignee_ids=[merge_job._user.id],
             state='opened',
             work_in_progress=False,
             squash=True,
         )
-        merge_request.fetch_approvals.return_value.sufficient = True
+        with pytest.raises(CannotMerge) as exc_info:
+            merge_job.ensure_mergeable_mr(merge_request)
+
+        assert (
+            exc_info.value.reason == "Sorry, merging requests marked as auto-squash "
+                                     "would ruin my commit tagging!"
+        )
+
+    def test_ensure_mergeable_mr_squash_needed_and_trailers(self):
+        merge_job = self.get_merge_job(
+            project=create_autospec(
+                marge.project.Project,
+                spec_set=True,
+                squash_option=marge.project.SquashOption.always,
+            ),
+            options=MergeJobOptions.default(add_reviewers=True),
+        )
+        merge_request = self._mock_merge_request(
+            assignee_ids=[merge_job._user.id],
+            state='opened',
+            work_in_progress=False,
+            squash=False,
+        )
         with pytest.raises(CannotMerge) as exc_info:
             merge_job.ensure_mergeable_mr(merge_request)
 

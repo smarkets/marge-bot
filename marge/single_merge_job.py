@@ -6,6 +6,7 @@ from datetime import datetime
 from . import git, gitlab
 from .commit import Commit
 from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
+from .project import SquashOption
 
 
 class SingleMergeJob(MergeJob):
@@ -92,7 +93,7 @@ class SingleMergeJob(MergeJob):
 
             self.ensure_mergeable_mr(merge_request)
 
-            auto_squash = True if target_project.squash_enforced else None
+            auto_squash = True if target_project.squash_option is SquashOption.always else None
 
             try:
                 ret = merge_request.accept(
