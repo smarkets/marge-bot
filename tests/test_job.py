@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 from datetime import timedelta
-from unittest.mock import ANY, Mock, patch, create_autospec
+from unittest.mock import ANY, MagicMock, patch, create_autospec
 
 import pytest
 
@@ -55,7 +55,7 @@ class TestJob:
     def test_get_mr_ci_status(self, version, use_merge_request_pipelines):
         with patch('marge.job.Pipeline', autospec=True) as pipeline_class:
             pipeline_success = [
-                Mock(spec=pipeline_class, sha='abc', status='success'),
+                MagicMock(sha='abc', status='success'),
             ]
             pipeline_class.pipelines_by_branch.return_value = pipeline_success
             pipeline_class.pipelines_by_merge_request.return_value = pipeline_success
