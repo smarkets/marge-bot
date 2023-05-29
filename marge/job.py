@@ -22,7 +22,7 @@ class MergeJob:
         self._project = project
         self._repo = repo
         self._options = options
-        self._merge_timeout = timedelta(minutes=5)
+        self._merge_timeout = options.ci_timeout
 
     @property
     def repo(self):
