@@ -6,6 +6,7 @@ from datetime import datetime
 from . import git, gitlab
 from .commit import Commit
 from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
+from .project import SquashOption
 
 
 class SingleMergeJob(MergeJob):
@@ -92,11 +93,14 @@ class SingleMergeJob(MergeJob):
 
             self.ensure_mergeable_mr(merge_request)
 
+            auto_squash = True if target_project.squash_option is SquashOption.always else None
+
             try:
                 ret = merge_request.accept(
                     remove_branch=merge_request.force_remove_source_branch,
                     sha=actual_sha,
                     merge_when_pipeline_succeeds=bool(target_project.only_allow_merge_if_pipeline_succeeds),
+                    auto_squash=auto_squash
                 )
                 log.info('merge_request.accept result: %s', ret)
             except gitlab.NotAcceptable as err:

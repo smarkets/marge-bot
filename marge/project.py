@@ -1,5 +1,5 @@
 import logging as log
-from enum import IntEnum, unique
+from enum import Enum, IntEnum, unique
 from functools import partial
 
 from . import gitlab
@@ -90,6 +90,10 @@ class Project(gitlab.Resource):
         return self.info['merge_requests_enabled']
 
     @property
+    def squash_option(self):
+        return SquashOption(self.info['squash_option'])
+
+    @property
     def only_allow_merge_if_pipeline_succeeds(self):
         return self.info['only_allow_merge_if_pipeline_succeeds']
 
@@ -124,3 +128,11 @@ class AccessLevel(IntEnum):
     developer = 30
     maintainer = 40
     owner = 50
+
+
+@unique
+class SquashOption(str, Enum):
+    always = "always"
+    default_off = "default_off"
+    default_on = "default_on"
+    never = "never"

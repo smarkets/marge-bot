@@ -9,7 +9,7 @@ from . import git, gitlab
 from .branch import Branch
 from .interval import IntervalUnion
 from .merge_request import MergeRequestRebaseFailed
-from .project import Project
+from .project import Project, SquashOption
 from .user import User
 from .pipeline import Pipeline
 
@@ -47,7 +47,12 @@ class MergeJob:
         if merge_request.work_in_progress:
             raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
 
-        if merge_request.squash and self._options.requests_commit_tagging:
+        auto_squash = (
+            self._project.squash_option is SquashOption.always or
+            merge_request.squash
+        )
+
+        if auto_squash and self._options.requests_commit_tagging:
             raise CannotMerge(
                 "Sorry, merging requests marked as auto-squash would ruin my commit tagging!"
             )
