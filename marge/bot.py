@@ -167,6 +167,7 @@ class Bot:
                 merge_requests=merge_requests,
                 repo=repo,
                 options=self._config.merge_opts,
+                batch_branch_name=self._options.batch_branch_name,
             )
             try:
                 batch_merge_job.execute()
@@ -199,7 +200,8 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user use_https auth_token ssh_key_file project_regexp merge_order merge_opts ' +
-                           'git_timeout git_reference_repo branch_regexp source_branch_regexp batch cli')):
+                           'git_timeout git_reference_repo branch_regexp source_branch_regexp batch cli ' + 
+                           'batch_branch_name')):
     pass
 
 
