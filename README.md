@@ -141,6 +141,9 @@ optional arguments:
                         Use merge commit when creating batches, so that the commits in the batch MR will be the same with in individual MRs. Requires sudo scope in the access token.
                            [env var: MARGE_USE_MERGE_COMMIT_BATCHES] (default: False)
   --skip-ci-batches     Skip CI when updating individual MRs when using batches   [env var: MARGE_SKIP_CI_BATCHES] (default: False)
+  --guarantee-final-pipeline
+                        Guaranteed final pipeline when assigned to marge-bot
+                        [env var: MARGE_GUARANTEE_FINAL_PIPELINE] (default: False)
 ```
 Here is a config file example
 ```yaml
