@@ -45,6 +45,7 @@ class SingleMergeJob(MergeJob):
         api = self._api
         merge_request = self._merge_request
         updated_into_up_to_date_target_branch = False
+        first_iteration = True
 
         while not updated_into_up_to_date_target_branch:
             self.ensure_mergeable_mr(merge_request)
@@ -58,8 +59,15 @@ class SingleMergeJob(MergeJob):
                     source_repo_url=source_repo_url,
                 )
             except GitLabRebaseResultMismatch:
-                log.info("Gitlab rebase didn't give expected result")
-                merge_request.comment("Someone skipped the queue! Will have to try again...")
+                if first_iteration:
+                    log.info(
+                        "Gitlab rebase didn't give expected result."
+                        "This is expected immediately after rebase. Retrying."
+                    )
+                    first_iteration = False
+                else:
+                    log.info("Gitlab rebase didn't give expected result")
+                    merge_request.comment("Someone skipped the queue! Will have to try again...")
                 continue
 
             if _updated_sha == actual_sha and self._options.guarantee_final_pipeline:

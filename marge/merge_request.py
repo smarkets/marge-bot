@@ -164,7 +164,10 @@ class MergeRequest(gitlab.Resource):
         self._info['sha'] = sha
 
     def refetch_info(self):
-        self._info = self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}'.format(self)))
+        self._info = self._api.call(GET(
+            '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
+            {'include_rebase_in_progress': 'true'}
+        ))
 
     def comment(self, message):
         if self._api.version().release >= (9, 2, 2):

@@ -50,7 +50,12 @@ class TestMergeRequest:
 
         merge_request = MergeRequest.fetch_by_iid(project_id=1234, merge_request_iid=54, api=api)
 
-        api.call.assert_called_once_with(GET('/projects/1234/merge_requests/54'))
+        api.call.assert_called_once_with(
+            GET(
+                '/projects/1234/merge_requests/54',
+                {'include_rebase_in_progress': 'true'}
+            )
+        )
         assert merge_request.info == INFO
 
     def test_refetch_info(self):
@@ -58,7 +63,12 @@ class TestMergeRequest:
         self.api.call = Mock(return_value=new_info)
 
         self.merge_request.refetch_info()
-        self.api.call.assert_called_once_with(GET('/projects/1234/merge_requests/54'))
+        self.api.call.assert_called_once_with(
+            GET(
+                '/projects/1234/merge_requests/54',
+                {'include_rebase_in_progress': 'true'}
+            )
+        )
         assert self.merge_request.info == new_info
 
     def test_properties(self):
@@ -99,7 +109,10 @@ class TestMergeRequest:
     def test_rebase_was_not_in_progress_no_error(self):
         expected = [
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> not in progress
                 INFO
             ),
             (
@@ -107,11 +120,18 @@ class TestMergeRequest:
                 True
             ),
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> in progress
                 dict(INFO, rebase_in_progress=True)
             ),
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                # GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> succeeded
                 dict(INFO, rebase_in_progress=False)
             ),
         ]
@@ -123,7 +143,10 @@ class TestMergeRequest:
     def test_rebase_was_not_in_progress_error(self):
         expected = [
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> not in progress
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> not in progress
                 INFO
             ),
             (
@@ -131,7 +154,10 @@ class TestMergeRequest:
                 True
             ),
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> BOOM
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> BOOM
                 dict(INFO, rebase_in_progress=False, merge_error="Rebase failed. Please rebase locally")
             ),
         ]
@@ -145,15 +171,24 @@ class TestMergeRequest:
     def test_rebase_was_in_progress_no_error(self):
         expected = [
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> in progress
                 dict(INFO, rebase_in_progress=True)
             ),
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> in progress
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> in progress
                 dict(INFO, rebase_in_progress=True)
             ),
             (
-                GET('/projects/1234/merge_requests/54'),  # refetch_info -> succeeded
+                GET(
+                    '/projects/1234/merge_requests/54',
+                    {'include_rebase_in_progress': 'true'}
+                ),  # refetch_info -> succeeded
                 dict(INFO, rebase_in_progress=False)
             ),
         ]
@@ -232,5 +267,10 @@ class TestMergeRequest:
         old_mock = self.api.call
         self.api.call = Mock(return_value=json)
         self.merge_request.refetch_info()
-        self.api.call.assert_called_with(GET('/projects/1234/merge_requests/54'))
+        self.api.call.assert_called_with(
+            GET(
+                '/projects/1234/merge_requests/54',
+                {'include_rebase_in_progress': 'true'}
+            )
+        )
         self.api.call = old_mock
