@@ -20,7 +20,9 @@ class RepoMock(git.Repo):
 
         remote_repos = defaultdict(GitRepoModel)
         remote_repos[source_url].set_ref(merge_request.source_branch, merge_request.sha)
+        remote_repos[source_url].set_ref_commits(merge_request.source_branch, [merge_request.sha])
         remote_repos[target_url].set_ref(merge_request.target_branch, initial_target_sha)
+        remote_repos[target_url].set_ref_commits(merge_request.target_branch, [initial_target_sha])
 
         result = cls(
             remote_url=target_url,
@@ -67,18 +69,31 @@ class GitRepoModel:
     def __init__(self, copy_of=None):
         # pylint: disable=protected-access
         self._refs = dict(copy_of._refs) if copy_of else {}
+        self._ref_commits = dict(copy_of._ref_commits) if copy_of else {}
 
     def set_ref(self, ref, commit):
         self._refs[ref] = commit
 
+    def set_ref_commits(self, ref, commits):
+        self._ref_commits[ref] = commits
+
+    def add_ref_commit(self, ref, commit):
+        self._ref_commits[ref].append(commit)
+
     def get_ref(self, ref):
         return self._refs[ref]
+
+    def get_ref_commits(self, ref):
+        return self._ref_commits[ref]
 
     def has_ref(self, ref):
         return ref in self._refs
 
     def del_ref(self, ref):
         self._refs.pop(ref, None)
+
+    def del_ref_commits(self, ref):
+        self._ref_commits.pop(ref, None)
 
     def __repr__(self):
         return "<%s: %s>" % (type(self), self._refs)
@@ -93,6 +108,7 @@ class GitModel:
         self._remotes = dict(origin=origin)
         self._remote_refs = {}
         self._branch = None
+        self._ref_commits = []
         self.on_push_callbacks = []
 
     @property
@@ -135,10 +151,13 @@ class GitModel:
 
                     remote_url = self._remotes[remote_name]
                     remote_repo = self.remote_repos[remote_url]
-                    commit = remote_repo.get_ref(branch)
-                    self._local_repo.set_ref(branch, commit)
+                    ref_commit = remote_repo.get_ref(branch)
+                    ref_commits = remote_repo.get_ref_commits(branch)
+                    self._local_repo.set_ref(branch, ref_commit)
+                    self._local_repo.set_ref_commits(branch, ref_commits)
                 else:
                     self._local_repo.set_ref(branch, self._head)
+                    self._local_repo.set_ref_commits(branch, self._ref_commits)
         else:
             branch, _ = args
             assert args == (branch, '--')
@@ -146,12 +165,14 @@ class GitModel:
 
         # checkout
         self._branch = branch
+        self._ref_commits = self._local_repo.get_ref_commits(branch)
 
     def branch(self, *args):
         if args[0] == "-D":
             _, branch = args
             assert self._branch != branch
             self._local_repo.del_ref(branch)
+            self._local_repo.del_ref_commits(branch)
         else:
             assert False
 
@@ -162,12 +183,20 @@ class GitModel:
         remote, branch = arg.split('/')
         return self._remote_refs[remote].get_ref(branch)
 
+    def log(self, *args):
+        source, _ = args
+
+        remote, branch = source.split('/')
+
+        return self._remote_refs[remote].get_ref_commits(branch)
+
     def rebase(self, arg):
         remote, branch = arg.split('/')
         new_base = self._remote_refs[remote].get_ref(branch)
         if new_base != self._head:
             new_sha = 'rebase(%s onto %s)' % (self._head, new_base)
             self._local_repo.set_ref(self._branch, new_sha)
+            self._local_repo.add_ref_commit(self._branch, new_sha)
 
     def merge(self, arg):
         remote, branch = arg.split('/')
@@ -176,6 +205,7 @@ class GitModel:
         if other_ref != self._head:
             new_sha = 'merge(%s with %s)' % (self._head, other_ref)
             self._local_repo.set_ref(self._branch, new_sha)
+            self._local_repo.add_ref_commit(self._branch, new_sha)
 
     def push(self, *args):
         force_flag, remote_name, refspec = args
@@ -191,11 +221,13 @@ class GitModel:
 
         if force_flag:
             remote_repo.set_ref(remote_branch, new_sha)
+            remote_repo.add_ref_commit(remote_branch, new_sha)
         else:
             expected_remote_sha = self._remote_refs[remote_name].get_ref(remote_branch)
             if old_sha != expected_remote_sha:
                 raise git.GitError("conflict: can't push")
             remote_repo.set_ref(remote_branch, new_sha)
+            remote_repo.add_ref_commit(remote_branch, new_sha)
 
         for callback in self.on_push_callbacks:
             callback(
@@ -239,4 +271,5 @@ class GitModel:
             self._head
         )
         self._local_repo.set_ref(self._branch, new_sha)
+        self._local_repo.add_ref_commit(self._branch, new_sha)
         return new_sha

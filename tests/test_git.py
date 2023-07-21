@@ -180,6 +180,26 @@ class TestRepo:
         self.repo.get_commit_hash(rev='master')
         assert get_calls(mocked_run)[-1] == 'git -C /tmp/local/path rev-parse master'
 
+    @pytest.mark.parametrize("output,expected", [
+        (b'"sd23r2asdf3"\n"sadf334vsd34"\n"7sdfghja7"', True),
+        (b'"sd23r2asdf3"\n"sadf334vsd34"\n"kj3478sfh8"', False)])
+    def test_ref_contains_specified_commit(self, mocked_run, output, expected):
+        print("stdout: {output}")
+        mocked_run.return_value = mocked_stdout(output)
+
+        expected_sha = '7sdfghja7'
+        source_repo_url = "source_repo_url"
+        branch = "useless_new_feature"
+        result = self.repo.ref_contains_specified_commit(source_repo_url, branch, expected_sha)
+        assert result is expected
+
+        assert get_calls(mocked_run) == [
+            'git -C /tmp/local/path remote rm source',
+            'git -C /tmp/local/path remote add source source_repo_url',
+            'git -C /tmp/local/path fetch --prune source',
+            'git -C /tmp/local/path log source/useless_new_feature \'--format=format:"%H"\'',
+        ]
+
     def test_passes_ssh_key(self, mocked_run):
         repo = self.repo._replace(ssh_key_file='/foo/id_rsa')
         repo.config_user_info('bart', 'bart@gmail.com')

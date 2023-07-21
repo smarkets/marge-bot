@@ -7,6 +7,9 @@ from . import git, gitlab
 from .commit import Commit
 from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
 
+from .merge_request import MergeRequest
+from .project import Project
+
 
 class SingleMergeJob(MergeJob):
 
@@ -43,46 +46,24 @@ class SingleMergeJob(MergeJob):
 
     def update_merge_request_and_accept(self, approvals):
         api = self._api
-        merge_request = self._merge_request
+        merge_request: MergeRequest = self._merge_request
         updated_into_up_to_date_target_branch = False
 
         while not updated_into_up_to_date_target_branch:
             self.ensure_mergeable_mr(merge_request)
             source_project, source_repo_url, _ = self.fetch_source_project(merge_request)
             target_project = self.get_target_project(merge_request)
-            try:
-                # NB. this will be a no-op if there is nothing to update/rewrite
 
-                target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
-                    merge_request,
-                    source_repo_url=source_repo_url,
-                )
-            except GitLabRebaseResultMismatch:
-                log.info("Gitlab rebase didn't give expected result")
-                merge_request.comment("Someone skipped the queue! Will have to try again...")
-                continue
+            target_sha, actual_sha = self.get_mergerequest_branches_sha(merge_request, source_repo_url)
 
-            if _updated_sha == actual_sha and self._options.guarantee_final_pipeline:
-                log.info('No commits on target branch to fuse, triggering pipeline...')
-                merge_request.comment("jenkins retry")
-                time.sleep(30)
-
-            log.info(
-                'Commit id to merge %r into: %r (updated sha: %r)',
-                actual_sha,
-                target_sha,
-                _updated_sha
-            )
-            time.sleep(5)
-
-            sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id
-            # Make sure no-one managed to race and push to the branch in the
-            # meantime, because we're about to impersonate the approvers, and
-            # we don't want to approve unreviewed commits
-            if sha_now != actual_sha:
-                raise CannotMerge('Someone pushed to branch while we were trying to merge')
-
-            self.maybe_reapprove(merge_request, approvals)
+            source_synced_with_target = self._repo.ref_contains_specified_commit(
+                source_repo_url, merge_request.source_branch, target_sha)
+            if not source_synced_with_target:
+                try:
+                    actual_sha = self.synchronize_with_target(api, source_project, merge_request,
+                                                              source_repo_url, approvals)
+                except RequireRetryException:
+                    continue
 
             if target_project.only_allow_merge_if_pipeline_succeeds:
                 self.wait_for_ci_to_pass(merge_request, actual_sha)
@@ -98,7 +79,6 @@ class SingleMergeJob(MergeJob):
                     sha=actual_sha,
                     merge_when_pipeline_succeeds=bool(target_project.only_allow_merge_if_pipeline_succeeds),
                 )
-                log.info('merge_request.accept result: %s', ret)
             except gitlab.NotAcceptable as err:
                 new_target_sha = Commit.last_on_branch(self._project.id, merge_request.target_branch, api).id
                 # target_branch has moved under us since we updated, just try again
@@ -162,6 +142,55 @@ class SingleMergeJob(MergeJob):
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
 
+    def get_mergerequest_branches_sha(self, merge_request: MergeRequest, source_repo_url):
+        self._repo.fetch("origin")
+        if source_repo_url:
+            self._repo.fetch("source", source_repo_url)
+            actual_sha = self._repo.get_commit_hash(f"source/{merge_request.source_branch}")
+        else:
+            actual_sha = self._repo.get_commit_hash(f"origin/{merge_request.source_branch}")
+
+        target_sha = self._repo.get_commit_hash(f"origin/{merge_request.target_branch}")
+
+        return target_sha, actual_sha
+
+    def synchronize_with_target(self, api: gitlab.Api, source_project: Project,  merge_request: MergeRequest,
+                                source_repo_url: str, approvals):
+        try:
+            # NB. this will be a no-op if there is nothing to update/rewrite
+            target_sha, _updated_sha, actual_sha = self.update_from_target_branch_and_push(
+                merge_request,
+                source_repo_url=source_repo_url,
+            )
+        except GitLabRebaseResultMismatch as ex:
+            log.info("Gitlab rebase didn't give expected result")
+            merge_request.comment("Someone skipped the queue! Will have to try again...")
+            raise RequireRetryException from ex
+
+        if _updated_sha == actual_sha and self._options.guarantee_final_pipeline:
+            log.info('No commits on target branch to fuse, triggering pipeline...')
+            merge_request.comment("jenkins retry")
+            time.sleep(30)
+
+        log.info(
+            'Commit id to merge %r into: %r (updated sha: %r)',
+            actual_sha,
+            target_sha,
+            _updated_sha
+        )
+        time.sleep(5)
+
+        sha_now = Commit.last_on_branch(source_project.id, merge_request.source_branch, api).id
+        # Make sure no-one managed to race and push to the branch in the
+        # meantime, because we're about to impersonate the approvers, and
+        # we don't want to approve unreviewed commits
+        if sha_now != actual_sha:
+            raise CannotMerge('Someone pushed to branch while we were trying to merge')
+
+        self.maybe_reapprove(merge_request, approvals)
+
+        return actual_sha
+
     def wait_for_branch_to_be_merged(self):
         merge_request = self._merge_request
         time_0 = datetime.utcnow()
@@ -180,3 +209,7 @@ class SingleMergeJob(MergeJob):
             time.sleep(waiting_time_in_secs)
 
         raise CannotMerge('It is taking too long to see the request marked as merged!')
+
+
+class RequireRetryException(Exception):
+    pass

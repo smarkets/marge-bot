@@ -13,6 +13,9 @@ from .project import Project
 from .user import User
 from .pipeline import Pipeline
 
+from .git import Repo
+from .merge_request import MergeRequest
+
 
 class MergeJob:
 
@@ -20,7 +23,7 @@ class MergeJob:
         self._api = api
         self._user = user
         self._project = project
-        self._repo = repo
+        self._repo: Repo = repo
         self._options = options
         self._merge_timeout = options.ci_timeout
 
@@ -342,6 +345,7 @@ class MergeJob:
             self.synchronize_mr_with_local_changes(
                 merge_request,
                 branch_was_modified,
+                repo,
                 source_repo_url,
                 skip_ci=skip_ci,
             )
@@ -364,11 +368,13 @@ class MergeJob:
         self,
         merge_request,
         branch_was_modified,
+        source_repo: Repo,
         source_repo_url=None,
         skip_ci=False,
     ):
         if self._options.fusion is Fusion.gitlab_rebase:
-            self.synchronize_using_gitlab_rebase(merge_request)
+            self.synchronize_using_gitlab_rebase(source_repo, source_repo_url,
+                                                 merge_request)
         else:
             self.push_force_to_mr(
                 merge_request,
@@ -405,7 +411,8 @@ class MergeJob:
             change_type = "merged" if self.opts.fusion == Fusion.merge else "rebased"
             raise CannotMerge('Failed to push %s changes, check my logs!' % change_type) from err
 
-    def synchronize_using_gitlab_rebase(self, merge_request, expected_sha=None):
+    def synchronize_using_gitlab_rebase(self, source_repo: Repo, source_repo_url: str,
+                                        merge_request: MergeRequest, expected_sha=None):
         expected_sha = expected_sha or self._repo.get_commit_hash()
         try:
             merge_request.rebase()
@@ -423,7 +430,10 @@ class MergeJob:
                 raise CannotMerge("Sorry, I can't modify protected branches!") from err
             raise
         else:
-            if merge_request.sha != expected_sha:
+            source_synced_with_target = source_repo.ref_contains_specified_commit(source_repo_url,
+                                                                                  merge_request.source_branch,
+                                                                                  expected_sha)
+            if not source_synced_with_target and merge_request.sha != expected_sha:
                 raise GitLabRebaseResultMismatch(
                     gitlab_sha=merge_request.sha,
                     expected_sha=expected_sha,

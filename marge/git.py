@@ -155,6 +155,24 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
         result = self.git('rev-parse', rev)
         return result.stdout.decode('ascii').strip()
 
+    def ref_contains_specified_commit(self, source_repo_url: str, branch: str, expected_sha: str):
+        """Return True if given commit exists in given branch."""
+        if source_repo_url:
+            self.fetch("source", source_repo_url)
+            result = self.git('log', f'source/{branch}', '--format=format:"%H"')
+        else:
+            self.fetch("origin")
+            result = self.git('log', f'origin/{branch}', '--format=format:"%H"')
+
+        ref_commits = result.stdout.decode('ascii').replace("\"", "").splitlines()
+
+        if expected_sha in ref_commits:
+            log.info("Given commit: %s exists in current branch.", expected_sha)
+            return True
+
+        log.info("Given commit: %s doesn't exit in current branch.", expected_sha)
+        return False
+
     def get_remote_url(self, name):
         return self.git('config', '--get', 'remote.{}.url'.format(name)).stdout.decode('utf-8').strip()
 
