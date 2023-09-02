@@ -104,6 +104,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file timeout refere
     def _fuse_branch(self, strategy, branch, target_branch, *fuse_args, source_repo_url=None, local=False):
         assert source_repo_url or branch != target_branch, branch
 
+        log.debug("git: _fuse_branch: %s %s %s %s", branch, target_branch, source_repo_url, local)
+
+        log.warning("git: _fuse_branch: local: %s", local)
         if not local:
             self.fetch('origin')
             target = 'origin/' + target_branch

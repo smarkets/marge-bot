@@ -142,10 +142,22 @@ class TestBatchJob:
         batch_merge_job = self.get_batch_merge_job(api, mocklab)
         target_branch = 'master'
         source_branch = mocklab.merge_request_info['source_branch']
-        batch_merge_job.merge_batch(target_branch, source_branch, no_ff=False)
+        batch_merge_job.merge_batch(target_branch, source_branch, no_ff=False, local=False)
         batch_merge_job._repo.fast_forward.assert_called_once_with(
             target_branch,
             source_branch,
+            local=False
+        )
+
+    def test_merge_batch_forks(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        target_branch = 'master'
+        source_branch = mocklab.merge_request_info['source_branch']
+        batch_merge_job.merge_batch(target_branch, source_branch, no_ff=False, local=True)
+        batch_merge_job._repo.fast_forward.assert_called_once_with(
+            target_branch,
+            source_branch,
+            local=True
         )
 
     def test_merge_batch_with_no_ff_enabled(self, api, mocklab):
@@ -156,7 +168,8 @@ class TestBatchJob:
         batch_merge_job._repo.merge.assert_called_once_with(
             target_branch,
             source_branch,
-            '--no-ff'
+            '--no-ff',
+            None,
         )
         batch_merge_job._repo.fast_forward.assert_not_called()
 
