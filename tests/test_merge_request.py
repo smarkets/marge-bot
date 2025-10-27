@@ -30,8 +30,8 @@ INFO = {
 DISCUSSION = {
     'id': 'aabbcc0044',
     'notes': [
-        {'id': 12, "body": "assigned to @john_smith", "created_at": "2020-08-04T06:56:11.854Z"},
-        {'id': 13, "body": "assigned to @john_smith", "created_at": "2020-08-18T06:52:58.093Z"}
+        {'id': 12, 'author': {'id': 42}, "body": "assigned to @john_smith", "created_at": "2020-08-04T06:56:11.854Z"},
+        {'id': 13, 'author': {'id': 69}, "body": "assigned to @john_smith", "created_at": "2020-08-18T06:52:58.093Z"}
     ],
 }
 
@@ -214,19 +214,19 @@ class TestMergeRequest:
         ))
         assert [mr.info for mr in result] == [mr1, mr2]
 
-    def test_fetch_assigned_at(self):
+    def fetch_assigned_author_and_at(self):
         api = self.api
         dis1, dis2 = DISCUSSION, dict(DISCUSSION, id=679)
         mr1 = INFO
         user = marge.user.User(api=None, info=dict(USER_INFO, id=_MARGE_ID))
         api.collect_all_pages = Mock(return_value=[dis1, dis2])
-        result = MergeRequest.fetch_assigned_at(
+        result = MergeRequest.fetch_assigned_author_and_at(
             user=user, api=api, merge_request=mr1
         )
         api.collect_all_pages.assert_called_once_with(GET(
             '/projects/1234/merge_requests/54/discussions',
         ))
-        assert result == 1597733578.093
+        assert result == [69, 1597733578.093]
 
     def _load(self, json):
         old_mock = self.api.call

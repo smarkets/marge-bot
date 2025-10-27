@@ -11,6 +11,9 @@ GET, POST, PUT, DELETE = gitlab.GET, gitlab.POST, gitlab.PUT, gitlab.DELETE
 
 
 class MergeRequest(gitlab.Resource):
+    def __init__(self, api, info, assigned_author):
+        super().__init__(api=api, info=info)
+        self._assigned_author = assigned_author
 
     @classmethod
     def create(cls, api, project_id, params):
@@ -18,7 +21,7 @@ class MergeRequest(gitlab.Resource):
             '/projects/{project_id}/merge_requests'.format(project_id=project_id),
             params,
         ))
-        merge_request = cls(api, merge_request_info)
+        merge_request = cls(api, merge_request_info, 0)
         return merge_request
 
     @classmethod
@@ -27,16 +30,17 @@ class MergeRequest(gitlab.Resource):
             '/projects/{project_id}/merge_requests'.format(project_id=project_id),
             params,
         ))
-        return [cls(api, merge_request) for merge_request in merge_requests]
+        return [cls(api, merge_request, 0) for merge_request in merge_requests]
 
     @classmethod
     def fetch_by_iid(cls, project_id, merge_request_iid, api):
-        merge_request = cls(api, {'iid': merge_request_iid, 'project_id': project_id})
+        merge_request = cls(api, {'iid': merge_request_iid, 'project_id': project_id}, 0)
         merge_request.refetch_info()
         return merge_request
 
     @classmethod
-    def fetch_assigned_at(cls, user, api, merge_request):
+    def fetch_assigned_author_and_at(cls, user, api, merge_request):
+        assigned_author_id = 0
         assigned_at = 0
         all_discussions = api.collect_all_pages(
             GET('/projects/{project_id}/merge_requests/{merge_requests_id}/discussions'.format(
@@ -56,7 +60,8 @@ class MergeRequest(gitlab.Resource):
                         assigned = datetime.datetime.strptime(date_string, date_format).timestamp()
                     if assigned > assigned_at:
                         assigned_at = assigned
-        return assigned_at
+                        assigned_author_id = note['author']['id']
+        return [assigned_author_id, assigned_at]
 
     @classmethod
     def fetch_all_open_for_user(cls, project_id, user, api, merge_order):
@@ -72,10 +77,15 @@ class MergeRequest(gitlab.Resource):
                (user.id in [assignee.get('id') for assignee in (mri.get('assignees', []) or [])])
         ]
 
-        if merge_order == 'assigned_at':
-            my_merge_request_infos.sort(key=lambda mri: cls.fetch_assigned_at(user, api, mri))
+        for mri in my_merge_request_infos:
+            assigned_author_and_at = cls.fetch_assigned_author_and_at(user, api, mri)
+            mri['assigned_author'] = assigned_author_and_at[0]
+            mri['assigned_at'] = assigned_author_and_at[1]
 
-        return [cls(api, merge_request_info) for merge_request_info in my_merge_request_infos]
+        if merge_order == 'assigned_at':
+            my_merge_request_infos.sort(key=lambda mri: mri['assigned_at'])
+
+        return [cls(api, merge_request_info, merge_request_info['assigned_author']) for merge_request_info in my_merge_request_infos]
 
     @property
     def project_id(self):
@@ -158,6 +168,10 @@ class MergeRequest(gitlab.Resource):
     @property
     def force_remove_source_branch(self):
         return self.info['force_remove_source_branch']
+
+    @property
+    def assigned_author(self):
+        return self._assigned_author
 
     def update_sha(self, sha):
         """record the updated sha. We don't use refetch_info instead as it may hit cache."""

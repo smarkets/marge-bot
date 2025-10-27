@@ -5,6 +5,9 @@ import time
 from collections import namedtuple
 from datetime import datetime, timedelta
 
+from marge.member import Member
+from marge.protected_branch import ProtectedBranch
+
 from . import git, gitlab
 from .branch import Branch
 from .interval import IntervalUnion
@@ -43,6 +46,24 @@ class MergeJob:
         merge_request.refetch_info()
         log.info('Ensuring MR !%s is mergeable', merge_request.iid)
         log.debug('Ensuring MR %r is mergeable', merge_request)
+
+        # Zero means that the MR wasn't fetched using `fetch_all_open_for_user`,
+        # in this case we have no straighforward way to check the user who assigned us
+        # or we created the MR ourselfes
+        if merge_request.assigned_author != 0:
+            try:
+                assigned_author_member = Member.fetch_by_id(self.project.id, merge_request.assigned_author, self._api)
+            except gitlab.NotFound as ex:
+                raise CannotMerge("User that assigned me is not a project member!")
+
+            try:
+                protected_branch = ProtectedBranch.fetch_by_name(self.project.id, merge_request.target_branch, self._api)
+                merge_min_access_level = protected_branch.merge_min_access_level
+                if merge_min_access_level > assigned_author_member.access_level:
+                    raise CannotMerge("User that assigned me is not allowed to merge on the target branch!")
+            except gitlab.NotFound as ex:
+                # branch isn't protected
+                pass
 
         if merge_request.work_in_progress:
             raise CannotMerge("Sorry, I can't merge requests marked as Work-In-Progress!")
