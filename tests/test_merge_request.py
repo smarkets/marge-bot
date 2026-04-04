@@ -79,6 +79,13 @@ class TestMergeRequest:
         self._load({'assignees': []})
         assert self.merge_request.assignee_ids == []
 
+    def test_labels_absent(self):
+        assert self.merge_request.labels == []
+
+    def test_labels_present(self):
+        self._load(dict(INFO, labels=['merge_first', 'bug']))
+        assert self.merge_request.labels == ['merge_first', 'bug']
+
     def test_comment(self):
         self.merge_request.comment('blah')
         self.api.call.assert_called_once_with(
