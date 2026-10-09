@@ -214,6 +214,28 @@ class TestMergeRequest:
         ))
         assert [mr.info for mr in result] == [mr1, mr2]
 
+    def test_approve_as(self):
+        self.merge_request.approve_as(7, 'dead4g00d')
+        self.api.call.assert_called_once_with(
+            POST('/projects/1234/merge_requests/54/approve', {'sha': 'dead4g00d'}),
+            sudo=7,
+        )
+
+    def test_fetch_notes(self):
+        api = self.api
+        api.collect_all_pages = Mock(return_value=[{'id': 1}])
+        assert self.merge_request.fetch_notes() == [{'id': 1}]
+        api.collect_all_pages.assert_called_once_with(GET(
+            '/projects/1234/merge_requests/54/notes',
+            {'sort': 'asc', 'order_by': 'created_at'},
+        ))
+
+    def test_fetch_versions(self):
+        api = self.api
+        api.collect_all_pages = Mock(return_value=[{'id': 1}])
+        assert self.merge_request.fetch_versions() == [{'id': 1}]
+        api.collect_all_pages.assert_called_once_with(GET('/projects/1234/merge_requests/54/versions'))
+
     def test_fetch_assigned_at(self):
         api = self.api
         dis1, dis2 = DISCUSSION, dict(DISCUSSION, id=679)

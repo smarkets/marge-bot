@@ -15,11 +15,12 @@ import marge.job
 import marge.project
 import marge.single_merge_job
 import marge.user
-from marge.gitlab import GET, PUT
+from marge.gitlab import GET, POST, PUT
 from marge.job import Fusion
 from marge.merge_request import MergeRequest
 from tests.git_repo_mock import RepoMock
 from tests.gitlab_api_mock import Error, Ok, MockLab
+from tests.test_approvals import APPROVED, RETARGETED_ON_DELETE, mr_note, mr_version
 from tests.test_project import INFO as TEST_PROJECT_INFO
 import tests.test_commit as test_commit
 
@@ -763,6 +764,63 @@ class TestUpdateAndAccept:  # pylint: disable=too-many-public-methods
         mock_log.info.assert_any_call('Checking if approvals have reset')
         mock_log.debug.assert_any_call('Approvals haven\'t reset yet, sleeping for %s secs', ANY)
         assert api.state == 'merged'
+
+    def test_restores_approvals_revoked_by_retarget(self, mocks_factory):
+        mocklab, api, job = mocks_factory(extra_opts=dict(restore_approvals_on_retarget=True, reapprove=True))
+        merge_request = mocklab.merge_request_info
+        approver_id = 1
+        revoked_approvals = dict(mocklab.approvals_info, approvals_left=1, approved_by=[])
+        restored_approvals = dict(
+            mocklab.approvals_info,
+            approvals_left=0,
+            approved_by=[{'user': {'id': approver_id, 'username': 'root'}}],
+        )
+        api.add_approvals(revoked_approvals)
+        api.add_merge_request_versions(merge_request, [
+            mr_version(1, INITIAL_MR_SHA, 0),
+            mr_version(2, INITIAL_MR_SHA, 2),
+        ])
+        api.add_merge_request_notes(merge_request, [
+            mr_note(1, APPROVED, 1, author_id=approver_id),
+            mr_note(2, RETARGETED_ON_DELETE, 2, author_id=mocklab.user_id),
+        ])
+        approve_endpoint = '/projects/1234/merge_requests/{iid}/approve'.format(iid=merge_request['iid'])
+        api.add_transition(
+            POST(approve_endpoint, {'sha': INITIAL_MR_SHA}), Ok({}),
+            sudo=approver_id, from_state='initial',
+            side_effect=lambda: api.add_approvals(restored_approvals),
+        )
+        reapproved = []
+        api.add_approvals(revoked_approvals, from_state='pushed')
+        api.add_transition(
+            POST(approve_endpoint), Ok({}),
+            sudo=approver_id, from_state='pushed',
+            side_effect=lambda: reapproved.append(approver_id),
+        )
+
+        job.execute()
+
+        assert api.state == 'merged'
+        assert reapproved == [approver_id]
+        assert api.notes == []
+
+    def test_wont_restore_approvals_of_previous_commits(self, mocks_factory):
+        mocklab, api, job = mocks_factory(extra_opts=dict(restore_approvals_on_retarget=True))
+        merge_request = mocklab.merge_request_info
+        api.add_approvals(dict(mocklab.approvals_info, approvals_left=1, approved_by=[]))
+        api.add_merge_request_versions(merge_request, [
+            mr_version(1, 'dec0de', 0),
+            mr_version(2, INITIAL_MR_SHA, 2),
+        ])
+        api.add_merge_request_notes(merge_request, [
+            mr_note(1, APPROVED, 1),
+            mr_note(2, RETARGETED_ON_DELETE, 3, author_id=mocklab.user_id),
+        ])
+
+        with mocklab.expected_failure('Insufficient approvals (have: [] missing: 1)'):
+            job.execute()
+
+        assert api.state == 'initial'
 
     def test_fails_if_changes_already_exist(self, mocks):
         mocklab, api, job = mocks

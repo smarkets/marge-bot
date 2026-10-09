@@ -170,6 +170,18 @@ def test_impersonate_approvers():
             assert bot.config.merge_opts == job.MergeJobOptions.default(reapprove=True)
 
 
+def test_restore_approvals_on_retarget():
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with pytest.raises(AssertionError):
+            with main('--restore-approvals-on-retarget'):
+                pass
+
+    with env(MARGE_AUTH_TOKEN="ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--restore-approvals-on-retarget') as bot:
+            assert bot.config.merge_opts != job.MergeJobOptions.default()
+            assert bot.config.merge_opts == job.MergeJobOptions.default(restore_approvals_on_retarget=True)
+
+
 def test_approval_reset_timeout():
     with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
         with main('--approval-reset-timeout 1m') as bot:

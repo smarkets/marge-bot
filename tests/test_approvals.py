@@ -3,7 +3,7 @@ from unittest.mock import call, Mock, patch
 import pytest
 
 from marge.gitlab import Api, GET, POST, Version
-from marge.approvals import Approvals
+from marge.approvals import Approvals, approvals_revoked_by_retarget
 from marge.merge_request import MergeRequest
 import marge.user
 # testing this here is more convenient
@@ -61,6 +61,29 @@ USERS = {
         "email": "ebert@example.com",
     },
 }
+
+APPROVED = 'approved this merge request'
+UNAPPROVED = 'unapproved this merge request'
+RETARGETED = 'changed target branch from `feature` to `master`'
+RETARGETED_ON_DELETE = 'deleted the `feature` branch. This merge request now targets the `master` branch'
+
+
+def mr_note(note_id, body, minute, author_id=1, system=True):
+    return {
+        'id': note_id,
+        'body': body,
+        'author': {'id': author_id},
+        'system': system,
+        'created_at': '2026-10-01T10:%02d:00.000Z' % minute,
+    }
+
+
+def mr_version(version_id, sha, minute):
+    return {
+        'id': version_id,
+        'head_commit_sha': sha,
+        'created_at': '2026-10-01T10:%02d:00.000Z' % minute,
+    }
 
 
 # pylint: disable=attribute-defined-outside-init
@@ -140,3 +163,78 @@ class TestApprovals:
             'Administrator <root@localhost>',
             'Roger Ebert <ebert@example.com>',
         ]
+
+
+class TestApprovalsRevokedByRetarget:
+    versions = [mr_version(1, 'c0ffee', 0), mr_version(2, 'c0ffee', 3)]
+
+    @pytest.mark.parametrize('retargeted', [RETARGETED, RETARGETED_ON_DELETE])
+    def test_approvals_before_retarget(self, retargeted):
+        notes = [
+            mr_note(1, APPROVED, 1, author_id=1),
+            mr_note(2, APPROVED, 2, author_id=2),
+            mr_note(3, retargeted, 3),
+        ]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == [1, 2]
+        assert approvals_revoked_by_retarget(notes[::-1], self.versions[::-1], 'c0ffee') == [1, 2]
+
+    def test_not_retargeted(self):
+        notes = [mr_note(1, APPROVED, 1)]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+    def test_retargeted_twice(self):
+        notes = [
+            mr_note(1, APPROVED, 1, author_id=1),
+            mr_note(2, RETARGETED, 2),
+            mr_note(3, APPROVED, 2, author_id=2),
+            mr_note(4, RETARGETED, 3),
+        ]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == [1, 2]
+
+    def test_approved_again_after_retarget(self):
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, RETARGETED, 3), mr_note(3, APPROVED, 4)]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+    def test_unapproved_before_retarget(self):
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, UNAPPROVED, 2), mr_note(3, RETARGETED, 3)]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+    def test_unapproved_after_retarget(self):
+        notes = [
+            mr_note(1, APPROVED, 1),
+            mr_note(2, RETARGETED, 3),
+            mr_note(3, APPROVED, 4),
+            mr_note(4, UNAPPROVED, 5),
+        ]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+    def test_ignores_comments(self):
+        notes = [mr_note(1, APPROVED, 1, system=False), mr_note(2, RETARGETED, 3)]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, RETARGETED, 3, system=False)]
+        assert approvals_revoked_by_retarget(notes, self.versions, 'c0ffee') == []
+
+    def test_ignores_approvals_of_previous_head(self):
+        versions = [mr_version(1, 'dec0de', 0), mr_version(2, 'c0ffee', 2), mr_version(3, 'c0ffee', 4)]
+        notes = [
+            mr_note(1, APPROVED, 1, author_id=1),
+            mr_note(2, APPROVED, 3, author_id=2),
+            mr_note(3, RETARGETED, 4),
+        ]
+        assert approvals_revoked_by_retarget(notes, versions, 'c0ffee') == [2]
+
+    def test_ignores_approvals_of_previous_head_with_the_same_sha(self):
+        versions = [mr_version(1, 'c0ffee', 0), mr_version(2, 'dec0de', 2), mr_version(3, 'c0ffee', 3)]
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, RETARGETED, 4)]
+        assert approvals_revoked_by_retarget(notes, versions, 'c0ffee') == []
+
+    @pytest.mark.parametrize('sha', ['c0ffee', 'dec0de'])
+    def test_pushed_after_retarget(self, sha):
+        versions = self.versions + [mr_version(3, 'dec0de', 4)]
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, RETARGETED, 3)]
+        assert approvals_revoked_by_retarget(notes, versions, sha) == []
+
+    def test_no_versions(self):
+        notes = [mr_note(1, APPROVED, 1), mr_note(2, RETARGETED, 3)]
+        assert approvals_revoked_by_retarget(notes, [], 'c0ffee') == []
