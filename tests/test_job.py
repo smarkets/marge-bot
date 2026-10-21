@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 from datetime import timedelta
-from unittest.mock import ANY, MagicMock, patch, create_autospec
+from unittest.mock import ANY, MagicMock, call, patch, create_autospec
 
 import pytest
 
@@ -11,6 +11,7 @@ import marge.gitlab
 import marge.merge_request
 import marge.project
 import marge.user
+from tests.test_approvals import APPROVED, RETARGETED, mr_note, mr_version
 
 
 class TestJob:
@@ -161,6 +162,47 @@ class TestJob:
                                      "would ruin my commit tagging!"
         )
 
+    def test_maybe_restore_approvals_when_disabled(self):
+        merge_job = self.get_merge_job()
+        merge_request = self._mock_merge_request()
+
+        merge_job.maybe_restore_approvals(merge_request)
+
+        merge_request.fetch_approvals.assert_not_called()
+        merge_request.approve_as.assert_not_called()
+
+    def test_maybe_restore_approvals_when_sufficient(self):
+        merge_job = self.get_merge_job(options=MergeJobOptions.default(restore_approvals_on_retarget=True))
+        merge_request = self._mock_merge_request()
+        merge_request.fetch_approvals.return_value.sufficient = True
+
+        merge_job.maybe_restore_approvals(merge_request)
+
+        merge_request.fetch_notes.assert_not_called()
+        merge_request.approve_as.assert_not_called()
+
+    def test_maybe_restore_approvals(self):
+        merge_job = self.get_merge_job(options=MergeJobOptions.default(restore_approvals_on_retarget=True))
+        merge_request = self._mock_merge_request(sha='abc', iid=54)
+        approvals = merge_request.fetch_approvals.return_value
+        approvals.sufficient = False
+        approvals.approver_ids = [2]  # GitLab didn't revoke this one
+        merge_request.fetch_versions.return_value = [mr_version(1, 'abc', 0)]
+        merge_request.fetch_notes.return_value = [
+            mr_note(1, APPROVED, 1, author_id=1),
+            mr_note(2, APPROVED, 1, author_id=2),
+            mr_note(3, APPROVED, 1, author_id=3),
+            mr_note(4, RETARGETED, 2),
+        ]
+        merge_request.approve_as.side_effect = [
+            marge.gitlab.Unauthorized(401, {'message': '401 Unauthorized'}),
+            {},
+        ]
+
+        merge_job.maybe_restore_approvals(merge_request)
+
+        assert merge_request.approve_as.call_args_list == [call(1, 'abc'), call(3, 'abc')]
+
     def test_unassign_from_mr(self):
         merge_job = self.get_merge_job()
         merge_request = self._mock_merge_request()
@@ -218,6 +260,7 @@ class TestMergeJobOptions:
             use_merge_commit_batches=False,
             skip_ci_batches=False,
             guarantee_final_pipeline=False,
+            restore_approvals_on_retarget=False,
         )
 
     def test_default_ci_time(self):

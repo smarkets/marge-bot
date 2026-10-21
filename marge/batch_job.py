@@ -83,6 +83,7 @@ class BatchMergeJob(MergeJob):
         mergeable_mrs = []
         for merge_request in merge_requests:
             try:
+                self.maybe_restore_approvals(merge_request)
                 self.ensure_mergeable_mr(merge_request)
             except (CannotBatch, SkipMerge) as ex:
                 log.warning('Skipping unbatchable MR: "%s"', ex)

@@ -1,5 +1,5 @@
 # pylint: disable=protected-access
-from unittest.mock import ANY, patch, create_autospec
+from unittest.mock import ANY, Mock, call, patch, create_autospec
 
 import pytest
 
@@ -129,6 +129,19 @@ class TestBatchJob:
             batch_merge_job.ensure_mergeable_mr(merge_request)
 
         assert str(exc_info.value) == 'This MR has not passed CI.'
+
+    def test_get_mergeable_mrs_restores_approvals_first(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request()
+        calls = Mock()
+        with patch.object(BatchMergeJob, 'maybe_restore_approvals', calls.maybe_restore_approvals), \
+                patch.object(BatchMergeJob, 'ensure_mergeable_mr', calls.ensure_mergeable_mr):
+            assert batch_merge_job.get_mergeable_mrs([merge_request]) == [merge_request]
+
+        assert calls.mock_calls == [
+            call.maybe_restore_approvals(merge_request),
+            call.ensure_mergeable_mr(merge_request),
+        ]
 
     def test_push_batch(self, api, mocklab):
         batch_merge_job = self.get_batch_merge_job(api, mocklab)

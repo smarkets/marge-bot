@@ -6,6 +6,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 
 from . import git, gitlab
+from .approvals import approvals_revoked_by_retarget
 from .branch import Branch
 from .interval import IntervalUnion
 from .merge_request import MergeRequestRebaseFailed
@@ -259,6 +260,33 @@ class MergeJob:
             if not sufficient_approvals():
                 approvals.reapprove()
 
+    def maybe_restore_approvals(self, merge_request):
+        if not self.opts.restore_approvals_on_retarget:
+            return
+        approvals = merge_request.fetch_approvals()
+        if approvals.sufficient:
+            return
+        revoked = approvals_revoked_by_retarget(
+            merge_request.fetch_notes(), merge_request.fetch_versions(), merge_request.sha,
+        )
+        for uid in revoked:
+            if uid in approvals.approver_ids:
+                continue
+            log.info(
+                'Restoring approval of MR !%s by user %s, revoked when retargeted',
+                merge_request.iid,
+                uid,
+            )
+            try:
+                merge_request.approve_as(uid, merge_request.sha)
+            except gitlab.ApiError as err:
+                log.warning(
+                    'Failed to restore approval of MR !%s by user %s: %s',
+                    merge_request.iid,
+                    uid,
+                    err,
+                )
+
     def fetch_source_project(self, merge_request):
         remote = 'origin'
         remote_url = None
@@ -461,6 +489,7 @@ JOB_OPTIONS = [
     'use_merge_commit_batches',
     'skip_ci_batches',
     'guarantee_final_pipeline',
+    'restore_approvals_on_retarget',
 ]
 
 
@@ -477,7 +506,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             add_tested=False, add_part_of=False, add_reviewers=False, reapprove=False,
             approval_timeout=None, embargo=None, ci_timeout=None, fusion=Fusion.rebase,
             use_no_ff_batches=False, use_merge_commit_batches=False, skip_ci_batches=False,
-            guarantee_final_pipeline=False,
+            guarantee_final_pipeline=False, restore_approvals_on_retarget=False,
     ):
         approval_timeout = approval_timeout or timedelta(seconds=0)
         embargo = embargo or IntervalUnion.empty()
@@ -495,6 +524,7 @@ class MergeJobOptions(namedtuple('MergeJobOptions', JOB_OPTIONS)):
             use_merge_commit_batches=use_merge_commit_batches,
             skip_ci_batches=skip_ci_batches,
             guarantee_final_pipeline=guarantee_final_pipeline,
+            restore_approvals_on_retarget=restore_approvals_on_retarget,
         )
 
 
