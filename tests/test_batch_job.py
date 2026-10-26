@@ -4,6 +4,7 @@ from unittest.mock import ANY, Mock, call, patch, create_autospec
 import pytest
 
 import marge.git
+import marge.gitlab
 import marge.project
 import marge.user
 from marge.batch_job import BatchMergeJob, CannotBatch
@@ -142,6 +143,26 @@ class TestBatchJob:
             call.maybe_restore_approvals(merge_request),
             call.ensure_mergeable_mr(merge_request),
         ]
+
+    def test_remove_source_branch_when_merged(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request(iid=1, state='merged')
+        batch_merge_job.remove_source_branch(merge_request)
+        merge_request.refetch_info.assert_called_once_with()
+        merge_request.delete_source_branch.assert_called_once_with()
+
+    def test_remove_source_branch_keeps_unmerged(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request(iid=1, state='opened')
+        batch_merge_job.remove_source_branch(merge_request)
+        merge_request.delete_source_branch.assert_not_called()
+
+    def test_remove_source_branch_ignores_api_error(self, api, mocklab):
+        batch_merge_job = self.get_batch_merge_job(api, mocklab)
+        merge_request = self._mock_merge_request(iid=1, state='merged')
+        merge_request.delete_source_branch.side_effect = marge.gitlab.Forbidden(403, {'message': 'protected'})
+        batch_merge_job.remove_source_branch(merge_request)
+        merge_request.delete_source_branch.assert_called_once_with()
 
     def test_push_batch(self, api, mocklab):
         batch_merge_job = self.get_batch_merge_job(api, mocklab)

@@ -2,7 +2,7 @@ from unittest.mock import call, Mock
 
 import pytest
 
-from marge.gitlab import Api, GET, POST, PUT, Version
+from marge.gitlab import Api, DELETE, GET, POST, PUT, Version
 from marge.merge_request import MergeRequest, MergeRequestRebaseFailed
 import marge.user
 
@@ -219,6 +219,13 @@ class TestMergeRequest:
         self.api.call.assert_called_once_with(
             POST('/projects/1234/merge_requests/54/approve', {'sha': 'dead4g00d'}),
             sudo=7,
+        )
+
+    def test_delete_source_branch(self):
+        self._load(dict(INFO, source_branch='artur/stacked-1'))
+        self.merge_request.delete_source_branch()
+        self.api.call.assert_called_once_with(
+            DELETE('/projects/5678/repository/branches/artur%2Fstacked-1'),
         )
 
     def test_fetch_notes(self):

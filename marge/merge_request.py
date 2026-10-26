@@ -3,6 +3,8 @@ import logging as log
 import time
 import datetime
 
+from requests.utils import quote
+
 from . import gitlab
 from .approvals import Approvals
 
@@ -207,6 +209,14 @@ class MergeRequest(gitlab.Resource):  # pylint: disable=too-many-public-methods
                 should_remove_source_branch=remove_branch,
                 merge_when_pipeline_succeeds=merge_when_pipeline_succeeds,
                 sha=sha or self.sha,  # if provided, ensures what is merged is what we want (or fails)
+            ),
+        ))
+
+    def delete_source_branch(self):
+        return self._api.call(DELETE(
+            '/projects/{project_id}/repository/branches/{branch}'.format(
+                project_id=self.source_project_id,
+                branch=quote(self.source_branch, safe=''),
             ),
         ))
 
