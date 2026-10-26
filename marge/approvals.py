@@ -1,6 +1,17 @@
+import re
+
+import maya
+
 from . import gitlab
 
 GET, POST, PUT = gitlab.GET, gitlab.POST, gitlab.PUT
+
+_APPROVED_NOTE = 'approved this merge request'
+_UNAPPROVED_NOTE = 'unapproved this merge request'
+_RETARGETED_NOTE = re.compile(
+    r'changed target branch from '
+    r'|deleted the `.+` branch\. This merge request now targets '
+)
 
 
 class Approvals(gitlab.Resource):
@@ -64,3 +75,29 @@ class Approvals(gitlab.Resource):
 
         for uid in self.approver_ids:
             self._api.call(POST(approve_url), sudo=uid)
+
+
+def approvals_revoked_by_retarget(notes, versions, sha):
+    head_since = None
+    for version in sorted(versions, key=lambda version: version['id'], reverse=True):
+        if version['head_commit_sha'] != sha:
+            break
+        head_since = _parse_time(version['created_at'])
+    if head_since is None:
+        return []
+
+    retargeted_since_approval = {}
+    for note in sorted(notes, key=lambda note: note['id']):
+        if not note['system'] or _parse_time(note['created_at']) < head_since:
+            continue
+        if note['body'] == _APPROVED_NOTE:
+            retargeted_since_approval[note['author']['id']] = False
+        elif note['body'] == _UNAPPROVED_NOTE:
+            retargeted_since_approval.pop(note['author']['id'], None)
+        elif _RETARGETED_NOTE.match(note['body']):
+            retargeted_since_approval = dict.fromkeys(retargeted_since_approval, True)
+    return [uid for uid, retargeted in retargeted_since_approval.items() if retargeted]
+
+
+def _parse_time(timestamp):
+    return maya.parse(timestamp).datetime()

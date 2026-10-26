@@ -1,3 +1,7 @@
+  * 0.10.2:
+    - Feature: Add `--restore-approvals-on-retarget` to restore approvals revoked by a target branch change,
+      e.g. when the MR below a stacked MR merges
+    - Fix: Delete source branches of batched MRs when "delete source branch" is set #354
   * 0.10.1:
     - Feature: Guarantee pipeline before merging
   * 0.10.0:

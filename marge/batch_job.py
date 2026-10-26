@@ -83,6 +83,7 @@ class BatchMergeJob(MergeJob):
         mergeable_mrs = []
         for merge_request in merge_requests:
             try:
+                self.maybe_restore_approvals(merge_request)
                 self.ensure_mergeable_mr(merge_request)
             except (CannotBatch, SkipMerge) as ex:
                 log.warning('Skipping unbatchable MR: "%s"', ex)
@@ -195,7 +196,21 @@ class BatchMergeJob(MergeJob):
         for pipeline in pipelines:
             pipeline.cancel()
 
+        if merge_request.force_remove_source_branch:
+            self.remove_source_branch(merge_request)
+
         return final_sha
+
+    def remove_source_branch(self, merge_request):
+        # Batched MRs land via git push, so GitLab never applies "delete source branch" itself.
+        try:
+            merge_request.refetch_info()
+            if merge_request.state != 'merged':
+                log.warning('MR !%s is not marked merged yet, keeping its source branch', merge_request.iid)
+                return
+            merge_request.delete_source_branch()
+        except gitlab.ApiError:
+            log.warning('Failed to delete source branch of MR !%s', merge_request.iid, exc_info=True)
 
     def execute(self):
         # Cleanup previous batch work

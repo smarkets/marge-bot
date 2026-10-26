@@ -21,6 +21,7 @@ class SingleMergeJob(MergeJob):
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
         try:
+            self.maybe_restore_approvals(merge_request)
             approvals = merge_request.fetch_approvals()
             self.update_merge_request_and_accept(approvals)
             log.info('Successfully merged !%s.', merge_request.info['iid'])

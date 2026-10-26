@@ -3,6 +3,8 @@ import logging as log
 import time
 import datetime
 
+from requests.utils import quote
+
 from . import gitlab
 from .approvals import Approvals
 
@@ -10,7 +12,7 @@ from .approvals import Approvals
 GET, POST, PUT, DELETE = gitlab.GET, gitlab.POST, gitlab.PUT, gitlab.DELETE
 
 
-class MergeRequest(gitlab.Resource):
+class MergeRequest(gitlab.Resource):  # pylint: disable=too-many-public-methods
 
     @classmethod
     def create(cls, api, project_id, params):
@@ -210,6 +212,14 @@ class MergeRequest(gitlab.Resource):
             ),
         ))
 
+    def delete_source_branch(self):
+        return self._api.call(DELETE(
+            '/projects/{project_id}/repository/branches/{branch}'.format(
+                project_id=self.source_project_id,
+                branch=quote(self.source_branch, safe=''),
+            ),
+        ))
+
     def close(self):
         return self._api.call(PUT(
             '/projects/{0.project_id}/merge_requests/{0.iid}'.format(self),
@@ -232,8 +242,25 @@ class MergeRequest(gitlab.Resource):
         approvals.refetch_info()
         return approvals
 
+    def approve_as(self, user_id, sha):
+        return self._api.call(
+            POST('/projects/{0.project_id}/merge_requests/{0.iid}/approve'.format(self), {'sha': sha}),
+            sudo=user_id,
+        )
+
     def fetch_commits(self):
         return self._api.call(GET('/projects/{0.project_id}/merge_requests/{0.iid}/commits'.format(self)))
+
+    def fetch_notes(self):
+        return self._api.collect_all_pages(GET(
+            '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(self),
+            {'sort': 'asc', 'order_by': 'created_at'},
+        ))
+
+    def fetch_versions(self):
+        return self._api.collect_all_pages(GET(
+            '/projects/{0.project_id}/merge_requests/{0.iid}/versions'.format(self),
+        ))
 
 
 class MergeRequestRebaseFailed(Exception):

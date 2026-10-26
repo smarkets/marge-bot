@@ -184,6 +184,25 @@ class Api(gitlab.Api):
         path = '/projects/{0.project_id}/merge_requests/{0.iid}/approvals'
         self.add_resource(path, info, sudo, from_state, to_state)
 
+    def add_merge_request_notes(self, merge_request, notes, from_state=None):
+        self._add_pages(
+            GET(
+                '/projects/{0.project_id}/merge_requests/{0.iid}/notes'.format(attrs(merge_request)),
+                {'sort': 'asc', 'order_by': 'created_at'},
+            ),
+            notes, from_state,
+        )
+
+    def add_merge_request_versions(self, merge_request, versions, from_state=None):
+        self._add_pages(
+            GET('/projects/{0.project_id}/merge_requests/{0.iid}/versions'.format(attrs(merge_request))),
+            versions, from_state,
+        )
+
+    def _add_pages(self, command, items, from_state):
+        self.add_transition(command.for_page(1), Ok(items), from_state=from_state)
+        self.add_transition(command.for_page(2), Ok([]), from_state=from_state)
+
     def add_pipelines(self, project_id, info, sudo=None, from_state=None, to_state=None):
         self.add_transition(
             GET(

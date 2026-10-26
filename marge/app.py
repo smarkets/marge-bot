@@ -153,6 +153,14 @@ def _parse_config(args):  # pylint: disable=too-many-statements
         help='Marge-bot pushes effectively don\'t change approval status.\n',
     )
     parser.add_argument(
+        '--restore-approvals-on-retarget',
+        action='store_true',
+        help=(
+            'Re-approve MRs as the users whose approvals GitLab revoked when the target branch changed,\n'
+            'provided nothing was pushed to the MR since they approved.\n'
+        ),
+    )
+    parser.add_argument(
         '--merge-order',
         default='created_at',
         choices=('created_at', 'updated_at', 'assigned_at'),
@@ -349,6 +357,7 @@ def main(args=None):
                 use_merge_commit_batches=options.use_merge_commit_batches,
                 skip_ci_batches=options.skip_ci_batches,
                 guarantee_final_pipeline=options.guarantee_final_pipeline,
+                restore_approvals_on_retarget=options.restore_approvals_on_retarget,
             ),
             batch=options.batch,
             cli=options.cli,
