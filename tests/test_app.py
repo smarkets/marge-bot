@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import logging
 import os
 import re
 import shlex
@@ -93,6 +94,28 @@ def test_default_values():
             assert bot.config.git_timeout == datetime.timedelta(seconds=120)
             assert bot.config.merge_opts == job.MergeJobOptions.default()
             assert bot.config.merge_order == 'created_at'
+
+
+@pytest.fixture(name='restore_log_level')
+def _restore_log_level():
+    root = logging.getLogger()
+    original = root.level
+    yield root
+    root.setLevel(original)
+
+
+def test_log_level(restore_log_level):
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com'):
+        with main('--log-level info'):
+            assert restore_log_level.level == logging.INFO
+        with main('--log-level ERROR'):
+            assert restore_log_level.level == logging.ERROR
+        with main('--debug --log-level ERROR'):
+            assert restore_log_level.level == logging.DEBUG
+    with env(MARGE_AUTH_TOKEN="NON-ADMIN-TOKEN", MARGE_SSH_KEY="KEY", MARGE_GITLAB_URL='http://foo.com',
+             MARGE_LOG_LEVEL='WARNING'):
+        with main():
+            assert restore_log_level.level == logging.WARNING
 
 
 def test_embargo():

@@ -133,6 +133,9 @@ optional arguments:
                            [env var: MARGE_SOURCE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
+  --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set the log level (e.g. INFO). Overrides the default level; --debug takes precedence.
+                           [env var: MARGE_LOG_LEVEL]
   --cli                 Run marge-bot as a single CLI command, not as a long-running service.
                         This may be used to run marge-bot in scheduled CI pipelines or cronjobs.
                            [env var: MARGE_CLI] (default: False)
