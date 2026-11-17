@@ -217,6 +217,13 @@ def _parse_config(args):  # pylint: disable=too-many-statements
         help='Debug logging (includes all HTTP requests etc).\n',
     )
     parser.add_argument(
+        '--log-level',
+        type=str.upper,
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default=None,
+        help='Set the log level (e.g. INFO). Overrides the default level; --debug takes precedence.\n',
+    )
+    parser.add_argument(
         '--use-no-ff-batches',
         action='store_true',
         help='Disable fast forwarding when merging MR batches'
@@ -297,6 +304,8 @@ def main(args=None):
     if options.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     else:
+        if options.log_level:
+            logging.getLogger().setLevel(options.log_level)
         logging.getLogger("requests").setLevel(logging.WARNING)
 
     with _secret_auth_token_and_ssh_key(options) as (auth_token, ssh_key_file):
